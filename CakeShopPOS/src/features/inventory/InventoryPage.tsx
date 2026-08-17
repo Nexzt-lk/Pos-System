@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Package, AlertTriangle, ArrowDownRight, ArrowUpRight, PlusCircle } from 'lucide-react'
+import { Package, AlertTriangle, PlusCircle, TrendingDown, TrendingUp, RefreshCw } from 'lucide-react'
 import { Modal, Form, Select, InputNumber, Input, message } from 'antd'
 import { useAppStore } from '../../store/appStore'
 import { Product } from '../../types/product'
@@ -23,15 +23,22 @@ export const InventoryPage: React.FC = () => {
         ])
         setProducts(prods || [])
         setLowStockItems(lowStock || [])
+      } else {
+        // Demo fallback
+        const demo: Product[] = [
+          { id: 'p1', shop_id: currentShop.id, category_id: 'c1', name: 'Black Forest Cake 1kg', price: 3800, barcode: '001', unit: 'pcs', current_stock: 12, track_inventory: true, is_active: true, category_name: 'Signature Cakes', category_color: '#ec4899' },
+          { id: 'p2', shop_id: currentShop.id, category_id: 'c1', name: 'Red Velvet Gateau 1kg', price: 4200, barcode: '002', unit: 'pcs', current_stock: 3, track_inventory: true, is_active: true, category_name: 'Signature Cakes', category_color: '#ec4899' },
+          { id: 'p3', shop_id: currentShop.id, category_id: 'c2', name: 'Spicy Chicken Pastry', price: 220, barcode: '004', unit: 'pcs', current_stock: 0, track_inventory: true, is_active: true, category_name: 'Pastries', category_color: '#f59e0b' },
+        ]
+        setProducts(demo)
+        setLowStockItems(demo.filter(p => (p.current_stock ?? 0) <= 5).map(p => ({ product_name: p.name })))
       }
     } catch (err) {
       console.error('Failed to load inventory:', err)
     }
   }
 
-  useEffect(() => {
-    loadInventory()
-  }, [currentShop?.id])
+  useEffect(() => { loadInventory() }, [currentShop?.id])
 
   const handleRecordMovement = async (values: any) => {
     if (!currentShop) return
@@ -46,7 +53,7 @@ export const InventoryPage: React.FC = () => {
           doneBy: currentUser?.id
         })
       }
-      message.success('Stock movement recorded successfully')
+      message.success('Stock movement recorded!')
       setIsModalOpen(false)
       form.resetFields()
       loadInventory()
@@ -55,92 +62,127 @@ export const InventoryPage: React.FC = () => {
     }
   }
 
-  return (
-    <div className="flex h-full w-full flex-col p-6 overflow-hidden space-y-4">
-      {/* Header Bar */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-        <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <Package size={22} className="text-brand-400" />
-            <span>Stock & Inventory Ledger</span>
-          </h2>
-          <p className="text-xs text-slate-400">
-            Real-time on-hand stock and movement auditing for {currentShop?.name}
-          </p>
-        </div>
+  const tracked = products.filter((p) => p.track_inventory)
+  const outCount = tracked.filter(p => (p.current_stock ?? 0) <= 0).length
+  const lowCount = tracked.filter(p => (p.current_stock ?? 0) > 0 && (p.current_stock ?? 0) <= 5).length
+  const okCount = tracked.filter(p => (p.current_stock ?? 0) > 5).length
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-xs font-bold text-white shadow-lg glow-pink hover:bg-brand-600 active:scale-95 transition-all"
-        >
-          <PlusCircle size={16} />
-          <span>Record Stock In / Adjustment</span>
-        </button>
+  return (
+    <div className="page-container">
+      {/* Header */}
+      <div className="page-header">
+        <div>
+          <div className="page-title">
+            <div className="page-title-icon"><Package size={18} /></div>
+            Stock & Inventory Ledger
+          </div>
+          <div className="page-subtitle">
+            Real-time on-hand stock and movement auditing · {currentShop?.name}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn-primary" style={{ background: 'var(--surface)', color: 'var(--primary)', border: '1.5px solid var(--primary)', boxShadow: 'none' }}
+            onClick={loadInventory}>
+            <RefreshCw size={14} /> Refresh
+          </button>
+          <button className="btn-primary" onClick={() => setIsModalOpen(true)}>
+            <PlusCircle size={15} /> Record Stock Movement
+          </button>
+        </div>
       </div>
 
-      {/* Low Stock Alert Banner (If items exist) */}
+      {/* KPI Cards */}
+      <div className="kpi-grid">
+        <div className="kpi-card">
+          <div className="kpi-label">Tracked Items</div>
+          <div className="kpi-value">{tracked.length}</div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-label">In Stock ✅</div>
+          <div className="kpi-value green">{okCount}</div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-label">Low Stock ⚠️</div>
+          <div className="kpi-value amber">{lowCount}</div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-label">Out of Stock 🚨</div>
+          <div className="kpi-value" style={{ color: 'var(--danger)' }}>{outCount}</div>
+        </div>
+      </div>
+
+      {/* Low Stock Alert Banner */}
       {lowStockItems.length > 0 && (
-        <div className="rounded-2xl bg-amber-500/10 border border-amber-500/30 p-3.5 text-amber-300 text-xs flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <AlertTriangle size={18} className="text-amber-400 animate-pulse" />
-            <span className="font-bold">
-              {lowStockItems.length} cake items running low on stock!
-            </span>
+        <div className="alert-banner warning" style={{ flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <AlertTriangle size={16} />
+            <strong>{lowStockItems.length} items running low on stock!</strong>
           </div>
-          <span className="text-[11px] text-amber-400/80">
+          <span style={{ fontSize: 11, opacity: 0.8 }}>
             {lowStockItems.map((i) => i.product_name).join(', ')}
           </span>
         </div>
       )}
 
       {/* Inventory Table */}
-      <div className="flex-1 overflow-y-auto rounded-2xl border border-slate-800/80 bg-slate-900/40">
-        <table className="w-full text-left text-xs">
-          <thead className="sticky top-0 bg-slate-900/90 text-slate-400 uppercase tracking-wider border-b border-slate-800 backdrop-blur-md">
+      <div className="data-table">
+        <table>
+          <thead>
             <tr>
-              <th className="p-3.5">Product Name</th>
-              <th className="p-3.5">Category</th>
-              <th className="p-3.5">Unit</th>
-              <th className="p-3.5">Min Alert Level</th>
-              <th className="p-3.5">Current Stock</th>
-              <th className="p-3.5 text-right">Status</th>
+              <th>Product Name</th>
+              <th>Category</th>
+              <th>Unit</th>
+              <th>Alert Level</th>
+              <th>Current Stock</th>
+              <th style={{ textAlign: 'right' }}>Status</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60 text-slate-200">
-            {products
-              .filter((p) => p.track_inventory)
-              .map((product) => {
-                const isLow = (product.current_stock ?? 0) <= 5
+        </table>
+        <div className="table-wrap">
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <tbody>
+              {tracked.map((product) => {
+                const isLow = (product.current_stock ?? 0) <= 5 && (product.current_stock ?? 0) > 0
                 const isOut = (product.current_stock ?? 0) <= 0
                 return (
-                  <tr key={product.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="p-3.5 font-bold text-white">{product.name}</td>
-                    <td className="p-3.5 text-slate-400">{product.category_name}</td>
-                    <td className="p-3.5 font-mono text-slate-400">{product.unit}</td>
-                    <td className="p-3.5 text-slate-400">5 {product.unit}</td>
-                    <td className="p-3.5 text-base font-extrabold">
-                      <span className={isOut ? 'text-rose-400' : isLow ? 'text-amber-400' : 'text-emerald-400'}>
-                        {product.current_stock}
+                  <tr key={product.id}
+                    style={{ borderBottom: '1px solid var(--border-light)' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-bg)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                    <td style={{ padding: '11px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {product.name}
+                    </td>
+                    <td style={{ padding: '11px 16px' }}>
+                      <span className="badge badge-cat" style={{ backgroundColor: product.category_color || '#16a34a' }}>
+                        {product.category_name}
                       </span>
                     </td>
-                    <td className="p-3.5 text-right">
-                      <span
-                        className={`rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
-                          isOut
-                            ? 'bg-rose-500/20 text-rose-300'
-                            : isLow
-                            ? 'bg-amber-500/20 text-amber-300'
-                            : 'bg-emerald-500/20 text-emerald-300'
-                        }`}
-                      >
-                        {isOut ? 'Out of Stock' : isLow ? 'Low Stock' : 'In Stock'}
+                    <td style={{ padding: '11px 16px', fontFamily: 'monospace', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      {product.unit}
+                    </td>
+                    <td style={{ padding: '11px 16px', color: 'var(--text-muted)', fontWeight: 500 }}>
+                      5 {product.unit}
+                    </td>
+                    <td style={{ padding: '11px 16px' }}>
+                      <span style={{
+                        fontSize: 16, fontWeight: 900,
+                        color: isOut ? 'var(--danger)' : isLow ? '#92400e' : 'var(--primary-dark)'
+                      }}>
+                        {product.current_stock}
+                      </span>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 4 }}>{product.unit}</span>
+                    </td>
+                    <td style={{ padding: '11px 16px', textAlign: 'right' }}>
+                      <span className={`badge ${isOut ? 'badge-red' : isLow ? 'badge-amber' : 'badge-green'}`}>
+                        {isOut ? 'Out of Stock' : isLow ? 'Low Stock' : 'In Stock ✓'}
                       </span>
                     </td>
                   </tr>
                 )
               })}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Movement Modal */}
@@ -148,52 +190,38 @@ export const InventoryPage: React.FC = () => {
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
         onOk={() => form.submit()}
-        title="Record Stock Movement"
+        title="📦 Record Stock Movement"
+        okText="Record Movement"
+        okButtonProps={{ style: { background: 'var(--primary)', borderColor: 'var(--primary)', fontWeight: 700 } }}
         centered
-        className="dark-modal"
+        width={440}
       >
-        <Form form={form} layout="vertical" onFinish={handleRecordMovement} className="pt-2">
-          <Form.Item
-            name="product_id"
-            label={<span className="text-slate-300">Select Cake Item</span>}
-            rules={[{ required: true, message: 'Please select a product' }]}
-          >
+        <Form form={form} layout="vertical" onFinish={handleRecordMovement} style={{ paddingTop: 8 }}>
+          <Form.Item name="product_id" label="Select Cake Item" rules={[{ required: true, message: 'Please select a product' }]}>
             <Select placeholder="Choose cake item">
-              {products
-                .filter((p) => p.track_inventory)
-                .map((p) => (
-                  <Select.Option key={p.id} value={p.id}>
-                    {p.name} (Current: {p.current_stock} {p.unit})
-                  </Select.Option>
-                ))}
+              {tracked.map((p) => (
+                <Select.Option key={p.id} value={p.id}>
+                  {p.name} (Current: {p.current_stock} {p.unit})
+                </Select.Option>
+              ))}
             </Select>
           </Form.Item>
-
-          <Form.Item
-            name="type"
-            label={<span className="text-slate-300">Movement Type</span>}
-            initialValue="IN"
-            rules={[{ required: true }]}
-          >
+          <Form.Item name="type" label="Movement Type" initialValue="IN" rules={[{ required: true }]}>
             <Select>
-              <Select.Option value="IN">Stock In / Received (+)</Select.Option>
-              <Select.Option value="DAMAGE">Damage / Wastage (-)</Select.Option>
-              <Select.Option value="RETURN">Customer Return (+)</Select.Option>
-              <Select.Option value="ADJUST">Inventory Count Adjustment</Select.Option>
+              <Select.Option value="IN">📦 Stock In / Received (+)</Select.Option>
+              <Select.Option value="DAMAGE">⚠️ Damage / Wastage (-)</Select.Option>
+              <Select.Option value="RETURN">↩️ Customer Return (+)</Select.Option>
+              <Select.Option value="ADJUST">🔄 Inventory Count Adjustment</Select.Option>
             </Select>
           </Form.Item>
-
-          <Form.Item
-            name="quantity"
-            label={<span className="text-slate-300">Quantity</span>}
-            rules={[{ required: true, message: 'Enter quantity' }]}
-          >
-            <InputNumber min={0.1} step={1} className="w-full" />
-          </Form.Item>
-
-          <Form.Item name="note" label={<span className="text-slate-300">Note / Reason</span>}>
-            <Input placeholder="e.g. Morning bake batch #2" />
-          </Form.Item>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Form.Item name="quantity" label="Quantity" rules={[{ required: true, message: 'Enter quantity' }]}>
+              <InputNumber min={0.1} step={1} style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item name="note" label="Note / Reason">
+              <Input placeholder="e.g. Morning bake batch" />
+            </Form.Item>
+          </div>
         </Form>
       </Modal>
     </div>

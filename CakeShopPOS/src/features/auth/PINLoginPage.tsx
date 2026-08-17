@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Lock, Delete, UserCheck, Cake } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Delete, UserCheck } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 
 export const PINLoginPage: React.FC = () => {
@@ -12,26 +12,18 @@ export const PINLoginPage: React.FC = () => {
   const setUser = useAppStore((state) => state.setUser)
 
   const handleKeyPress = (num: string) => {
-    if (pin.length < 6) {
+    if (pin.length < 6 && !isLoading) {
       setError(null)
       const newPin = pin + num
       setPin(newPin)
-
       if (newPin.length === 6) {
         verifyPin(newPin)
       }
     }
   }
 
-  const handleDelete = () => {
-    setError(null)
-    setPin((prev) => prev.slice(0, -1))
-  }
-
-  const handleClear = () => {
-    setError(null)
-    setPin('')
-  }
+  const handleDelete = () => { setError(null); setPin((prev) => prev.slice(0, -1)) }
+  const handleClear = () => { setError(null); setPin('') }
 
   const verifyPin = async (fullPin: string) => {
     setIsLoading(true)
@@ -41,26 +33,24 @@ export const PINLoginPage: React.FC = () => {
           shopId: currentShop?.id,
           pin: fullPin
         })
-
         if (result.success && result.user) {
           setUser(result.user)
         } else {
-          setError(result.message || 'Invalid PIN. Please try again.')
+          setError('Invalid PIN. Please try again.')
           setPin('')
         }
       } else {
-        // Browser development fallback (PIN: 123456)
         if (fullPin === '123456') {
           setUser({
             id: 'u0000000-0000-0000-0000-000000000002',
             tenant_id: currentShop?.tenant_id || '',
             shop_id: currentShop?.id || '',
-            name: 'Kasun Bandara (Cashier 1)',
+            name: 'Kasun Bandara',
             role: 'cashier',
             is_active: true
           })
         } else {
-          setError('Invalid PIN (Try default: 123456)')
+          setError('Invalid PIN — Demo PIN is 123456')
           setPin('')
         }
       }
@@ -73,78 +63,52 @@ export const PINLoginPage: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-pink-950 p-4">
-      <div className="glass-panel w-full max-w-md rounded-3xl p-8 shadow-2xl text-center">
-        {/* Logo & Header */}
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-500/20 text-brand-400 glow-pink">
-          <Cake size={36} />
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight text-white">Rasa Cake House</h1>
-        <p className="mt-1 text-sm font-medium text-slate-400">
-          {currentShop?.name} • <span className="text-brand-400">Counter {currentTerminalId}</span>
+    <div className="pin-screen">
+      <div className="pin-card">
+        {/* Logo */}
+        <div className="pin-logo">🎂</div>
+
+        <h1 className="pin-title">Rasa Cake House</h1>
+        <p className="pin-subtitle">
+          <span className="pin-branch-badge">
+            {currentShop?.name || 'Kandy Branch'} · Terminal {currentTerminalId}
+          </span>
         </p>
 
-        {/* PIN Dots Display */}
-        <div className="my-6">
-          <div className="flex justify-center gap-3">
-            {[...Array(6)].map((_, i) => (
-              <div
-                key={i}
-                className={`h-4 w-4 rounded-full transition-all duration-200 ${
-                  i < pin.length
-                    ? 'bg-brand-500 scale-125 glow-pink'
-                    : 'bg-slate-700/60 border border-slate-600'
-                }`}
-              />
-            ))}
-          </div>
-
-          {error ? (
-            <p className="mt-3 text-xs font-semibold text-rose-400 animate-pulse">{error}</p>
-          ) : (
-            <p className="mt-3 text-xs text-slate-400">Enter your 6-digit cashier PIN</p>
-          )}
+        {/* PIN Dots */}
+        <div className="pin-dots">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className={`pin-dot ${i < pin.length ? 'filled' : ''}`} />
+          ))}
         </div>
 
-        {/* Touch Numpad Grid */}
-        <div className="grid grid-cols-3 gap-3">
-          {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
-            <button
-              key={digit}
-              disabled={isLoading}
-              onClick={() => handleKeyPress(digit)}
-              className="numpad-btn glass-card flex h-16 items-center justify-center rounded-2xl text-2xl font-bold text-white transition-colors hover:bg-slate-700/80 active:bg-brand-600"
-            >
-              {digit}
+        <div className={`pin-error ${error ? '' : ''}`}>{error || ''}</div>
+        <div className="pin-hint">
+          {isLoading ? 'Verifying PIN...' : pin.length === 0 ? 'Enter your 6-digit cashier PIN' : ''}
+        </div>
+
+        {/* Numpad */}
+        <div className="pin-numpad">
+          {['1','2','3','4','5','6','7','8','9'].map((d) => (
+            <button key={d} className="numpad-key" onClick={() => handleKeyPress(d)} disabled={isLoading}>
+              {d}
             </button>
           ))}
-          <button
-            disabled={isLoading || pin.length === 0}
-            onClick={handleClear}
-            className="numpad-btn glass-card flex h-16 items-center justify-center rounded-2xl text-xs font-semibold uppercase tracking-wider text-slate-400 hover:text-white"
-          >
+          <button className="numpad-key clear-key" onClick={handleClear} disabled={isLoading || pin.length === 0}>
             Clear
           </button>
-          <button
-            disabled={isLoading}
-            onClick={() => handleKeyPress('0')}
-            className="numpad-btn glass-card flex h-16 items-center justify-center rounded-2xl text-2xl font-bold text-white transition-colors hover:bg-slate-700/80 active:bg-brand-600"
-          >
+          <button className="numpad-key" onClick={() => handleKeyPress('0')} disabled={isLoading}>
             0
           </button>
-          <button
-            disabled={isLoading || pin.length === 0}
-            onClick={handleDelete}
-            className="numpad-btn glass-card flex h-16 items-center justify-center rounded-2xl text-rose-400 hover:bg-rose-500/20 active:bg-rose-600 active:text-white"
-          >
-            <Delete size={24} />
+          <button className="numpad-key delete-key" onClick={handleDelete} disabled={isLoading || pin.length === 0}>
+            <Delete size={20} />
           </button>
         </div>
 
-        {/* Quick Demo Helper Pill */}
-        <div className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-slate-800/40 py-2 text-xs text-slate-400">
-          <UserCheck size={14} className="text-emerald-400" />
-          <span>Demo Cashier PIN: <strong className="text-white">123456</strong></span>
+        {/* Demo hint */}
+        <div className="pin-demo-hint">
+          <UserCheck size={14} style={{ color: 'var(--primary)' }} />
+          <span>Demo PIN: <strong>123456</strong></span>
         </div>
       </div>
     </div>

@@ -73,7 +73,7 @@ export const POSPage: React.FC = () => {
   }, [])
 
   return (
-    <div className="flex h-full w-full overflow-hidden">
+    <div style={{ display: 'flex', height: '100%', width: '100%', overflow: 'hidden' }}>
       {/* 🍰 Left Product Catalog Grid */}
       <ProductGrid
         products={products}

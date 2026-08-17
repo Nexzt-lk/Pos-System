@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Search, Cake, Tag, Edit, Trash2 } from 'lucide-react'
+import { Plus, Search, Cake, Edit, Package2 } from 'lucide-react'
 import { Modal, Form, Input, InputNumber, Select, Switch, message } from 'antd'
 import { Product, Category } from '../../types/product'
 import { useAppStore } from '../../store/appStore'
@@ -25,31 +25,32 @@ export const ProductsPage: React.FC = () => {
         ])
         setProducts(prods || [])
         setCategories(cats || [])
+      } else {
+        setCategories([
+          { id: 'c1', shop_id: currentShop.id, name: 'Signature Cakes', color: '#ec4899', sort_order: 1, is_active: true },
+          { id: 'c2', shop_id: currentShop.id, name: 'Pastries & Savories', color: '#f59e0b', sort_order: 2, is_active: true },
+        ])
+        setProducts([
+          { id: 'p1', shop_id: currentShop.id, category_id: 'c1', name: 'Black Forest Cake 1kg', price: 3800, cost_price: 2200, barcode: '4790001001', unit: 'pcs', current_stock: 12, track_inventory: true, is_active: true, category_name: 'Signature Cakes', category_color: '#ec4899' },
+          { id: 'p2', shop_id: currentShop.id, category_id: 'c1', name: 'Red Velvet Gateau 1kg', price: 4200, cost_price: 2600, barcode: '4790001002', unit: 'pcs', current_stock: 3, track_inventory: true, is_active: true, category_name: 'Signature Cakes', category_color: '#ec4899' },
+          { id: 'p3', shop_id: currentShop.id, category_id: 'c2', name: 'Spicy Chicken Pastry', price: 220, cost_price: 100, barcode: '4790001004', unit: 'pcs', current_stock: 35, track_inventory: true, is_active: true, category_name: 'Pastries & Savories', category_color: '#f59e0b' },
+        ])
       }
     } catch (err) {
       console.error('Failed to load products:', err)
     }
   }
 
-  useEffect(() => {
-    loadData()
-  }, [currentShop?.id])
+  useEffect(() => { loadData() }, [currentShop?.id])
 
   const handleOpenModal = (product?: Product) => {
     if (product) {
       setEditingProduct(product)
-      form.setFieldsValue({
-        ...product,
-        track_inventory: product.track_inventory
-      })
+      form.setFieldsValue({ ...product, track_inventory: product.track_inventory })
     } else {
       setEditingProduct(null)
       form.resetFields()
-      form.setFieldsValue({
-        track_inventory: true,
-        unit: 'pcs',
-        price: 0
-      })
+      form.setFieldsValue({ track_inventory: true, unit: 'pcs', price: 0 })
     }
     setIsModalOpen(true)
   }
@@ -70,12 +71,8 @@ export const ProductsPage: React.FC = () => {
         track_inventory: values.track_inventory ? 1 : 0,
         is_active: 1
       }
-
-      if (window.electronAPI) {
-        await window.electronAPI.dbQuery('db:upsert-product', payload)
-      }
-
-      message.success(editingProduct ? 'Product updated successfully' : 'Product added successfully')
+      if (window.electronAPI) await window.electronAPI.dbQuery('db:upsert-product', payload)
+      message.success(editingProduct ? 'Product updated!' : 'Product added!')
       setIsModalOpen(false)
       loadData()
     } catch (err: any) {
@@ -84,102 +81,138 @@ export const ProductsPage: React.FC = () => {
   }
 
   const filtered = products.filter(
-    (p) =>
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (p.barcode && p.barcode.includes(searchQuery))
   )
 
   return (
-    <div className="flex h-full w-full flex-col p-6 overflow-hidden">
-      {/* Header Bar */}
-      <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+    <div className="page-container">
+      {/* Header */}
+      <div className="page-header">
         <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <Cake size={22} className="text-brand-400" />
-            <span>Product Catalog & Pricing</span>
-          </h2>
-          <p className="text-xs text-slate-400">
-            Manage cake items, prices, barcodes and profit margins for {currentShop?.name}
-          </p>
+          <div className="page-title">
+            <div className="page-title-icon"><Cake size={18} /></div>
+            Product Catalog & Pricing
+          </div>
+          <div className="page-subtitle">
+            Manage cake items, prices, barcodes and margins · {currentShop?.name}
+          </div>
         </div>
-
-        <button
-          onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-xs font-bold text-white shadow-lg glow-pink hover:bg-brand-600 active:scale-95 transition-all"
-        >
-          <Plus size={16} />
-          <span>Add New Product</span>
+        <button className="btn-primary" onClick={() => handleOpenModal()}>
+          <Plus size={15} /> Add New Product
         </button>
       </div>
 
-      {/* Search Filter */}
-      <div className="my-4 max-w-md">
-        <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search products by name or barcode..."
-            className="w-full rounded-xl bg-slate-900 pl-10 pr-4 py-2 text-sm text-white placeholder-slate-500 border border-slate-700/80 focus:border-brand-500 focus:outline-none"
-          />
+      {/* KPI Strip */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, flexShrink: 0 }}>
+        <div className="kpi-card">
+          <div className="kpi-label">Total Products</div>
+          <div className="kpi-value blue">{products.length}</div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-label">Low Stock Items</div>
+          <div className="kpi-value amber">
+            {products.filter(p => p.track_inventory && (p.current_stock ?? 0) <= 5).length}
+          </div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-label">Categories</div>
+          <div className="kpi-value green">{categories.length}</div>
         </div>
       </div>
 
-      {/* Products Table */}
-      <div className="flex-1 overflow-y-auto rounded-2xl border border-slate-800/80 bg-slate-900/40">
-        <table className="w-full text-left text-xs">
-          <thead className="sticky top-0 bg-slate-900/90 text-slate-400 uppercase tracking-wider border-b border-slate-800 backdrop-blur-md">
+      {/* Search */}
+      <div className="search-box" style={{ width: '100%', maxWidth: 360, flexShrink: 0 }}>
+        <Search size={15} style={{ color: 'var(--text-muted)' }} />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search products by name or barcode..."
+        />
+      </div>
+
+      {/* Table */}
+      <div className="data-table">
+        <table>
+          <thead>
             <tr>
-              <th className="p-3.5">Product Name</th>
-              <th className="p-3.5">Category</th>
-              <th className="p-3.5">Barcode</th>
-              <th className="p-3.5">Selling Price</th>
-              <th className="p-3.5">Cost Price</th>
-              <th className="p-3.5">Stock</th>
-              <th className="p-3.5 text-right">Actions</th>
+              <th>Product Name</th>
+              <th>Category</th>
+              <th>Barcode</th>
+              <th>Selling Price</th>
+              <th>Cost Price</th>
+              <th>Stock</th>
+              <th style={{ textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60 text-slate-200">
-            {filtered.map((product) => (
-              <tr key={product.id} className="hover:bg-slate-800/40 transition-colors">
-                <td className="p-3.5 font-bold text-white">{product.name}</td>
-                <td className="p-3.5">
-                  <span
-                    className="rounded-md px-2 py-0.5 text-[10px] font-semibold text-white"
-                    style={{ backgroundColor: product.category_color || '#6366f1' }}
-                  >
-                    {product.category_name || 'General'}
-                  </span>
-                </td>
-                <td className="p-3.5 font-mono text-slate-400">{product.barcode || '-'}</td>
-                <td className="p-3.5 font-bold text-brand-400">{formatCurrency(product.price)}</td>
-                <td className="p-3.5 text-slate-400">{formatCurrency(product.cost_price)}</td>
-                <td className="p-3.5">
-                  {product.track_inventory ? (
-                    <span
-                      className={`font-semibold ${
-                        (product.current_stock ?? 0) <= 5 ? 'text-rose-400' : 'text-emerald-400'
-                      }`}
-                    >
-                      {product.current_stock} {product.unit}
-                    </span>
-                  ) : (
-                    <span className="text-slate-500">Service</span>
-                  )}
-                </td>
-                <td className="p-3.5 text-right">
-                  <button
-                    onClick={() => handleOpenModal(product)}
-                    className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-700 hover:text-white"
-                  >
-                    <Edit size={15} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
         </table>
+        <div className="table-wrap">
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <tbody>
+              {filtered.map((product) => {
+                const isLow = product.track_inventory && (product.current_stock ?? 0) <= 5 && (product.current_stock ?? 0) > 0
+                const isOut = product.track_inventory && (product.current_stock ?? 0) <= 0
+                return (
+                  <tr key={product.id} style={{ borderBottom: '1px solid var(--border-light)' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-bg)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                    <td style={{ padding: '11px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {product.name}
+                    </td>
+                    <td style={{ padding: '11px 16px' }}>
+                      <span className="badge badge-cat"
+                        style={{ backgroundColor: product.category_color || '#16a34a' }}>
+                        {product.category_name || 'General'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '11px 16px', fontFamily: 'monospace', color: 'var(--text-muted)', fontSize: 11 }}>
+                      {product.barcode || '-'}
+                    </td>
+                    <td style={{ padding: '11px 16px', fontWeight: 800, color: 'var(--primary-dark)' }}>
+                      {formatCurrency(product.price)}
+                    </td>
+                    <td style={{ padding: '11px 16px', color: 'var(--text-muted)', fontWeight: 500 }}>
+                      {product.cost_price ? formatCurrency(product.cost_price) : '-'}
+                    </td>
+                    <td style={{ padding: '11px 16px' }}>
+                      {product.track_inventory ? (
+                        <span className={`badge ${isOut ? 'badge-red' : isLow ? 'badge-amber' : 'badge-green'}`}>
+                          {isOut ? 'Out of Stock' : `${product.current_stock} ${product.unit}`}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 500 }}>Service</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '11px 16px', textAlign: 'right' }}>
+                      <button
+                        onClick={() => handleOpenModal(product)}
+                        style={{
+                          padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)',
+                          background: 'transparent', cursor: 'pointer', display: 'inline-flex',
+                          alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)',
+                          transition: 'all 0.15s'
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary-bg)'; e.currentTarget.style.color = 'var(--primary)'; e.currentTarget.style.borderColor = 'var(--primary)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+                      >
+                        <Edit size={13} /> Edit
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={7} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                    <Package2 size={32} style={{ margin: '0 auto 8px', opacity: 0.4, display: 'block' }} />
+                    No products found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Add / Edit Modal */}
@@ -187,58 +220,42 @@ export const ProductsPage: React.FC = () => {
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
         onOk={() => form.submit()}
-        title={editingProduct ? 'Edit Product' : 'Add New Cake Product'}
+        title={editingProduct ? '✏️ Edit Product' : '➕ Add New Cake Product'}
+        okText="Save Product"
+        okButtonProps={{ style: { background: 'var(--primary)', borderColor: 'var(--primary)', fontWeight: 700 } }}
         centered
-        className="dark-modal"
+        width={520}
       >
-        <Form form={form} layout="vertical" onFinish={handleSaveProduct} className="pt-2">
-          <Form.Item
-            name="name"
-            label={<span className="text-slate-300">Product Name</span>}
-            rules={[{ required: true, message: 'Please enter product name' }]}
-          >
-            <Input placeholder="e.g. Chocolate Fudge Cake 1kg" className="rounded-xl" />
+        <Form form={form} layout="vertical" onFinish={handleSaveProduct} style={{ paddingTop: 8 }}>
+          <Form.Item name="name" label="Product Name" rules={[{ required: true, message: 'Please enter product name' }]}>
+            <Input placeholder="e.g. Chocolate Fudge Cake 1kg" />
           </Form.Item>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Form.Item
-              name="category_id"
-              label={<span className="text-slate-300">Category</span>}
-              rules={[{ required: true, message: 'Select category' }]}
-            >
-              <Select placeholder="Select category" className="rounded-xl">
-                {categories.map((c) => (
-                  <Select.Option key={c.id} value={c.id}>
-                    {c.name}
-                  </Select.Option>
-                ))}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Form.Item name="category_id" label="Category" rules={[{ required: true, message: 'Select category' }]}>
+              <Select placeholder="Select category">
+                {categories.map((c) => <Select.Option key={c.id} value={c.id}>{c.name}</Select.Option>)}
               </Select>
             </Form.Item>
-
-            <Form.Item name="barcode" label={<span className="text-slate-300">Barcode</span>}>
-              <Input placeholder="Barcode scan or leave blank" className="rounded-xl" />
+            <Form.Item name="barcode" label="Barcode">
+              <Input placeholder="Scan or leave blank" />
             </Form.Item>
           </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Form.Item
-              name="price"
-              label={<span className="text-slate-300">Selling Price (Rs.)</span>}
-              rules={[{ required: true, message: 'Enter selling price' }]}
-            >
-              <InputNumber min={0} className="w-full rounded-xl" />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <Form.Item name="price" label="Selling Price (Rs.)" rules={[{ required: true, message: 'Enter price' }]}>
+              <InputNumber min={0} style={{ width: '100%' }} />
             </Form.Item>
-
-            <Form.Item name="cost_price" label={<span className="text-slate-300">Cost Price (Rs.)</span>}>
-              <InputNumber min={0} className="w-full rounded-xl" />
+            <Form.Item name="cost_price" label="Cost Price (Rs.)">
+              <InputNumber min={0} style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item name="unit" label="Unit" initialValue="pcs">
+              <Select>
+                <Select.Option value="pcs">pcs</Select.Option>
+                <Select.Option value="kg">kg</Select.Option>
+                <Select.Option value="slice">slice</Select.Option>
+              </Select>
             </Form.Item>
           </div>
-
-          <Form.Item
-            name="track_inventory"
-            valuePropName="checked"
-            label={<span className="text-slate-300">Track Stock / Inventory?</span>}
-          >
+          <Form.Item name="track_inventory" valuePropName="checked" label="Track Stock / Inventory?">
             <Switch />
           </Form.Item>
         </Form>

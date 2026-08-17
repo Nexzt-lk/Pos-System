@@ -1,14 +1,29 @@
 import React, { useState } from 'react'
-import { Receipt, Plus, DollarSign } from 'lucide-react'
+import { Receipt, Plus, AlertCircle } from 'lucide-react'
 import { Modal, Form, Input, InputNumber, Select, message } from 'antd'
 import { useAppStore } from '../../store/appStore'
 import { formatCurrency } from '../../lib/formatters'
+import dayjs from 'dayjs'
+
+const CATEGORIES = [
+  { value: 'Ingredients', label: '🧂 Ingredients & Raw Materials' },
+  { value: 'Utilities', label: '⚡ Utilities (Gas, Electricity)' },
+  { value: 'Packaging', label: '📦 Boxes, Bags & Packaging' },
+  { value: 'Staff Meals', label: '🍱 Staff Meals & Tea' },
+  { value: 'Maintenance', label: '🔧 Maintenance & Repairs' },
+  { value: 'Other', label: '📋 Other Miscellaneous' },
+]
+
+const CATEGORY_COLORS: Record<string, string> = {
+  Ingredients: '#16a34a', Utilities: '#3b82f6', Packaging: '#8b5cf6',
+  'Staff Meals': '#f59e0b', Maintenance: '#ef4444', Other: '#6b7280'
+}
 
 export const ExpensesPage: React.FC = () => {
   const currentShop = useAppStore((state) => state.currentShop)
   const [expenses, setExpenses] = useState<any[]>([
-    { id: '1', category: 'Ingredients', description: 'Fresh Strawberries from Nuwara Eliya (2kg)', amount: 2400, expense_date: '2026-08-17' },
-    { id: '2', category: 'Utilities', description: 'Gas Cylinder Refill (Litro 12.5kg)', amount: 3680, expense_date: '2026-08-17' }
+    { id: '1', category: 'Ingredients', description: 'Fresh Strawberries from Nuwara Eliya (2kg)', amount: 2400, expense_date: dayjs().format('YYYY-MM-DD') },
+    { id: '2', category: 'Utilities', description: 'Gas Cylinder Refill (Litro 12.5kg)', amount: 3680, expense_date: dayjs().format('YYYY-MM-DD') }
   ])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [form] = Form.useForm()
@@ -21,69 +36,111 @@ export const ExpensesPage: React.FC = () => {
       category: values.category,
       description: values.description,
       amount: values.amount,
-      expense_date: new Date().toISOString().split('T')[0]
+      expense_date: dayjs().format('YYYY-MM-DD')
     }
     setExpenses([newExpense, ...expenses])
-    message.success('Expense recorded successfully')
+    message.success('Expense recorded!')
     setIsModalOpen(false)
     form.resetFields()
   }
 
   return (
-    <div className="flex h-full w-full flex-col p-6 overflow-hidden space-y-4">
-      {/* Header Bar */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+    <div className="page-container">
+      {/* Header */}
+      <div className="page-header">
         <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <Receipt size={22} className="text-brand-400" />
-            <span>Petty Cash & Daily Expenses</span>
-          </h2>
-          <p className="text-xs text-slate-400">
-            Track daily operating expenses, ingredients and petty cash for {currentShop?.name}
-          </p>
+          <div className="page-title">
+            <div className="page-title-icon"><Receipt size={18} /></div>
+            Petty Cash & Daily Expenses
+          </div>
+          <div className="page-subtitle">
+            Track daily operating costs and ingredients · {currentShop?.name}
+          </div>
         </div>
-
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-xs font-bold text-white shadow-lg glow-pink hover:bg-brand-600 active:scale-95 transition-all"
-        >
-          <Plus size={16} />
-          <span>Record New Expense</span>
+        <button className="btn-primary" onClick={() => setIsModalOpen(true)}>
+          <Plus size={15} /> Record Expense
         </button>
       </div>
 
-      {/* Total Banner */}
-      <div className="rounded-2xl bg-slate-900/60 p-4 border border-slate-800 flex items-center justify-between">
-        <div>
-          <p className="text-xs font-semibold text-slate-400">TOTAL EXPENSES (අද වියදම් එකතුව)</p>
-          <p className="text-2xl font-extrabold text-rose-400">{formatCurrency(totalExpenses)}</p>
+      {/* KPI Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, flexShrink: 0 }}>
+        <div className="kpi-card" style={{ borderLeft: '4px solid var(--danger)' }}>
+          <div className="kpi-label">Total Expenses Today</div>
+          <div className="kpi-value" style={{ color: 'var(--danger)' }}>{formatCurrency(totalExpenses)}</div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-label">No. of Entries</div>
+          <div className="kpi-value">{expenses.length}</div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-label">Largest Expense</div>
+          <div className="kpi-value amber">
+            {formatCurrency(Math.max(...expenses.map(e => e.amount), 0))}
+          </div>
         </div>
       </div>
 
-      {/* Expenses Table */}
-      <div className="flex-1 overflow-y-auto rounded-2xl border border-slate-800/80 bg-slate-900/40">
-        <table className="w-full text-left text-xs">
-          <thead className="sticky top-0 bg-slate-900/90 text-slate-400 uppercase tracking-wider border-b border-slate-800">
+      {/* Table */}
+      <div className="data-table">
+        <table>
+          <thead>
             <tr>
-              <th className="p-3.5">Category</th>
-              <th className="p-3.5">Description</th>
-              <th className="p-3.5">Date</th>
-              <th className="p-3.5 text-right">Amount</th>
+              <th>Category</th>
+              <th>Description</th>
+              <th>Date</th>
+              <th style={{ textAlign: 'right' }}>Amount</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60 text-slate-200">
-            {expenses.map((exp) => (
-              <tr key={exp.id} className="hover:bg-slate-800/40 transition-colors">
-                <td className="p-3.5 font-bold text-brand-400">{exp.category}</td>
-                <td className="p-3.5">{exp.description}</td>
-                <td className="p-3.5 text-slate-400">{exp.expense_date}</td>
-                <td className="p-3.5 text-right font-extrabold text-rose-400">
-                  {formatCurrency(exp.amount)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
         </table>
+        <div className="table-wrap">
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <tbody>
+              {expenses.length === 0 ? (
+                <tr>
+                  <td colSpan={4} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <AlertCircle size={32} style={{ margin: '0 auto 8px', opacity: 0.4, display: 'block' }} />
+                    No expenses recorded today
+                  </td>
+                </tr>
+              ) : (
+                expenses.map((exp) => (
+                  <tr key={exp.id}
+                    style={{ borderBottom: '1px solid var(--border-light)' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-bg)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                    <td style={{ padding: '11px 16px' }}>
+                      <span className="badge badge-cat"
+                        style={{ backgroundColor: CATEGORY_COLORS[exp.category] || '#6b7280' }}>
+                        {exp.category}
+                      </span>
+                    </td>
+                    <td style={{ padding: '11px 16px', color: 'var(--text-primary)', fontWeight: 500 }}>
+                      {exp.description}
+                    </td>
+                    <td style={{ padding: '11px 16px', color: 'var(--text-muted)', fontSize: 11, fontWeight: 600 }}>
+                      {exp.expense_date}
+                    </td>
+                    <td style={{ padding: '11px 16px', textAlign: 'right', fontWeight: 900, color: 'var(--danger)', fontSize: 14 }}>
+                      {formatCurrency(exp.amount)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+            {expenses.length > 0 && (
+              <tfoot>
+                <tr style={{ background: 'var(--surface-2)', borderTop: '2px solid var(--border)' }}>
+                  <td colSpan={3} style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--text-secondary)', fontSize: 12 }}>
+                    TOTAL TODAY
+                  </td>
+                  <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 900, fontSize: 16, color: 'var(--danger)' }}>
+                    {formatCurrency(totalExpenses)}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
       </div>
 
       {/* Expense Modal */}
@@ -91,40 +148,23 @@ export const ExpensesPage: React.FC = () => {
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
         onOk={() => form.submit()}
-        title="Record Daily Expense"
+        title="🧾 Record Daily Expense"
+        okText="Save Expense"
+        okButtonProps={{ style: { background: 'var(--primary)', borderColor: 'var(--primary)', fontWeight: 700 } }}
         centered
-        className="dark-modal"
+        width={440}
       >
-        <Form form={form} layout="vertical" onFinish={handleAddExpense} className="pt-2">
-          <Form.Item
-            name="category"
-            label={<span className="text-slate-300">Category</span>}
-            rules={[{ required: true, message: 'Select category' }]}
-          >
+        <Form form={form} layout="vertical" onFinish={handleAddExpense} style={{ paddingTop: 8 }}>
+          <Form.Item name="category" label="Category" rules={[{ required: true, message: 'Select category' }]}>
             <Select placeholder="Select expense category">
-              <Select.Option value="Ingredients">Ingredients & Raw Materials</Select.Option>
-              <Select.Option value="Utilities">Utilities (Gas, Electricity)</Select.Option>
-              <Select.Option value="Packaging">Boxes, Bags & Packaging</Select.Option>
-              <Select.Option value="Staff Meals">Staff Meals & Tea</Select.Option>
-              <Select.Option value="Maintenance">Maintenance & Repairs</Select.Option>
-              <Select.Option value="Other">Other Miscellaneous</Select.Option>
+              {CATEGORIES.map(c => <Select.Option key={c.value} value={c.value}>{c.label}</Select.Option>)}
             </Select>
           </Form.Item>
-
-          <Form.Item
-            name="description"
-            label={<span className="text-slate-300">Description / Item Details</span>}
-            rules={[{ required: true, message: 'Enter description' }]}
-          >
+          <Form.Item name="description" label="Description / Item Details" rules={[{ required: true, message: 'Enter description' }]}>
             <Input placeholder="e.g. 5kg Anchor Butter from wholesale" />
           </Form.Item>
-
-          <Form.Item
-            name="amount"
-            label={<span className="text-slate-300">Amount (Rs.)</span>}
-            rules={[{ required: true, message: 'Enter expense amount' }]}
-          >
-            <InputNumber min={1} className="w-full" />
+          <Form.Item name="amount" label="Amount (Rs.)" rules={[{ required: true, message: 'Enter amount' }]}>
+            <InputNumber min={1} style={{ width: '100%' }} formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
           </Form.Item>
         </Form>
       </Modal>

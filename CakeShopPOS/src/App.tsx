@@ -11,49 +11,41 @@ import { SettingsPage } from './features/settings/SettingsPage'
 import { useAppStore } from './store/appStore'
 
 export const App: React.FC = () => {
-  const currentUser = useAppStore((state) => state.currentUser)
+  const currentUser = useAppStore((s) => s.currentUser)
   const [activeTab, setActiveTab] = useState<string>('pos')
 
-  // If cashier is not logged in, show lock screen PIN pad
-  if (!currentUser) {
-    return <PINLoginPage />
-  }
+  if (!currentUser) return <PINLoginPage />
 
-  const renderActiveView = () => {
+  const renderView = () => {
     switch (activeTab) {
-      case 'pos':
-        return <POSPage />
-      case 'products':
-        return <ProductsPage />
-      case 'inventory':
-        return <InventoryPage />
-      case 'reports':
-        return <ReportsPage />
-      case 'expenses':
-        return <ExpensesPage />
-      case 'settings':
-        return <SettingsPage />
-      default:
-        return <POSPage />
+      case 'pos': return <POSPage />
+      case 'products': return <ProductsPage />
+      case 'inventory': return <InventoryPage />
+      case 'reports': return <ReportsPage />
+      case 'expenses': return <ExpensesPage />
+      case 'settings': return <SettingsPage />
+      default: return <POSPage />
     }
   }
 
   return (
     <ConfigProvider
       theme={{
-        algorithm: theme.darkAlgorithm,
+        algorithm: theme.defaultAlgorithm,
         token: {
-          colorPrimary: '#ec4899', // Brand Pink
-          colorBgBase: '#020617',
-          colorTextBase: '#f8fafc',
-          borderRadius: 12
+          colorPrimary: '#16a34a',
+          colorBgBase: '#f8fafc',
+          colorTextBase: '#0f172a',
+          borderRadius: 10,
+          fontFamily: "'Poppins', 'Noto Sans Sinhala', system-ui, sans-serif"
         }
       }}
     >
       <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
-        {renderActiveView()}
+        {renderView()}
       </Layout>
     </ConfigProvider>
   )
 }
+
 export default App

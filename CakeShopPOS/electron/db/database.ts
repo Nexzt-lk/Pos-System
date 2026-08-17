@@ -99,12 +99,12 @@ const seedInitialLocalData = (db: any) => {
       ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'Rasa Cake House - Colombo Branch', 'B2', 'No. 120, Galle Road, Colombo 03', '+94 11 258 9101', 'colombo@rasacakes.lk', 'LKR', 1);
   `)
 
-  // Default users (PIN: '123456' -> BCrypt Hash: '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy')
+  // Default users — PIN: '123456' → bcrypt hash (generated & verified locally)
   db.run(`
     INSERT OR IGNORE INTO users (id, tenant_id, shop_id, name, email, pin_hash, role, is_active)
     VALUES 
-      ('u0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Nimal Perera (Owner)', 'owner@rasacakes.lk', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'owner', 1),
-      ('u0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Kasun Bandara (Cashier 1)', 'kasun@rasacakes.lk', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'cashier', 1);
+      ('u0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Nimal Perera (Owner)', 'owner@rasacakes.lk', '$2a$10$Bh0f4yBNJnKL.1Wgd7EmQesiedgnjdtV5YK8dcElEn4tEYOeYMWAW', 'owner', 1),
+      ('u0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Kasun Bandara (Cashier 1)', 'kasun@rasacakes.lk', '$2a$10$Bh0f4yBNJnKL.1Wgd7EmQesiedgnjdtV5YK8dcElEn4tEYOeYMWAW', 'cashier', 1);
   `)
 
   // Default categories

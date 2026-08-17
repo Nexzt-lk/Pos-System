@@ -42,7 +42,7 @@ const createWindow = async () => {
     height: 768,
     minWidth: 1024,
     minHeight: 600,
-    backgroundColor: '#020617',
+    backgroundColor: '#f8fafc',
     autoHideMenuBar: true,
     title: '🎂 Rasa Cake House — POS Terminal',
     webPreferences: {
@@ -55,9 +55,12 @@ const createWindow = async () => {
 
   mainWindow.maximize()
 
-  if (process.env.VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
+  const devServerUrl = process.env['ELECTRON_RENDERER_URL'] || process.env.VITE_DEV_SERVER_URL
+  if (devServerUrl) {
+    console.log(`[Electron] Loading Live Dev Server URL: ${devServerUrl}`)
+    mainWindow.loadURL(devServerUrl)
   } else {
+    console.log(`[Electron] Loading Production Bundled File: ${path.join(__dirname, '../renderer/index.html')}`)
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
   }
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { BarChart3, Banknote, CreditCard, ArrowRightLeft, DollarSign, Calendar } from 'lucide-react'
+import { BarChart3, Calendar, Banknote, ShoppingBag, TrendingUp, Tag } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { formatCurrency, formatDateLong } from '../../lib/formatters'
 import dayjs from 'dayjs'
@@ -21,95 +21,151 @@ export const ReportsPage: React.FC = () => {
           dateStr: selectedDate
         })
         if (res) setMetrics(res)
+      } else {
+        // Demo data
+        setMetrics({
+          summary: { total_orders: 24, total_revenue: 87600, total_discount: 2000, avg_order_value: 3650 },
+          paymentBreakdown: [
+            { method: 'CASH', total_amount: 62000 },
+            { method: 'CARD', total_amount: 20000 },
+            { method: 'TRANSFER', total_amount: 5600 }
+          ]
+        })
       }
     } catch (err) {
       console.error('Failed to load metrics:', err)
     }
   }
 
-  useEffect(() => {
-    loadDailyMetrics()
-  }, [currentShop?.id, selectedDate])
+  useEffect(() => { loadDailyMetrics() }, [currentShop?.id, selectedDate])
+
+  const paymentIcons: Record<string, string> = { CASH: '💵', CARD: '💳', TRANSFER: '🏦' }
 
   return (
-    <div className="flex h-full w-full flex-col p-6 overflow-y-auto space-y-6">
-      {/* Header Bar */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+    <div className="page-container" style={{ overflowY: 'auto' }}>
+      {/* Header */}
+      <div className="page-header" style={{ flexShrink: 0 }}>
         <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <BarChart3 size={22} className="text-brand-400" />
-            <span>Daily Sales & Revenue Report</span>
-          </h2>
-          <p className="text-xs text-slate-400">
-            Performance analytics for {currentShop?.name} on {formatDateLong(selectedDate)}
-          </p>
+          <div className="page-title">
+            <div className="page-title-icon"><BarChart3 size={18} /></div>
+            Daily Sales & Revenue Report
+          </div>
+          <div className="page-subtitle">
+            Performance analytics for {currentShop?.name} · {formatDateLong(selectedDate)}
+          </div>
         </div>
-
-        {/* Date Filter Input */}
-        <div className="flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-1.5 border border-slate-800 text-xs">
-          <Calendar size={14} className="text-brand-400" />
+        {/* Date Picker */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          background: 'var(--surface)', border: '1.5px solid var(--border)',
+          borderRadius: 'var(--radius)', padding: '8px 14px'
+        }}>
+          <Calendar size={14} style={{ color: 'var(--primary)' }} />
           <input
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="bg-transparent text-slate-200 focus:outline-none"
+            style={{
+              border: 'none', outline: 'none', background: 'transparent',
+              fontSize: 13, fontWeight: 600, color: 'var(--text-primary)',
+              fontFamily: 'Inter, sans-serif'
+            }}
           />
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="glass-card rounded-2xl p-4 border border-slate-800">
-          <p className="text-xs font-semibold text-slate-400">TOTAL REVENUE (අද ආදායම)</p>
-          <p className="text-2xl font-extrabold text-brand-400 mt-1">
-            {formatCurrency(metrics.summary?.total_revenue)}
-          </p>
+      {/* KPI Cards */}
+      <div className="kpi-grid" style={{ flexShrink: 0 }}>
+        <div className="kpi-card" style={{ borderLeft: '4px solid var(--primary)' }}>
+          <div className="kpi-label">Total Revenue (අද ආදායම)</div>
+          <div className="kpi-value green">{formatCurrency(metrics.summary?.total_revenue)}</div>
         </div>
-
-        <div className="glass-card rounded-2xl p-4 border border-slate-800">
-          <p className="text-xs font-semibold text-slate-400">TOTAL ORDERS (බිල්පත් ගණන)</p>
-          <p className="text-2xl font-extrabold text-cyan-400 mt-1">
-            {metrics.summary?.total_orders || 0}
-          </p>
+        <div className="kpi-card" style={{ borderLeft: '4px solid #3b82f6' }}>
+          <div className="kpi-label">Total Orders (බිල්පත් ගණන)</div>
+          <div className="kpi-value blue">{metrics.summary?.total_orders || 0}</div>
         </div>
-
-        <div className="glass-card rounded-2xl p-4 border border-slate-800">
-          <p className="text-xs font-semibold text-slate-400">AVG TICKET VALUE (සාමාන්‍ය බිල)</p>
-          <p className="text-2xl font-extrabold text-emerald-400 mt-1">
-            {formatCurrency(metrics.summary?.avg_order_value)}
-          </p>
+        <div className="kpi-card" style={{ borderLeft: '4px solid #8b5cf6' }}>
+          <div className="kpi-label">Avg Ticket Value (සාමාන්‍ය බිල)</div>
+          <div className="kpi-value" style={{ color: '#6d28d9' }}>{formatCurrency(metrics.summary?.avg_order_value)}</div>
         </div>
-
-        <div className="glass-card rounded-2xl p-4 border border-slate-800">
-          <p className="text-xs font-semibold text-slate-400">DISCOUNTS GIVEN</p>
-          <p className="text-2xl font-extrabold text-amber-400 mt-1">
-            {formatCurrency(metrics.summary?.total_discount)}
-          </p>
+        <div className="kpi-card" style={{ borderLeft: '4px solid #f59e0b' }}>
+          <div className="kpi-label">Discounts Given</div>
+          <div className="kpi-value amber">{formatCurrency(metrics.summary?.total_discount)}</div>
         </div>
       </div>
 
-      {/* Payment Methods Breakdown */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
-        <h3 className="text-sm font-bold text-white mb-4">Payment Methods Breakdown</h3>
-        <div className="grid grid-cols-3 gap-4">
+      {/* Payment Breakdown */}
+      <div style={{
+        background: 'var(--surface)', borderRadius: 'var(--radius-lg)',
+        border: '1px solid var(--border)', padding: 20, flexShrink: 0
+      }}>
+        <h3 style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 14 }}>
+          Payment Methods Breakdown
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
           {['CASH', 'CARD', 'TRANSFER'].map((method) => {
             const found = metrics.paymentBreakdown?.find((p: any) => p.method === method)
             const amount = found?.total_amount || 0
-            const percentage =
-              metrics.summary?.total_revenue > 0
-                ? ((amount / metrics.summary.total_revenue) * 100).toFixed(1)
-                : '0.0'
-
+            const total = metrics.summary?.total_revenue || 1
+            const pct = ((amount / total) * 100).toFixed(1)
             return (
-              <div key={method} className="rounded-xl bg-slate-800/40 p-4 border border-slate-700/60">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-slate-300">{method}</span>
-                  <span className="text-xs font-bold text-brand-400">{percentage}%</span>
+              <div key={method} style={{
+                background: 'var(--surface-2)', borderRadius: 'var(--radius)',
+                border: '1px solid var(--border)', padding: 16
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 20 }}>{paymentIcons[method]}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>{method}</span>
+                  </div>
+                  <span style={{
+                    background: 'var(--primary-bg)', color: 'var(--primary-dark)',
+                    padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 700
+                  }}>{pct}%</span>
                 </div>
-                <p className="text-lg font-extrabold text-white">{formatCurrency(amount)}</p>
+                <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--primary-dark)' }}>
+                  {formatCurrency(amount)}
+                </div>
+                {/* Bar */}
+                <div style={{ marginTop: 10, height: 4, background: 'var(--border)', borderRadius: 99 }}>
+                  <div style={{
+                    height: '100%', borderRadius: 99, background: 'var(--primary)',
+                    width: `${pct}%`, transition: 'width 0.5s ease'
+                  }} />
+                </div>
               </div>
             )
           })}
+        </div>
+      </div>
+
+      {/* Quick Summary Table */}
+      <div style={{
+        background: 'var(--surface)', borderRadius: 'var(--radius-lg)',
+        border: '1px solid var(--border)', padding: 20, flexShrink: 0
+      }}>
+        <h3 style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 14 }}>
+          End-of-Day Summary
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {[
+            { label: 'Gross Revenue', val: formatCurrency(metrics.summary?.total_revenue), icon: '💰' },
+            { label: 'Discount Given', val: formatCurrency(metrics.summary?.total_discount), icon: '🏷️' },
+            { label: 'Net Revenue', val: formatCurrency((metrics.summary?.total_revenue || 0) - (metrics.summary?.total_discount || 0)), icon: '📊' },
+            { label: 'Bills Issued', val: `${metrics.summary?.total_orders || 0} orders`, icon: '🧾' },
+          ].map(item => (
+            <div key={item.label} style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '12px 16px', background: 'var(--surface-2)',
+              borderRadius: 'var(--radius)', border: '1px solid var(--border-light)'
+            }}>
+              <span style={{ fontSize: 22 }}>{item.icon}</span>
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>{item.label}</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>{item.val}</div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

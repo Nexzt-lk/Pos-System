@@ -1,6 +1,5 @@
 import React from 'react'
-import { Modal } from 'antd'
-import { Printer, Check, Receipt } from 'lucide-react'
+import { X, Printer, Receipt } from 'lucide-react'
 import { formatCurrency, formatDateTime } from '../../lib/formatters'
 import { useAppStore } from '../../store/appStore'
 
@@ -10,30 +9,23 @@ interface ReceiptModalProps {
   orderData: any | null
 }
 
-export const ReceiptModal: React.FC<ReceiptModalProps> = ({
-  isOpen,
-  onClose,
-  orderData
-}) => {
+export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, orderData }) => {
   const currentShop = useAppStore((state) => state.currentShop)
 
-  if (!orderData) return null
+  if (!isOpen || !orderData) return null
 
   const handlePrint = async () => {
     if (window.electronAPI) {
       await window.electronAPI.printReceipt({
         shopName: currentShop?.name || 'Rasa Cake House',
-        branchName: currentShop?.address,
         address: currentShop?.address,
         phone: currentShop?.phone,
         orderNo: orderData.order_no,
         cashierName: orderData.cashier_name,
         dateTime: formatDateTime(orderData.created_at),
         items: orderData.items.map((i: any) => ({
-          name: i.product_name,
-          quantity: i.quantity,
-          unitPrice: i.unit_price,
-          subtotal: i.subtotal
+          name: i.product_name, quantity: i.quantity,
+          unitPrice: i.unit_price, subtotal: i.subtotal
         })),
         subtotal: orderData.subtotal,
         discountAmount: orderData.discount_amount,
@@ -47,106 +39,101 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
   }
 
   return (
-    <Modal
-      open={isOpen}
-      onCancel={onClose}
-      footer={null}
-      centered
-      width={420}
-      title={
-        <div className="flex items-center gap-2 text-slate-100 pb-2 border-b border-slate-800">
-          <Receipt size={18} className="text-brand-400" />
-          <span className="font-bold text-base">Receipt Preview</span>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="modal-header">
+          <div className="modal-title">
+            <Receipt size={18} style={{ color: 'var(--primary)' }} />
+            Receipt Preview
+          </div>
+          <button className="modal-close" onClick={onClose}><X size={16} /></button>
         </div>
-      }
-      className="dark-modal"
-    >
-      <div className="py-2 space-y-4">
-        {/* Thermal Receipt Paper Visual Container */}
-        <div className="rounded-2xl bg-white p-5 text-slate-900 font-mono shadow-inner text-xs leading-relaxed select-text">
-          {/* Header */}
-          <div className="text-center pb-2 border-b border-dashed border-slate-300">
-            <h2 className="text-base font-extrabold tracking-tight uppercase">
-              {currentShop?.name || 'Rasa Cake House'}
-            </h2>
-            <p className="text-[10px] text-slate-600">{currentShop?.address}</p>
-            <p className="text-[10px] text-slate-600">Tel: {currentShop?.phone}</p>
-          </div>
 
-          {/* Order Meta */}
-          <div className="py-2 border-b border-dashed border-slate-300 text-[11px] space-y-0.5">
-            <p><strong>Receipt #:</strong> {orderData.order_no}</p>
-            <p><strong>Date:</strong> {formatDateTime(orderData.created_at)}</p>
-            <p><strong>Cashier:</strong> {orderData.cashier_name || 'Counter 1'}</p>
-          </div>
-
-          {/* Items Table */}
-          <div className="py-2 border-b border-dashed border-slate-300 space-y-1.5">
-            <div className="flex justify-between font-bold text-[11px]">
-              <span>Item</span>
-              <span>Amount</span>
+        {/* Receipt Paper */}
+        <div style={{ padding: '16px 20px 0' }}>
+          <div className="receipt-paper">
+            {/* Header */}
+            <div className="receipt-logo">
+              🎂 {currentShop?.name || 'Rasa Cake House'}
             </div>
-            {orderData.items?.map((item: any, idx: number) => (
-              <div key={idx} className="flex justify-between text-[11px]">
-                <span>{item.quantity}x {item.product_name}</span>
-                <span>{formatCurrency(item.subtotal)}</span>
+            <div style={{ textAlign: 'center', fontSize: 11, color: '#555', marginBottom: 8 }}>
+              {currentShop?.address}<br />
+              Tel: {currentShop?.phone}
+            </div>
+            <hr className="receipt-divider" />
+
+            {/* Meta */}
+            <div style={{ fontSize: 11, lineHeight: 1.8, marginBottom: 6 }}>
+              <div className="receipt-row"><span><strong>Receipt #:</strong></span><span>{orderData.order_no}</span></div>
+              <div className="receipt-row"><span><strong>Date:</strong></span><span>{formatDateTime(orderData.created_at)}</span></div>
+              <div className="receipt-row"><span><strong>Cashier:</strong></span><span>{orderData.cashier_name || 'Counter 1'}</span></div>
+            </div>
+            <hr className="receipt-divider" />
+
+            {/* Items */}
+            <div style={{ fontSize: 11, marginBottom: 6 }}>
+              <div className="receipt-row" style={{ fontWeight: 700, marginBottom: 4 }}>
+                <span>Item</span><span>Total</span>
               </div>
-            ))}
-          </div>
-
-          {/* Totals */}
-          <div className="py-2 border-b border-dashed border-slate-300 space-y-1 text-[11px]">
-            <div className="flex justify-between">
-              <span>Subtotal:</span>
-              <span>{formatCurrency(orderData.subtotal)}</span>
+              {orderData.items?.map((item: any, idx: number) => (
+                <div key={idx} className="receipt-row" style={{ marginBottom: 2 }}>
+                  <span>{item.quantity}× {item.product_name}</span>
+                  <span>{formatCurrency(item.subtotal)}</span>
+                </div>
+              ))}
             </div>
-            {orderData.discount_amount > 0 && (
-              <div className="flex justify-between text-emerald-700 font-bold">
-                <span>Discount:</span>
-                <span>-{formatCurrency(orderData.discount_amount)}</span>
+            <hr className="receipt-divider" />
+
+            {/* Totals */}
+            <div style={{ fontSize: 11, marginBottom: 6 }}>
+              <div className="receipt-row"><span>Subtotal:</span><span>{formatCurrency(orderData.subtotal)}</span></div>
+              {orderData.discount_amount > 0 && (
+                <div className="receipt-row" style={{ color: 'var(--primary-dark)', fontWeight: 700 }}>
+                  <span>Discount:</span><span>-{formatCurrency(orderData.discount_amount)}</span>
+                </div>
+              )}
+              <div className="receipt-row receipt-total" style={{ marginTop: 4 }}>
+                <span>TOTAL:</span><span>{formatCurrency(orderData.total_amount)}</span>
               </div>
-            )}
-            <div className="flex justify-between text-sm font-extrabold pt-1">
-              <span>TOTAL:</span>
-              <span>{formatCurrency(orderData.total_amount)}</span>
             </div>
-          </div>
+            <hr className="receipt-divider" />
 
-          {/* Payment breakdown */}
-          <div className="pt-2 text-[10px] text-slate-600">
-            <p>Payment: {orderData.payments?.[0]?.method || 'CASH'}</p>
-            {orderData.payments?.[0]?.cash_given && (
-              <p>Cash Tendered: {formatCurrency(orderData.payments[0].cash_given)}</p>
-            )}
-            {orderData.payments?.[0]?.change_given && (
-              <p>Change: {formatCurrency(orderData.payments[0].change_given)}</p>
-            )}
-          </div>
+            {/* Payment */}
+            <div style={{ fontSize: 10, color: '#555', lineHeight: 1.8 }}>
+              <div>Payment: <strong>{orderData.payments?.[0]?.method || 'CASH'}</strong></div>
+              {orderData.payments?.[0]?.cash_given && (
+                <div>Cash Tendered: {formatCurrency(orderData.payments[0].cash_given)}</div>
+              )}
+              {orderData.payments?.[0]?.change_given > 0 && (
+                <div>Change: <strong>{formatCurrency(orderData.payments[0].change_given)}</strong></div>
+              )}
+            </div>
 
-          {/* Footer Note */}
-          <div className="mt-3 pt-2 text-center border-t border-dashed border-slate-300 text-[10px] text-slate-500">
-            <p>Thank you for your visit!</p>
-            <p className="text-[9px]">Software by Rasa Cake POS</p>
+            {/* Footer */}
+            <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1.5px dashed #d1d5db', textAlign: 'center', fontSize: 10, color: '#888' }}>
+              <p>ස්තූතියි! Thank you for visiting!</p>
+              <p style={{ fontSize: 9 }}>Powered by Rasa Cake POS</p>
+            </div>
           </div>
         </div>
 
-        {/* Print Button */}
-        <div className="flex gap-2">
-          <button
-            onClick={onClose}
-            className="flex-1 rounded-xl bg-slate-800 py-3 text-xs font-bold text-slate-300 hover:bg-slate-700"
-          >
+        {/* Footer Buttons */}
+        <div style={{ padding: '16px 20px', display: 'flex', gap: 10 }}>
+          <button onClick={onClose} style={{
+            flex: 1, padding: '11px', borderRadius: 'var(--radius)',
+            border: '1px solid var(--border)', background: 'var(--surface-2)',
+            fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', cursor: 'pointer',
+            fontFamily: 'Inter, sans-serif'
+          }}>
             Close
           </button>
-          <button
-            onClick={handlePrint}
-            className="flex-[2] flex items-center justify-center gap-2 rounded-xl bg-brand-500 py-3 text-xs font-extrabold text-white shadow-lg glow-pink hover:bg-brand-600 active:scale-98"
-          >
+          <button onClick={handlePrint} className="pay-btn" style={{ flex: 2 }}>
             <Printer size={16} />
-            <span>Reprint Receipt</span>
+            Reprint Receipt
           </button>
         </div>
       </div>
-    </Modal>
+    </div>
   )
 }
