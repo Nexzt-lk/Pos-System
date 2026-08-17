@@ -21,9 +21,10 @@ export interface DBProduct {
 }
 
 export const productRepo = {
-  getByShopId: (shopId: string): DBProduct[] => {
-    const db = getDatabase()
-    const stmt = db.prepare(`
+  getByShopId: async (shopId: string): Promise<DBProduct[]> => {
+    const db = await getDatabase()
+    return db.query<DBProduct>(
+      `
       SELECT 
         p.*,
         c.name as category_name,
@@ -34,13 +35,15 @@ export const productRepo = {
       LEFT JOIN inventory i ON p.id = i.product_id AND p.shop_id = i.shop_id
       WHERE p.shop_id = ? AND p.is_active = 1
       ORDER BY c.sort_order ASC, p.name ASC
-    `)
-    return stmt.all(shopId) as DBProduct[]
+    `,
+      [shopId]
+    )
   },
 
-  getByBarcode: (shopId: string, barcode: string): DBProduct | undefined => {
-    const db = getDatabase()
-    const stmt = db.prepare(`
+  getByBarcode: async (shopId: string, barcode: string): Promise<DBProduct | undefined> => {
+    const db = await getDatabase()
+    return db.queryOne<DBProduct>(
+      `
       SELECT 
         p.*,
         c.name as category_name,
@@ -50,20 +53,19 @@ export const productRepo = {
       LEFT JOIN categories c ON p.category_id = c.id
       LEFT JOIN inventory i ON p.id = i.product_id AND p.shop_id = i.shop_id
       WHERE p.shop_id = ? AND p.barcode = ? AND p.is_active = 1
-    `)
-    return stmt.get(shopId, barcode) as DBProduct | undefined
+    `,
+      [shopId, barcode]
+    )
   },
 
-  upsert: (product: any): void => {
-    const db = getDatabase()
-    const stmt = db.prepare(`
+  upsert: async (product: any): Promise<void> => {
+    const db = await getDatabase()
+    db.run(
+      `
       INSERT INTO products (
         id, shop_id, category_id, name, description, price, cost_price,
         barcode, image_path, unit, track_inventory, is_active, updated_at
-      ) VALUES (
-        @id, @shop_id, @category_id, @name, @description, @price, @cost_price,
-        @barcode, @image_path, @unit, @track_inventory, @is_active, datetime('now')
-      )
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
       ON CONFLICT(id) DO UPDATE SET
         category_id = excluded.category_id,
         name = excluded.name,
@@ -76,20 +78,21 @@ export const productRepo = {
         track_inventory = excluded.track_inventory,
         is_active = excluded.is_active,
         updated_at = datetime('now')
-    `)
-    stmt.run({
-      id: product.id,
-      shop_id: product.shop_id,
-      category_id: product.category_id || null,
-      name: product.name,
-      description: product.description || null,
-      price: product.price,
-      cost_price: product.cost_price || null,
-      barcode: product.barcode || null,
-      image_path: product.image_path || null,
-      unit: product.unit || 'pcs',
-      track_inventory: product.track_inventory ? 1 : 0,
-      is_active: product.is_active ? 1 : 0
-    })
+    `,
+      [
+        product.id,
+        product.shop_id,
+        product.category_id || null,
+        product.name,
+        product.description || null,
+        product.price,
+        product.cost_price || null,
+        product.barcode || null,
+        product.image_path || null,
+        product.unit || 'pcs',
+        product.track_inventory ? 1 : 0,
+        product.is_active ? 1 : 0
+      ]
+    )
   }
 }

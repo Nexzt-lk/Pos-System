@@ -11,6 +11,7 @@ import { printService } from './services/printService'
 import { imageService, setupImageProtocol } from './services/imageService'
 import { syncService } from './services/syncService'
 import bcrypt from 'bcryptjs'
+import fs from 'fs'
 
 let mainWindow: BrowserWindow | null = null
 let activeApiPort = 5000
@@ -29,20 +30,23 @@ if (!gotTheLock) {
 }
 
 const createWindow = async () => {
-  // Find available port for local API supervisor
   activeApiPort = await detectPort(5000)
   console.log(`[Electron] Active Local API Port: ${activeApiPort}`)
+
+  const preloadPath = fs.existsSync(path.join(__dirname, '../preload/preload.js'))
+    ? path.join(__dirname, '../preload/preload.js')
+    : path.join(__dirname, '../preload/index.js')
 
   mainWindow = new BrowserWindow({
     width: 1366,
     height: 768,
     minWidth: 1024,
     minHeight: 600,
-    backgroundColor: '#020617', // Slate 950
+    backgroundColor: '#020617',
     autoHideMenuBar: true,
     title: '🎂 Rasa Cake House — POS Terminal',
     webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js'),
+      preload: preloadPath,
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false
@@ -51,29 +55,25 @@ const createWindow = async () => {
 
   mainWindow.maximize()
 
-  // Load URL
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
   }
 
-  // Start background sync
   syncService.startBackgroundSync(() => `http://127.0.0.1:${activeApiPort}`, 30000)
 }
 
-// App lifecycle
-app.whenReady().then(() => {
-  // Setup custom protocol for local product images
+app.whenReady().then(async () => {
   setupImageProtocol()
 
   // Initialize SQLite database
-  getDatabase()
+  await getDatabase()
 
   // Register IPC Handlers
   setupIpcHandlers()
 
-  createWindow()
+  await createWindow()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -87,30 +87,25 @@ app.on('window-all-closed', () => {
   }
 })
 
-// Setup IPC Handlers
 function setupIpcHandlers() {
-  // Database & Repositories
-  ipcMain.handle('db:get-products', (_, shopId: string) => productRepo.getByShopId(shopId))
-  ipcMain.handle('db:get-product-by-barcode', (_, { shopId, barcode }) => productRepo.getByBarcode(shopId, barcode))
-  ipcMain.handle('db:upsert-product', (_, product) => productRepo.upsert(product))
-  ipcMain.handle('db:get-categories', (_, shopId: string) => categoryRepo.getByShopId(shopId))
-  ipcMain.handle('db:upsert-category', (_, category) => categoryRepo.upsert(category))
+  ipcMain.handle('db:get-products', async (_, shopId: string) => await productRepo.getByShopId(shopId))
+  ipcMain.handle('db:get-product-by-barcode', async (_, { shopId, barcode }) => await productRepo.getByBarcode(shopId, barcode))
+  ipcMain.handle('db:upsert-product', async (_, product) => await productRepo.upsert(product))
+  ipcMain.handle('db:get-categories', async (_, shopId: string) => await categoryRepo.getByShopId(shopId))
+  ipcMain.handle('db:upsert-category', async (_, category) => await categoryRepo.upsert(category))
   
-  // Orders & Billing
-  ipcMain.handle('db:get-next-order-no', (_, { shopId, branchCode, terminalId }) =>
-    orderRepo.getNextOrderNumber(shopId, branchCode, terminalId)
+  ipcMain.handle('db:get-next-order-no', async (_, { shopId, branchCode, terminalId }) =>
+    await orderRepo.getNextOrderNumber(shopId, branchCode, terminalId)
   )
-  ipcMain.handle('db:create-order', (_, orderData) => orderRepo.createOrderTransaction(orderData))
-  ipcMain.handle('db:get-daily-summary', (_, { shopId, dateStr }) => orderRepo.getDailySummary(shopId, dateStr))
+  ipcMain.handle('db:create-order', async (_, orderData) => await orderRepo.createOrderTransaction(orderData))
+  ipcMain.handle('db:get-daily-summary', async (_, { shopId, dateStr }) => await orderRepo.getDailySummary(shopId, dateStr))
 
-  // Inventory
-  ipcMain.handle('db:get-low-stock', (_, shopId: string) => inventoryRepo.getLowStock(shopId))
-  ipcMain.handle('db:record-stock-movement', (_, movement) => inventoryRepo.recordMovement(movement))
+  ipcMain.handle('db:get-low-stock', async (_, shopId: string) => await inventoryRepo.getLowStock(shopId))
+  ipcMain.handle('db:record-stock-movement', async (_, movement) => await inventoryRepo.recordMovement(movement))
 
-  // Auth & PIN Verification (BCrypt Hash compare)
-  ipcMain.handle('auth:verify-pin', (_, { shopId, pin }: { shopId: string; pin: string }) => {
-    const db = getDatabase()
-    const users = db.prepare(`SELECT * FROM users WHERE shop_id = ? AND is_active = 1`).all(shopId) as any[]
+  ipcMain.handle('auth:verify-pin', async (_, { shopId, pin }: { shopId: string; pin: string }) => {
+    const db = await getDatabase()
+    const users = db.query<any>(`SELECT * FROM users WHERE shop_id = ? AND is_active = 1`, [shopId])
     
     for (const user of users) {
       if (user.pin_hash && bcrypt.compareSync(pin, user.pin_hash)) {
@@ -121,16 +116,13 @@ function setupIpcHandlers() {
     return { success: false, message: 'Invalid 6-digit PIN' }
   })
 
-  // Hardware & Printing
   ipcMain.handle('printer:print-receipt', (_, data) => printService.printReceipt(data))
   ipcMain.handle('printer:test-print', () => printService.testPrint())
 
-  // Image Storage
   ipcMain.handle('image:select-dialog', () => imageService.selectImageDialog())
   ipcMain.handle('image:save', (_, sourcePath) => imageService.saveProductImage(sourcePath))
 
-  // Sync & Info
-  ipcMain.handle('sync:pending-count', () => syncRepo.getPendingCount())
+  ipcMain.handle('sync:pending-count', async () => await syncRepo.getPendingCount())
   ipcMain.handle('sync:trigger', () => syncService.processSyncQueue(`http://127.0.0.1:${activeApiPort}`))
   ipcMain.handle('app:get-api-url', () => `http://127.0.0.1:${activeApiPort}`)
   ipcMain.handle('app:get-version', () => app.getVersion())

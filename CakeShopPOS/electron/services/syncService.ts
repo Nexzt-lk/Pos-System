@@ -23,8 +23,8 @@ export const syncService = {
 
   processSyncQueue: async (apiUrl: string): Promise<{ success: boolean; count?: number; error?: string }> => {
     try {
-      const pendingItems = syncRepo.getPendingItems(50)
-      if (pendingItems.length === 0) {
+      const pendingItems = (await syncRepo.getPendingItems(50)) || []
+      if (!Array.isArray(pendingItems) || pendingItems.length === 0) {
         return { success: true, count: 0 }
       }
 
@@ -43,7 +43,7 @@ export const syncService = {
 
       if (response.status === 200) {
         const syncedIds = pendingItems.map((i) => i.id)
-        syncRepo.markAsSynced(syncedIds)
+        await syncRepo.markAsSynced(syncedIds)
         console.log(`[SyncService] Successfully synced ${syncedIds.length} records to backend.`)
         return { success: true, count: syncedIds.length }
       } else {

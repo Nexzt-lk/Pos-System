@@ -12,36 +12,40 @@ export interface DBCategory {
 }
 
 export const categoryRepo = {
-  getByShopId: (shopId: string): DBCategory[] => {
-    const db = getDatabase()
-    const stmt = db.prepare(`
+  getByShopId: async (shopId: string): Promise<DBCategory[]> => {
+    const db = await getDatabase()
+    return db.query<DBCategory>(
+      `
       SELECT * FROM categories
       WHERE shop_id = ? AND is_active = 1
       ORDER BY sort_order ASC, name ASC
-    `)
-    return stmt.all(shopId) as DBCategory[]
+    `,
+      [shopId]
+    )
   },
 
-  upsert: (category: any): void => {
-    const db = getDatabase()
-    const stmt = db.prepare(`
+  upsert: async (category: any): Promise<void> => {
+    const db = await getDatabase()
+    db.run(
+      `
       INSERT INTO categories (id, shop_id, name, color, icon, sort_order, is_active)
-      VALUES (@id, @shop_id, @name, @color, @icon, @sort_order, @is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         name = excluded.name,
         color = excluded.color,
         icon = excluded.icon,
         sort_order = excluded.sort_order,
         is_active = excluded.is_active
-    `)
-    stmt.run({
-      id: category.id,
-      shop_id: category.shop_id,
-      name: category.name,
-      color: category.color || '#6366f1',
-      icon: category.icon || 'cake',
-      sort_order: category.sort_order || 0,
-      is_active: category.is_active ? 1 : 0
-    })
+    `,
+      [
+        category.id,
+        category.shop_id,
+        category.name,
+        category.color || '#6366f1',
+        category.icon || 'cake',
+        category.sort_order || 0,
+        category.is_active ? 1 : 0
+      ]
+    )
   }
 }
