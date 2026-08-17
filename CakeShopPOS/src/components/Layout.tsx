@@ -7,6 +7,8 @@ import { useAppStore } from '../store/appStore'
 import { SyncIndicator } from './SyncIndicator'
 import dayjs from 'dayjs'
 
+import nexztLogo from '../assets/nexzt-logo.png'
+
 interface LayoutProps {
   children: React.ReactNode
   activeTab: string
@@ -27,14 +29,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
     return () => clearInterval(t)
   }, [])
 
-  const navItems = [
-    { id: 'pos', label: 'Counter POS', icon: ShoppingCart },
-    { id: 'products', label: 'Products', icon: Cake },
-    { id: 'inventory', label: 'Inventory', icon: Package },
-    { id: 'reports', label: 'Reports', icon: BarChart3 },
-    { id: 'expenses', label: 'Expenses', icon: Receipt },
-    { id: 'settings', label: 'Settings', icon: Settings },
+  const allNavItems = [
+    { id: 'pos', label: 'Counter POS', icon: ShoppingCart, roles: ['owner', 'admin', 'manager', 'cashier'] },
+    { id: 'products', label: 'Products', icon: Cake, roles: ['owner', 'admin', 'manager'] },
+    { id: 'inventory', label: 'Inventory', icon: Package, roles: ['owner', 'admin', 'manager', 'cashier'] },
+    { id: 'reports', label: 'Reports', icon: BarChart3, roles: ['owner', 'admin', 'manager'] },
+    { id: 'expenses', label: 'Expenses', icon: Receipt, roles: ['owner', 'admin', 'manager'] },
+    { id: 'settings', label: 'Settings', icon: Settings, roles: ['owner', 'admin'] },
   ]
+
+  const userRole = currentUser?.role || 'cashier'
+  const navItems = allNavItems.filter((item) => item.roles.includes(userRole))
 
   const toggleBranch = () => {
     if (currentShop?.branch_code === 'B1') {
@@ -44,19 +49,31 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
     }
   }
 
+  const roleLabels: Record<string, { label: string; bg: string }> = {
+    owner: { label: '👑 Owner', bg: '#16a34a' },
+    admin: { label: '🛡️ Admin', bg: '#16a34a' },
+    manager: { label: '👔 Manager', bg: '#2563eb' },
+    cashier: { label: '💳 Cashier', bg: '#d97706' }
+  }
+
+  const roleInfo = roleLabels[userRole] || { label: 'Cashier', bg: '#64748b' }
   const initials = currentUser?.name?.split(' ').map((n: string) => n[0]).slice(0, 2).join('') || 'CX'
 
   return (
     <div className="pos-layout">
       {/* ───── Sidebar ───── */}
       <aside className="sidebar">
-        {/* Brand */}
-        <div className="sidebar-brand">
-          <div className="sidebar-brand-icon">🎂</div>
-          <div>
-            <div className="sidebar-brand-name">Rasa Cake House</div>
-            <div className="sidebar-brand-sub">POS Terminal v1.0</div>
-          </div>
+        {/* Brand with Nexzt Logo */}
+        <div className="sidebar-brand" style={{ padding: '16px 14px', alignItems: 'center' }}>
+          <img
+            src={nexztLogo}
+            alt="Nexzt"
+            style={{
+              height: 38,
+              maxWidth: '100%',
+              objectFit: 'contain'
+            }}
+          />
         </div>
 
         {/* Nav */}
@@ -76,12 +93,23 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
 
         {/* User Session */}
         <div className="sidebar-user">
-          <div className="user-avatar">{initials}</div>
+          <div className="user-avatar" style={{ backgroundColor: roleInfo.bg }}>{initials}</div>
           <div className="user-info">
             <div className="user-name">{currentUser?.name || 'Cashier'}</div>
-            <div className="user-role">{currentUser?.role || 'Cashier'}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+              <span style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: 'white',
+                background: roleInfo.bg,
+                padding: '1px 6px',
+                borderRadius: 99
+              }}>
+                {roleInfo.label}
+              </span>
+            </div>
           </div>
-          <button className="logout-btn" title="Lock Counter" onClick={logout}>
+          <button className="logout-btn" title="Lock Counter / Logout" onClick={logout}>
             <LogOut size={15} />
           </button>
         </div>

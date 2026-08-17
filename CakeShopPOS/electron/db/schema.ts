@@ -26,14 +26,15 @@ CREATE TABLE IF NOT EXISTS shops (
     UNIQUE(tenant_id, branch_code)
 );
 
--- 3. Users (Cashiers / Managers)
+-- 3. Users (Owners / Managers / Cashiers)
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL,
     shop_id TEXT NOT NULL,
     name TEXT NOT NULL,
     email TEXT,
-    pin_hash TEXT NOT NULL,
+    password_hash TEXT,
+    pin_hash TEXT,
     role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'manager', 'cashier')),
     is_active INTEGER DEFAULT 1,
     last_login TEXT,

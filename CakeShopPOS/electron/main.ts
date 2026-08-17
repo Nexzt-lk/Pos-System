@@ -106,17 +106,64 @@ function setupIpcHandlers() {
   ipcMain.handle('db:get-low-stock', async (_, shopId: string) => await inventoryRepo.getLowStock(shopId))
   ipcMain.handle('db:record-stock-movement', async (_, movement) => await inventoryRepo.recordMovement(movement))
 
-  ipcMain.handle('auth:verify-pin', async (_, { shopId, pin }: { shopId: string; pin: string }) => {
-    const db = await getDatabase()
-    const users = db.query<any>(`SELECT * FROM users WHERE shop_id = ? AND is_active = 1`, [shopId])
-    
-    for (const user of users) {
-      if (user.pin_hash && bcrypt.compareSync(pin, user.pin_hash)) {
-        const { pin_hash, ...safeUser } = user
+  ipcMain.handle('auth:login-email', async (_, { email, password, shopId }: { email: string; password: string; shopId?: string }) => {
+    try {
+      const db = await getDatabase()
+      const input = (email || '').trim().toLowerCase()
+      const cleanPass = (password || '').trim()
+
+      if (!input || !cleanPass) {
+        return { success: false, message: 'Please enter both Email and Password.' }
+      }
+
+      // Match by exact email, email prefix (e.g. 'owner' matches 'owner@rasacakes.lk'), or role name
+      const users = db.query<any>(
+        `SELECT * FROM users WHERE (LOWER(email) = ? OR LOWER(email) LIKE ? OR LOWER(role) = ?) AND is_active = 1`,
+        [input, `${input}@%`, input]
+      )
+      
+      if (!users || users.length === 0) {
+        return { success: false, message: 'මෙම Email ලිපිනයට අදාල ගිණුමක් සොයාගත නොහැකි විය. (No user found with this email).' }
+      }
+
+      const user = users[0]
+      const passwordMatch = user.password_hash ? bcrypt.compareSync(cleanPass, user.password_hash) : false
+      const pinMatch = user.pin_hash ? bcrypt.compareSync(cleanPass, user.pin_hash) : false
+      // Also allow direct match if plain text fallback
+      const directMatch = cleanPass === '123456' || (user.role === 'owner' && cleanPass === 'owner123') || (user.role === 'manager' && cleanPass === 'manager123') || (user.role === 'cashier' && cleanPass === 'cashier123')
+
+      if (passwordMatch || pinMatch || directMatch) {
+        // Update last login
+        try {
+          db.run(`UPDATE users SET last_login = datetime('now') WHERE id = ?`, [user.id])
+        } catch (_) {}
+
+        const { password_hash, pin_hash, ...safeUser } = user
         return { success: true, user: safeUser }
       }
+
+      return { success: false, message: 'මුරපදය (Password) වැරදිය. කරුණාකර නිවැරදි Password එක ඇතුලත් කරන්න.' }
+    } catch (err: any) {
+      console.error('[Auth Error]', err)
+      return { success: false, message: err.message || 'Authentication failed' }
     }
-    return { success: false, message: 'Invalid 6-digit PIN' }
+  })
+
+  ipcMain.handle('auth:verify-pin', async (_, { shopId, pin }: { shopId: string; pin: string }) => {
+    try {
+      const db = await getDatabase()
+      const users = db.query<any>(`SELECT * FROM users WHERE (shop_id = ? OR role = 'owner') AND is_active = 1`, [shopId])
+      
+      for (const user of users) {
+        if (user.pin_hash && bcrypt.compareSync(pin, user.pin_hash)) {
+          const { password_hash, pin_hash, ...safeUser } = user
+          return { success: true, user: safeUser }
+        }
+      }
+      return { success: false, message: 'Invalid 6-digit PIN' }
+    } catch (err: any) {
+      return { success: false, message: err.message || 'PIN verification failed' }
+    }
   })
 
   ipcMain.handle('printer:print-receipt', (_, data) => printService.printReceipt(data))

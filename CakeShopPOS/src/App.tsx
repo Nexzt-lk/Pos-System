@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { ConfigProvider, theme } from 'antd'
 import { Layout } from './components/Layout'
-import { PINLoginPage } from './features/auth/PINLoginPage'
+import { LoginPage } from './features/auth/LoginPage'
 import { POSPage } from './features/pos/POSPage'
 import { ProductsPage } from './features/products/ProductsPage'
 import { InventoryPage } from './features/inventory/InventoryPage'
@@ -14,9 +14,51 @@ export const App: React.FC = () => {
   const currentUser = useAppStore((s) => s.currentUser)
   const [activeTab, setActiveTab] = useState<string>('pos')
 
-  if (!currentUser) return <PINLoginPage />
+  if (!currentUser) return <LoginPage />
+
+  const userRole = currentUser.role || 'cashier'
+
+  // Role Permissions Matrix
+  const rolePermissions: Record<string, string[]> = {
+    owner: ['pos', 'products', 'inventory', 'reports', 'expenses', 'settings'],
+    admin: ['pos', 'products', 'inventory', 'reports', 'expenses', 'settings'],
+    manager: ['pos', 'products', 'inventory', 'reports', 'expenses'],
+    cashier: ['pos', 'inventory']
+  }
+
+  const allowedTabs = rolePermissions[userRole] || ['pos']
 
   const renderView = () => {
+    // If user role is not authorized for activeTab, fallback to POS or show Access Denied
+    if (!allowedTabs.includes(activeTab)) {
+      return (
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+          padding: 40,
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🔒</div>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>
+            Access Restricted
+          </h2>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 420, marginBottom: 20, lineHeight: 1.6 }}>
+            Your account role (<strong>{currentUser.role?.toUpperCase()}</strong>) does not have permission to access this module. Please contact the store owner or manager.
+          </p>
+          <button
+            className="btn-primary"
+            onClick={() => setActiveTab('pos')}
+            style={{ padding: '10px 22px' }}
+          >
+            Return to Counter POS
+          </button>
+        </div>
+      )
+    }
+
     switch (activeTab) {
       case 'pos': return <POSPage />
       case 'products': return <ProductsPage />

@@ -20,14 +20,20 @@ export const getDatabase = async (): Promise<POSDatabase> => {
   if (dbInstance) return dbInstance
 
   const SQL = await initSqlJs()
-  const userDataPath = app?.getPath ? app.getPath('userData') : path.join(process.cwd(), 'dev-data')
+  
+  // Save DB directly in the project's database directory: s:\WEDDING\database\cakeshop_pos.db
+  const projectDbDir = fs.existsSync(path.resolve(__dirname, '../../../database'))
+    ? path.resolve(__dirname, '../../../database')
+    : fs.existsSync(path.resolve(process.cwd(), '../database'))
+    ? path.resolve(process.cwd(), '../database')
+    : path.resolve(process.cwd(), 'database')
 
-  if (!fs.existsSync(userDataPath)) {
-    fs.mkdirSync(userDataPath, { recursive: true })
+  if (!fs.existsSync(projectDbDir)) {
+    fs.mkdirSync(projectDbDir, { recursive: true })
   }
 
-  const dbPath = path.join(userDataPath, 'cakeshop_pos.db')
-  console.log(`[Database] Initializing SQLite (WASM) at: ${dbPath}`)
+  const dbPath = path.join(projectDbDir, 'cakeshop_pos.db')
+  console.log(`[Database] Initializing Project SQLite (WASM) at: ${dbPath}`)
 
   let rawDb: any
   if (fs.existsSync(dbPath)) {
@@ -99,12 +105,18 @@ const seedInitialLocalData = (db: any) => {
       ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'Rasa Cake House - Colombo Branch', 'B2', 'No. 120, Galle Road, Colombo 03', '+94 11 258 9101', 'colombo@rasacakes.lk', 'LKR', 1);
   `)
 
-  // Default users — PIN: '123456' → bcrypt hash (generated & verified locally)
+  // Default users with roles (Owner, Manager, Cashier 1, Cashier 2)
+  // Owner:    owner@rasacakes.lk    / Pass: owner123    / PIN: 123456
+  // Manager:  manager@rasacakes.lk  / Pass: manager123  / PIN: 123456
+  // Cashier:  cashier1@rasacakes.lk / Pass: cashier123  / PIN: 123456
+  // Cashier:  cashier2@rasacakes.lk / Pass: cashier123  / PIN: 123456
   db.run(`
-    INSERT OR IGNORE INTO users (id, tenant_id, shop_id, name, email, pin_hash, role, is_active)
+    INSERT OR IGNORE INTO users (id, tenant_id, shop_id, name, email, password_hash, pin_hash, role, is_active)
     VALUES 
-      ('u0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Nimal Perera (Owner)', 'owner@rasacakes.lk', '$2a$10$Bh0f4yBNJnKL.1Wgd7EmQesiedgnjdtV5YK8dcElEn4tEYOeYMWAW', 'owner', 1),
-      ('u0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Kasun Bandara (Cashier 1)', 'kasun@rasacakes.lk', '$2a$10$Bh0f4yBNJnKL.1Wgd7EmQesiedgnjdtV5YK8dcElEn4tEYOeYMWAW', 'cashier', 1);
+      ('u0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Nimal Perera (Owner)', 'owner@rasacakes.lk', '$2a$10$k5tEuZdIfab3xJDAXRI.O.IGtAEfdHbOEeTjYCQNLiQm61oC9oNJO', '$2a$10$acjhZD4hrHLXYJMvawtXn.xvnkqEm3brhSGI30oN82ExnagFJTwFi', 'owner', 1),
+      ('u0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Sunil Jayasinghe (Manager)', 'manager@rasacakes.lk', '$2a$10$kOeKecAZGpT2XZ2A4zGxBuoDNFfIoa6ScQzBTRq5zTrpGjpyu66CO', '$2a$10$acjhZD4hrHLXYJMvawtXn.xvnkqEm3brhSGI30oN82ExnagFJTwFi', 'manager', 1),
+      ('u0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Kasun Bandara (Cashier 1)', 'cashier1@rasacakes.lk', '$2a$10$yRmuA99RFei8tgcImTfkTORBn/4JynMUJWdkFi3nz6rn76o8gl3Ge', '$2a$10$acjhZD4hrHLXYJMvawtXn.xvnkqEm3brhSGI30oN82ExnagFJTwFi', 'cashier', 1),
+      ('u0000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Dilani Silva (Cashier 2)', 'cashier2@rasacakes.lk', '$2a$10$yRmuA99RFei8tgcImTfkTORBn/4JynMUJWdkFi3nz6rn76o8gl3Ge', '$2a$10$acjhZD4hrHLXYJMvawtXn.xvnkqEm3brhSGI30oN82ExnagFJTwFi', 'cashier', 1);
   `)
 
   // Default categories
