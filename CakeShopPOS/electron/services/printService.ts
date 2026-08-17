@@ -134,7 +134,7 @@ export const printService = {
       paymentMethod: 'CASH',
       cashGiven: 5000,
       changeGiven: 760,
-      footerNote: 'TEST PRINT SUCCESSFUL ✅'
+      footerNote: 'TEST PRINT SUCCESSFUL'
     })
   }
 }

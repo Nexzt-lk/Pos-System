@@ -66,7 +66,7 @@ export const PINLoginPage: React.FC = () => {
     <div className="pin-screen">
       <div className="pin-card">
         {/* Logo */}
-        <div className="pin-logo">🎂</div>
+        <div className="pin-logo">N</div>
 
         <h1 className="pin-title">Rasa Cake House</h1>
         <p className="pin-subtitle">

@@ -220,7 +220,7 @@ export const ProductsPage: React.FC = () => {
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
         onOk={() => form.submit()}
-        title={editingProduct ? '✏️ Edit Product' : '➕ Add New Cake Product'}
+        title={editingProduct ? 'Edit Product' : 'Add New Cake Product'}
         okText="Save Product"
         okButtonProps={{ style: { background: 'var(--primary)', borderColor: 'var(--primary)', fontWeight: 700 } }}
         centered

@@ -10,6 +10,8 @@ import { ExpensesPage } from './features/expenses/ExpensesPage'
 import { SettingsPage } from './features/settings/SettingsPage'
 import { useAppStore } from './store/appStore'
 
+import { ShieldAlert } from 'lucide-react'
+
 export const App: React.FC = () => {
   const currentUser = useAppStore((s) => s.currentUser)
   const [activeTab, setActiveTab] = useState<string>('pos')
@@ -41,7 +43,7 @@ export const App: React.FC = () => {
           padding: 40,
           textAlign: 'center'
         }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>🔒</div>
+          <ShieldAlert size={48} color="#ef4444" style={{ marginBottom: 12 }} />
           <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>
             Access Restricted
           </h2>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X, Banknote, CreditCard, ArrowRightLeft, CheckCircle2 } from 'lucide-react'
+import { X, Banknote, CreditCard, Building2, ArrowRightLeft, CheckCircle2 } from 'lucide-react'
 import { useCartStore } from '../../store/cartStore'
 import { useAppStore } from '../../store/appStore'
 import { formatCurrency, generateOrderNumber } from '../../lib/formatters'
@@ -114,16 +114,16 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onO
             <div className="field-label" style={{ marginBottom: 8 }}>Select Payment Method</div>
             <div className="payment-methods">
               {[
-                { id: 'CASH', label: 'Cash', icon: '💵' },
-                { id: 'CARD', label: 'Card', icon: '💳' },
-                { id: 'TRANSFER', label: 'Transfer', icon: '🏦' }
+                { id: 'CASH', label: 'Cash', icon: <Banknote size={20} /> },
+                { id: 'CARD', label: 'Card', icon: <CreditCard size={20} /> },
+                { id: 'TRANSFER', label: 'Transfer', icon: <Building2 size={20} /> }
               ].map((m) => (
                 <button
                   key={m.id}
                   className={`payment-method-btn ${paymentMethod === m.id ? 'selected' : ''}`}
                   onClick={() => { setPaymentMethod(m.id as PaymentMethod); if (m.id === 'CASH') setCashTendered(String(Math.ceil(totalAmount))) }}
                 >
-                  <div className="payment-method-icon">{m.icon}</div>
+                  <div className="payment-method-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{m.icon}</div>
                   <div className="payment-method-label">{m.label}</div>
                 </button>
               ))}

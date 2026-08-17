@@ -55,7 +55,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, ord
           <div className="receipt-paper">
             {/* Header */}
             <div className="receipt-logo">
-              🎂 {currentShop?.name || 'Rasa Cake House'}
+              {currentShop?.name || 'Rasa Cake House'}
             </div>
             <div style={{ textAlign: 'center', fontSize: 11, color: '#555', marginBottom: 8 }}>
               {currentShop?.address}<br />

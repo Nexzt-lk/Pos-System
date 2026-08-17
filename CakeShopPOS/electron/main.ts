@@ -44,7 +44,7 @@ const createWindow = async () => {
     minHeight: 600,
     backgroundColor: '#f8fafc',
     autoHideMenuBar: true,
-    title: '🎂 Rasa Cake House — POS Terminal',
+    title: 'Rasa Cake House — POS Terminal',
     webPreferences: {
       preload: preloadPath,
       sandbox: false,

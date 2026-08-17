@@ -27,7 +27,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
             onError={(e) => { e.currentTarget.style.display = 'none' }}
           />
         ) : (
-          <span style={{ fontSize: 44 }}>🎂</span>
+          <Cake size={36} color="#94a3b8" />
         )}
 
         {/* Stock badge */}

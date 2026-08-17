@@ -6,12 +6,12 @@ import { formatCurrency } from '../../lib/formatters'
 import dayjs from 'dayjs'
 
 const CATEGORIES = [
-  { value: 'Ingredients', label: '🧂 Ingredients & Raw Materials' },
-  { value: 'Utilities', label: '⚡ Utilities (Gas, Electricity)' },
-  { value: 'Packaging', label: '📦 Boxes, Bags & Packaging' },
-  { value: 'Staff Meals', label: '🍱 Staff Meals & Tea' },
-  { value: 'Maintenance', label: '🔧 Maintenance & Repairs' },
-  { value: 'Other', label: '📋 Other Miscellaneous' },
+  { value: 'Ingredients', label: 'Ingredients & Raw Materials' },
+  { value: 'Utilities', label: 'Utilities (Gas, Electricity)' },
+  { value: 'Packaging', label: 'Boxes, Bags & Packaging' },
+  { value: 'Staff Meals', label: 'Staff Meals & Tea' },
+  { value: 'Maintenance', label: 'Maintenance & Repairs' },
+  { value: 'Other', label: 'Other Miscellaneous' },
 ]
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -148,7 +148,7 @@ export const ExpensesPage: React.FC = () => {
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
         onOk={() => form.submit()}
-        title="🧾 Record Daily Expense"
+        title="Record Daily Expense"
         okText="Save Expense"
         okButtonProps={{ style: { background: 'var(--primary)', borderColor: 'var(--primary)', fontWeight: 700 } }}
         centered

@@ -98,15 +98,15 @@ export const InventoryPage: React.FC = () => {
           <div className="kpi-value">{tracked.length}</div>
         </div>
         <div className="kpi-card">
-          <div className="kpi-label">In Stock ✅</div>
+          <div className="kpi-label">In Stock</div>
           <div className="kpi-value green">{okCount}</div>
         </div>
         <div className="kpi-card">
-          <div className="kpi-label">Low Stock ⚠️</div>
+          <div className="kpi-label">Low Stock</div>
           <div className="kpi-value amber">{lowCount}</div>
         </div>
         <div className="kpi-card">
-          <div className="kpi-label">Out of Stock 🚨</div>
+          <div className="kpi-label">Out of Stock</div>
           <div className="kpi-value" style={{ color: 'var(--danger)' }}>{outCount}</div>
         </div>
       </div>
@@ -174,7 +174,7 @@ export const InventoryPage: React.FC = () => {
                     </td>
                     <td style={{ padding: '11px 16px', textAlign: 'right' }}>
                       <span className={`badge ${isOut ? 'badge-red' : isLow ? 'badge-amber' : 'badge-green'}`}>
-                        {isOut ? 'Out of Stock' : isLow ? 'Low Stock' : 'In Stock ✓'}
+                        {isOut ? 'Out of Stock' : isLow ? 'Low Stock' : 'In Stock'}
                       </span>
                     </td>
                   </tr>
@@ -190,7 +190,7 @@ export const InventoryPage: React.FC = () => {
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
         onOk={() => form.submit()}
-        title="📦 Record Stock Movement"
+        title="Record Stock Movement"
         okText="Record Movement"
         okButtonProps={{ style: { background: 'var(--primary)', borderColor: 'var(--primary)', fontWeight: 700 } }}
         centered
@@ -208,10 +208,10 @@ export const InventoryPage: React.FC = () => {
           </Form.Item>
           <Form.Item name="type" label="Movement Type" initialValue="IN" rules={[{ required: true }]}>
             <Select>
-              <Select.Option value="IN">📦 Stock In / Received (+)</Select.Option>
-              <Select.Option value="DAMAGE">⚠️ Damage / Wastage (-)</Select.Option>
-              <Select.Option value="RETURN">↩️ Customer Return (+)</Select.Option>
-              <Select.Option value="ADJUST">🔄 Inventory Count Adjustment</Select.Option>
+              <Select.Option value="IN">Stock In / Received (+)</Select.Option>
+              <Select.Option value="DAMAGE">Damage / Wastage (-)</Select.Option>
+              <Select.Option value="RETURN">Customer Return (+)</Select.Option>
+              <Select.Option value="ADJUST">Inventory Count Adjustment</Select.Option>
             </Select>
           </Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>

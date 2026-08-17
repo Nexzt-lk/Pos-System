@@ -61,7 +61,7 @@ export const SettingsPage: React.FC = () => {
     try {
       if (window.electronAPI) {
         await window.electronAPI.testPrint()
-        message.success('Test receipt sent to thermal printer! ✅')
+        message.success('Test receipt sent to thermal printer!')
       } else {
         await new Promise(r => setTimeout(r, 1200))
         message.info('Thermal test print simulated (Browser mode)')
@@ -140,7 +140,7 @@ export const SettingsPage: React.FC = () => {
           <SettingRow label="Address">
             <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500, lineHeight: 1.6 }}>
               {currentShop?.address}<br />
-              📞 {currentShop?.phone}
+              Tel: {currentShop?.phone}
             </div>
           </SettingRow>
         </SettingCard>
@@ -155,7 +155,7 @@ export const SettingsPage: React.FC = () => {
             border: '1px solid var(--border)', padding: '10px 14px',
             display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12
           }}>
-            <span style={{ fontSize: 18 }}>🖨️</span>
+            <Printer size={18} color="var(--primary)" />
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Status</div>
               <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary-dark)' }}>Ready (USB Auto-detect)</div>

@@ -45,7 +45,9 @@ export const Cart: React.FC<CartProps> = ({ onOpenPaymentModal, onOpenDiscountMo
       {/* Items */}
       {items.length === 0 ? (
         <div className="cart-empty">
-          <div className="cart-empty-icon">🛒</div>
+          <div className="cart-empty-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ShoppingCart size={36} color="#94a3b8" />
+          </div>
           <div className="cart-empty-text">Your cart is empty</div>
           <div className="cart-empty-sub">Click on a product to add it here</div>
         </div>
