@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import {
   ShoppingCart, Cake, Package, BarChart3,
-  Receipt, Settings, LogOut, Clock, Store, Monitor
+  Receipt, Settings, LogOut, Clock, Store, Monitor,
+  PanelLeftClose, PanelLeftOpen, Menu
 } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
 import { SyncIndicator } from './SyncIndicator'
@@ -22,6 +23,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
   const logout = useAppStore((s) => s.logout)
   const setShop = useAppStore((s) => s.setShop)
 
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [currentTime, setCurrentTime] = useState(dayjs().format('hh:mm:ss A'))
 
   useEffect(() => {
@@ -50,10 +52,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
   }
 
   const roleLabels: Record<string, { label: string; bg: string }> = {
-    owner: { label: '👑 Owner', bg: '#16a34a' },
-    admin: { label: '🛡️ Admin', bg: '#16a34a' },
-    manager: { label: '👔 Manager', bg: '#2563eb' },
-    cashier: { label: '💳 Cashier', bg: '#d97706' }
+    owner: { label: 'Owner', bg: '#16a34a' },
+    admin: { label: 'Admin', bg: '#16a34a' },
+    manager: { label: 'Manager', bg: '#2563eb' },
+    cashier: { label: 'Cashier', bg: '#d97706' }
   }
 
   const roleInfo = roleLabels[userRole] || { label: 'Cashier', bg: '#64748b' }
@@ -62,29 +64,50 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
   return (
     <div className="pos-layout">
       {/* ───── Sidebar ───── */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
         {/* Brand with Nexzt Logo */}
-        <div className="sidebar-brand" style={{ padding: '16px 14px', alignItems: 'center' }}>
-          <img
-            src={nexztLogo}
-            alt="Nexzt"
-            style={{
-              height: 38,
-              maxWidth: '100%',
-              objectFit: 'contain'
-            }}
-          />
+        <div className="sidebar-brand" style={{ padding: isSidebarCollapsed ? '10px 4px 16px' : '14px 12px 16px', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'space-between' }}>
+          {!isSidebarCollapsed ? (
+            <img
+              src={nexztLogo}
+              alt="Nexzt"
+              style={{
+                height: 34,
+                maxWidth: '100%',
+                objectFit: 'contain'
+              }}
+            />
+          ) : (
+            <div style={{
+              width: 34,
+              height: 34,
+              borderRadius: 8,
+              background: '#16a34a',
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 800,
+              fontSize: 16
+            }}>
+              N
+            </div>
+          )}
         </div>
 
         {/* Nav */}
-        <div className="nav-section-label">Main Menu</div>
+        {!isSidebarCollapsed && <div className="nav-section-label">Main Menu</div>}
         {navItems.map((item) => {
           const Icon = item.icon
           return (
-            <button key={item.id} className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(item.id)}>
-              <Icon size={17} />
-              <span>{item.label}</span>
+            <button
+              key={item.id}
+              className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(item.id)}
+              title={isSidebarCollapsed ? item.label : undefined}
+            >
+              <Icon size={18} />
+              {!isSidebarCollapsed && <span>{item.label}</span>}
             </button>
           )
         })}
@@ -94,21 +117,23 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
         {/* User Session */}
         <div className="sidebar-user">
           <div className="user-avatar" style={{ backgroundColor: roleInfo.bg }}>{initials}</div>
-          <div className="user-info">
-            <div className="user-name">{currentUser?.name || 'Cashier'}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-              <span style={{
-                fontSize: 10,
-                fontWeight: 700,
-                color: 'white',
-                background: roleInfo.bg,
-                padding: '1px 6px',
-                borderRadius: 99
-              }}>
-                {roleInfo.label}
-              </span>
+          {!isSidebarCollapsed && (
+            <div className="user-info">
+              <div className="user-name">{currentUser?.name || 'Cashier'}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: 'white',
+                  background: roleInfo.bg,
+                  padding: '1px 6px',
+                  borderRadius: 99
+                }}>
+                  {roleInfo.label}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
           <button className="logout-btn" title="Lock Counter / Logout" onClick={logout}>
             <LogOut size={15} />
           </button>
@@ -120,6 +145,24 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
         {/* Topbar */}
         <header className="topbar">
           <div className="topbar-left">
+            {/* Sidebar Toggle Button */}
+            <button
+              type="button"
+              className="branch-pill"
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              title={isSidebarCollapsed ? "Expand Sidebar (Ctrl+B)" : "Collapse Sidebar (Maximize POS space)"}
+              style={{
+                background: isSidebarCollapsed ? 'var(--primary-bg)' : '#ffffff',
+                borderColor: isSidebarCollapsed ? 'var(--primary)' : 'var(--border)',
+                color: isSidebarCollapsed ? 'var(--primary)' : 'var(--text-secondary)',
+                padding: '6px 10px',
+                cursor: 'pointer'
+              }}
+            >
+              {isSidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+              <span style={{ fontSize: 11, fontWeight: 700 }}>{isSidebarCollapsed ? 'Expand' : 'Sidebar'}</span>
+            </button>
+
             <button className="branch-pill" onClick={toggleBranch} title="Click to switch branch">
               <Store size={13} />
               <span>{currentShop?.name || 'Kandy Branch'}</span>
@@ -146,3 +189,4 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
     </div>
   )
 }
+
