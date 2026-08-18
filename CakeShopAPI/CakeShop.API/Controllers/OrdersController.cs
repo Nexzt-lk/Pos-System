@@ -1,0 +1,37 @@
+
+using CakeShop.Application.DTOs;
+using CakeShop.Application.Services;
+using Microsoft.AspNetCore.Mvc;
+
+namespace CakeShop.API.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class OrdersController : ControllerBase
+{
+    private readonly OrderService _service;
+    public OrdersController(OrderService service) => _service = service;
+
+    // Records a sale: builds order + line items, deducts stock, saves payment
+    // (cash or card). This is the endpoint the checkout screen calls.
+    [HttpPost("sale")]
+    public async Task<ActionResult<OrderDto>> CreateSale([FromBody] CreateSaleRequest request)
+    {
+        try
+        {
+            var order = await _service.CreateSaleAsync(request);
+            return Ok(order);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("{id}")]
+    public async Task<ActionResult<OrderDto>> GetById(string id)
+    {
+        var order = await _service.GetByIdAsync(id);
+        return order == null ? NotFound() : Ok(order);
+    }
+}

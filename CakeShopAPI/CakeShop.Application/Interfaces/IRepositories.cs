@@ -1,0 +1,55 @@
+
+using CakeShop.Domain.Entities;
+
+namespace CakeShop.Application.Interfaces;
+
+public interface ICategoryRepository
+{
+    Task<List<Category>> GetAllAsync();
+    Task<Category?> GetByIdAsync(string id);
+    Task<Category?> GetByPrefixAsync(string prefix);
+    Task AddAsync(Category category);
+    Task UpdateAsync(Category category);
+    Task DeleteAsync(string id);
+}
+
+public interface IProductRepository
+{
+    Task<List<Product>> GetAllAsync(bool includeInactive = false);
+    Task<Product?> GetByIdAsync(string id);
+    Task<Product?> GetByBarcodeAsync(string barcode);
+    Task<int> CountByCategoryAsync(string categoryId);
+    Task AddAsync(Product product);
+    Task UpdateAsync(Product product);
+    Task DeleteAsync(string id); // soft delete (is_active = 0)
+}
+
+public interface IInventoryRepository
+{
+    Task<InventoryItem?> GetByProductIdAsync(string productId);
+    Task<List<InventoryItem>> GetLowStockAsync();
+    Task UpsertAsync(InventoryItem item);
+}
+
+public interface IStockMovementRepository
+{
+    Task AddAsync(StockMovement movement);
+    Task<List<StockMovement>> GetByProductAsync(string productId);
+}
+
+public interface IOrderRepository
+{
+    Task<string> GetNextOrderNumberAsync(string terminalId);
+    Task AddAsync(Order order); // saves order + items + payments in one transaction
+    Task<Order?> GetByIdAsync(string id);
+    Task<List<Order>> GetByDateRangeAsync(DateTime fromUtc, DateTime toUtc);
+}
+
+public interface IExpenseRepository
+{
+    Task AddAsync(Expense expense);
+    Task<List<Expense>> GetAllAsync();
+    Task<List<Expense>> GetByDateRangeAsync(DateOnly from, DateOnly to);
+    Task UpdateAsync(Expense expense);
+    Task DeleteAsync(string id);
+}

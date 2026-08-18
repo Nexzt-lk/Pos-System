@@ -1,19 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
-
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CakeShop.Domain\CakeShop.Domain.csproj" />
     <ProjectReference Include="..\CakeShop.Application\CakeShop.Application.csproj" />
     <ProjectReference Include="..\CakeShop.Infrastructure\CakeShop.Infrastructure.csproj" />
   </ItemGroup>
-
+  <!-- Copies the SQLite schema file to the output folder so Program.cs can find it at runtime -->
   <ItemGroup>
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    <None Include="..\database\local_schema_sqlite.sql">
+      <Link>database\local_schema_sqlite.sql</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
-
 </Project>
