@@ -78,28 +78,52 @@ export const Cart: React.FC<CartProps> = ({ onOpenPaymentModal, onOpenDiscountMo
 
       {/* Footer */}
       <div className="cart-footer">
-        <div className="totals-row">
-          <span className="totals-label">Subtotal</span>
-          <span className="totals-amount">{formatCurrency(subtotal)}</span>
+        {/* Breakdown Rows */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+          <div className="totals-row">
+            <span className="totals-label">Subtotal ({itemCount} {itemCount === 1 ? 'item' : 'items'})</span>
+            <span className="totals-amount">{formatCurrency(subtotal)}</span>
+          </div>
+
+          {discount > 0 && (
+            <div className="totals-row" style={{ color: '#ef4444' }}>
+              <span className="totals-label" style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#ef4444' }}>
+                <Tag size={12} />
+                <span>Discount ({discountType === 'percent' ? `${discountValue}%` : 'LKR'})</span>
+              </span>
+              <span className="totals-amount" style={{ color: '#ef4444', fontWeight: 800 }}>
+                -{formatCurrency(discount)}
+              </span>
+            </div>
+          )}
         </div>
 
-        {discount > 0 && (
-          <div className="totals-row" style={{ color: '#ef4444' }}>
-            <span className="totals-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Tag size={12} />
-              <span>Discount ({discountType === 'percent' ? `${discountValue}%` : 'LKR'})</span>
-            </span>
-            <span className="totals-amount discount">-{formatCurrency(discount)}</span>
+        {/* 🌟 Dedicated High-Contrast Total Due Display Card */}
+        <div style={{
+          background: '#f8fafc',
+          border: '1.5px solid #e2e8f0',
+          borderRadius: 14,
+          padding: '14px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          margin: '4px 0 12px'
+        }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Total Payable
+            </div>
+            <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginTop: 2 }}>
+              Inclusive of all taxes
+            </div>
           </div>
-        )}
-
-        <div className="totals-row total">
-          <span className="totals-label total">Total Due</span>
-          <span className="totals-amount total">{formatCurrency(total)}</span>
+          <div style={{ fontSize: 24, fontWeight: 900, color: '#16a34a', letterSpacing: '-0.02em' }}>
+            {formatCurrency(total)}
+          </div>
         </div>
 
         {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
           <button
             type="button"
             className="discount-btn"
@@ -140,4 +164,5 @@ export const Cart: React.FC<CartProps> = ({ onOpenPaymentModal, onOpenDiscountMo
     </div>
   )
 }
+
 

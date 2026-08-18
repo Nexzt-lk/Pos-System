@@ -1,5 +1,5 @@
 import React from 'react'
-import { Plus, Cake, Check } from 'lucide-react'
+import { Plus, Cake } from 'lucide-react'
 import { Product } from '../../types/product'
 import { formatCurrency } from '../../lib/formatters'
 import { useCartStore } from '../../store/cartStore'
@@ -31,16 +31,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
       className={`product-card ${isOutOfStock ? 'out-of-stock' : ''} ${inCartQty > 0 ? 'selected-in-cart' : ''}`}
       onClick={() => !isOutOfStock && onAddToCart(product)}
     >
-      {/* Product Image */}
-      <div className="product-img-placeholder" style={{ position: 'relative', background: '#ffffff', overflow: 'hidden' }}>
+      {/* 📸 Isolated Studio Image Showcase Viewport */}
+      <div className="product-card-img-wrap">
         {imgSrc ? (
           <img
+            className="product-card-img"
             src={imgSrc}
             alt={product.name}
-            style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '6px', transition: 'transform 0.2s ease' }}
             onError={(e) => {
               if (e.currentTarget.src.startsWith('app-images:///')) {
-                // Fallback to local web assets
                 e.currentTarget.src = `/images/${product.image_path}`
               } else {
                 e.currentTarget.style.display = 'none'
@@ -48,54 +47,53 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
             }}
           />
         ) : (
-          <Cake size={36} color="#94a3b8" />
+          <Cake size={38} color="#cbd5e1" />
         )}
 
-        {/* In Cart Indicator */}
+        {/* Dynamic In-Cart Counter Pill */}
         {inCartQty > 0 && (
-          <span style={{
-            position: 'absolute',
-            top: 8,
-            left: 8,
-            background: 'var(--primary)',
-            color: '#ffffff',
-            padding: '2px 7px',
-            borderRadius: 6,
-            fontSize: 10,
-            fontWeight: 800,
-            boxShadow: '0 2px 6px rgba(22, 163, 74, 0.4)'
-          }}>
+          <span className="card-incart-badge">
             {inCartQty} in cart
           </span>
         )}
 
-        {/* Stock badge */}
+        {/* Stock Status Badge */}
         {product.track_inventory && (
-          <span className={`stock-badge ${isOutOfStock ? 'out' : isLow ? 'low' : 'ok'}`}
-            style={{ position: 'absolute', top: 8, right: 8 }}>
+          <span className={`stock-badge ${isOutOfStock ? 'out' : isLow ? 'low' : 'ok'}`}>
             {isOutOfStock ? 'Out of Stock' : isLow ? `Low: ${product.current_stock}` : `${product.current_stock}`}
           </span>
         )}
       </div>
 
-      {/* Product Info */}
+      {/* 🏷️ Product Metadata & Pricing */}
       <div className="product-info">
         <span className="product-cat-label">
           {product.category_name || 'General'}
         </span>
 
-        <div className="product-name">{product.name}</div>
+        <div className="product-name" title={product.name}>
+          {product.name}
+        </div>
 
         {product.barcode && (
-          <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+          <div style={{ fontSize: 10.5, color: '#94a3b8', fontFamily: 'monospace', letterSpacing: '0.02em' }}>
             {product.barcode}
           </div>
         )}
 
         <div className="product-footer">
-          <span className="product-price">{formatCurrency(product.price)}</span>
+          <div className="product-price">
+            {formatCurrency(product.price)}
+          </div>
           {!isOutOfStock && (
-            <button className="add-btn" onClick={(e) => { e.stopPropagation(); onAddToCart(product) }}>
+            <button
+              className="card-add-btn"
+              title="Add to order"
+              onClick={(e) => {
+                e.stopPropagation()
+                onAddToCart(product)
+              }}
+            >
               <Plus size={15} />
             </button>
           )}
@@ -104,3 +102,4 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
     </div>
   )
 }
+

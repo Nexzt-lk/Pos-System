@@ -79,8 +79,7 @@ initSqlJs().then((SQL) => {
         track_inventory INTEGER DEFAULT 1,
         is_active INTEGER DEFAULT 1,
         created_at TEXT DEFAULT (datetime('now')),
-        updated_at TEXT DEFAULT (datetime('now')),
-        UNIQUE(shop_id, barcode)
+        updated_at TEXT DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS inventory (
@@ -93,28 +92,48 @@ initSqlJs().then((SQL) => {
         UNIQUE(shop_id, product_id)
     );
 
+    CREATE TABLE IF NOT EXISTS stock_movements (
+        id TEXT PRIMARY KEY,
+        shop_id TEXT NOT NULL,
+        product_id TEXT NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('IN', 'OUT', 'SALE', 'ADJUST', 'RETURN', 'DAMAGE')),
+        quantity REAL NOT NULL,
+        quantity_before REAL NOT NULL,
+        quantity_after REAL NOT NULL,
+        reference_id TEXT,
+        note TEXT,
+        cost_per_unit REAL,
+        done_by TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        local_id TEXT NOT NULL,
+        sync_status TEXT DEFAULT 'pending' CHECK (sync_status IN ('pending', 'synced', 'conflict')),
+        UNIQUE(shop_id, local_id)
+    );
+
     CREATE TABLE IF NOT EXISTS orders (
         id TEXT PRIMARY KEY,
         shop_id TEXT NOT NULL,
         order_no TEXT NOT NULL,
         cashier_id TEXT,
-        cashier_name TEXT,
-        customer_name TEXT,
-        customer_phone TEXT,
         subtotal REAL NOT NULL,
-        discount_type TEXT DEFAULT 'none',
+        discount_type TEXT CHECK (discount_type IN ('percent', 'fixed')),
         discount_amount REAL DEFAULT 0,
         tax_amount REAL DEFAULT 0,
         total_amount REAL NOT NULL,
-        status TEXT DEFAULT 'completed',
-        notes TEXT,
+        status TEXT DEFAULT 'completed' CHECK (status IN ('completed', 'refunded', 'voided')),
+        note TEXT,
         created_at TEXT DEFAULT (datetime('now')),
+        time_drift_flag INTEGER DEFAULT 0,
+        local_id TEXT NOT NULL,
+        sync_status TEXT DEFAULT 'pending' CHECK (sync_status IN ('pending', 'synced', 'conflict')),
         synced_at TEXT,
-        local_id TEXT UNIQUE
+        UNIQUE(shop_id, local_id),
+        UNIQUE(shop_id, order_no)
     );
 
     CREATE TABLE IF NOT EXISTS order_items (
         id TEXT PRIMARY KEY,
+        shop_id TEXT NOT NULL,
         order_id TEXT NOT NULL,
         product_id TEXT NOT NULL,
         product_name TEXT NOT NULL,
@@ -127,13 +146,37 @@ initSqlJs().then((SQL) => {
 
     CREATE TABLE IF NOT EXISTS payments (
         id TEXT PRIMARY KEY,
+        shop_id TEXT NOT NULL,
         order_id TEXT NOT NULL,
-        method TEXT NOT NULL,
+        method TEXT NOT NULL CHECK (method IN ('CASH', 'CARD', 'TRANSFER', 'MIXED')),
         amount REAL NOT NULL,
         cash_given REAL,
         change_given REAL,
         reference_no TEXT,
         created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS expenses (
+        id TEXT PRIMARY KEY,
+        shop_id TEXT NOT NULL,
+        category TEXT,
+        description TEXT NOT NULL,
+        amount REAL NOT NULL,
+        expense_date TEXT DEFAULT (date('now')),
+        added_by TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS sync_queue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        table_name TEXT NOT NULL,
+        operation TEXT NOT NULL,
+        record_id TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        retry_count INTEGER DEFAULT 0,
+        status TEXT DEFAULT 'pending',
+        created_at TEXT DEFAULT (datetime('now')),
+        synced_at TEXT
     );
   `;
 

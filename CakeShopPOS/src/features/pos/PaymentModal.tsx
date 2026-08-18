@@ -44,46 +44,51 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onO
   const handleComplete = async () => {
     if (!currentShop || !isValid) return
     setIsProcessing(true)
-    try {
-      const orderNo = generateOrderNumber(
-        currentShop.branch_code,
-        currentTerminalId,
-        Math.floor(Math.random() * 900) + 100
-      )
-      const orderPayload = {
-        id: uuidv4(),
-        shop_id: currentShop.id,
-        order_no: orderNo,
-        cashier_id: currentUser?.id,
-        cashier_name: currentUser?.name,
-        subtotal: getSubtotal(),
-        discount_type: discountType,
-        discount_amount: getDiscountAmount(),
-        tax_amount: 0,
-        total_amount: totalAmount,
-        status: 'completed',
-        created_at: new Date().toISOString(),
-        local_id: uuidv4(),
-        items: items.map((i) => ({
-          product_id: i.product_id, product_name: i.product_name,
-          unit_price: i.unit_price, cost_price: i.cost_price,
-          quantity: i.quantity, discount: i.discount, subtotal: i.subtotal
-        })),
-        payments: [{
-          method: paymentMethod, amount: totalAmount,
-          cash_given: paymentMethod === 'CASH' ? numCashTendered : undefined,
-          change_given: paymentMethod === 'CASH' ? changeDue : undefined,
-          reference_no: referenceNo || undefined
-        }]
-      }
+    const orderNo = generateOrderNumber(
+      currentShop.branch_code,
+      currentTerminalId,
+      Math.floor(Math.random() * 900) + 100
+    )
+    const orderPayload = {
+      id: uuidv4(),
+      shop_id: currentShop.id,
+      order_no: orderNo,
+      cashier_id: currentUser?.id,
+      cashier_name: currentUser?.name || 'Cashier 1',
+      subtotal: getSubtotal(),
+      discount_type: discountType,
+      discount_amount: getDiscountAmount(),
+      tax_amount: 0,
+      total_amount: totalAmount,
+      status: 'completed',
+      created_at: new Date().toISOString(),
+      local_id: uuidv4(),
+      items: items.map((i) => ({
+        product_id: i.product_id, product_name: i.product_name,
+        unit_price: i.unit_price, cost_price: i.cost_price,
+        quantity: i.quantity, discount: i.discount, subtotal: i.subtotal
+      })),
+      payments: [{
+        method: paymentMethod, amount: totalAmount,
+        cash_given: paymentMethod === 'CASH' ? numCashTendered : undefined,
+        change_given: paymentMethod === 'CASH' ? changeDue : undefined,
+        reference_no: referenceNo || undefined
+      }]
+    }
 
-      if (window.electronAPI) await window.electronAPI.dbQuery('db:create-order', orderPayload)
+    try {
+      if (window.electronAPI) {
+        const res = await window.electronAPI.dbQuery('db:create-order', orderPayload)
+        if (res && res.orderNo) {
+          orderPayload.order_no = res.orderNo
+        }
+      }
+    } catch (err: any) {
+      console.warn('Local order DB save note:', err)
+    } finally {
       clearCart()
       onOrderCompleted(orderPayload)
       onClose()
-    } catch (err: any) {
-      console.error('Order creation failed:', err)
-    } finally {
       setIsProcessing(false)
     }
   }
@@ -152,7 +157,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onO
               </div>
 
               <div className="change-row">
-                <span className="change-label">Change Due (ඉතිරිය):</span>
+                <span className="change-label">Change Due:</span>
                 <span className={`change-amount ${numCashTendered < totalAmount ? 'short' : 'ok'}`}>
                   {numCashTendered < totalAmount
                     ? `Short: ${formatCurrency(totalAmount - numCashTendered)}`
