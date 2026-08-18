@@ -131,16 +131,16 @@ const seedInitialLocalData = (db: any) => {
 
   // Default products
   db.run(`
-    INSERT OR IGNORE INTO products (id, shop_id, category_id, name, description, price, cost_price, barcode, unit, track_inventory, is_active)
+    INSERT OR IGNORE INTO products (id, shop_id, category_id, name, description, price, cost_price, barcode, unit, image_path, track_inventory, is_active)
     VALUES 
-      ('p0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000001', 'Black Forest Cake 1kg', 'Rich chocolate sponge layered with cherries and whipped cream', 3800.00, 2400.00, '4790001001', 'pcs', 1, 1),
-      ('p0000000-0000-0000-0000-000000000002', 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000001', 'Red Velvet Gateau 1kg', 'Velvety crimson sponge with cream cheese frosting', 4200.00, 2600.00, '4790001002', 'pcs', 1, 1),
-      ('p0000000-0000-0000-0000-000000000003', 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000001', 'Ribbon Butter Cake 500g', 'Traditional Sri Lankan three-color butter cake', 1650.00, 950.00, '4790001003', 'pcs', 1, 1),
-      ('p0000000-0000-0000-0000-000000000004', 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000002', 'Spicy Chicken Pastry', 'Flaky puff pastry stuffed with spicy devilled chicken', 220.00, 110.00, '4790001004', 'pcs', 1, 1),
-      ('p0000000-0000-0000-0000-000000000005', 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000002', 'Fish Bun (Seeni Sambol & Fish)', 'Soft baked bun filled with spiced tuna fish and caramelized onions', 150.00, 75.00, '4790001005', 'pcs', 1, 1),
-      ('p0000000-0000-0000-0000-000000000006', 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000003', 'Choco Fudge Cupcake', 'Decadent chocolate cupcake with fudge swirl', 280.00, 130.00, '4790001006', 'pcs', 1, 1),
-      ('p0000000-0000-0000-0000-000000000007', 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000003', 'Vanilla Eclair', 'Choux pastry filled with diplomat cream and chocolate ganache', 260.00, 120.00, '4790001007', 'pcs', 1, 1),
-      ('p0000000-0000-0000-0000-000000000008', 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000004', 'Iced Caramel Latte', 'Espresso with fresh steamed milk and salted caramel', 750.00, 320.00, '4790001008', 'pcs', 0, 1);
+      ('p0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000001', 'Black Forest Cake 1kg', 'Rich chocolate sponge layered with cherries and whipped cream', 3800.00, 2400.00, '4790001001', 'pcs', 'products/black_forest.jpg', 1, 1),
+      ('p0000000-0000-0000-0000-000000000002', 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000001', 'Red Velvet Gateau 1kg', 'Velvety crimson sponge with cream cheese frosting', 4200.00, 2600.00, '4790001002', 'pcs', 'products/red_velvet.jpg', 1, 1),
+      ('p0000000-0000-0000-0000-000000000003', 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000001', 'Ribbon Butter Cake 500g', 'Traditional Sri Lankan three-color butter cake', 1650.00, 950.00, '4790001003', 'pcs', 'products/ribbon_butter.jpg', 1, 1),
+      ('p0000000-0000-0000-0000-000000000004', 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000002', 'Spicy Chicken Pastry', 'Flaky puff pastry stuffed with spicy devilled chicken', 220.00, 110.00, '4790001004', 'pcs', 'products/spicy_chicken.jpg', 1, 1),
+      ('p0000000-0000-0000-0000-000000000005', 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000002', 'Fish Bun (Seeni Sambol & Fish)', 'Soft baked bun filled with spiced tuna fish and caramelized onions', 150.00, 75.00, '4790001005', 'pcs', 'products/fish_bun.jpg', 1, 1),
+      ('p0000000-0000-0000-0000-000000000006', 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000003', 'Choco Fudge Cupcake', 'Decadent chocolate cupcake with fudge swirl', 280.00, 130.00, '4790001006', 'pcs', 'products/choco_fudge_cupcake.jpg', 1, 1),
+      ('p0000000-0000-0000-0000-000000000007', 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000003', 'Vanilla Eclair', 'Choux pastry filled with diplomat cream and chocolate ganache', 260.00, 120.00, '4790001007', 'pcs', 'products/vanilla_eclair.jpg', 1, 1),
+      ('p0000000-0000-0000-0000-000000000008', 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000004', 'Iced Caramel Latte', 'Espresso with fresh steamed milk and salted caramel', 750.00, 320.00, '4790001008', 'pcs', 'products/iced_caramel_latte.jpg', 0, 1);
   `)
 
   // Default stock

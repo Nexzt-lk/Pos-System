@@ -71,8 +71,7 @@ export const ReportsPage: React.FC = () => {
             onChange={(e) => setSelectedDate(e.target.value)}
             style={{
               border: 'none', outline: 'none', background: 'transparent',
-              fontSize: 13, fontWeight: 600, color: 'var(--text-primary)',
-              fontFamily: 'Inter, sans-serif'
+              fontSize: 13, fontWeight: 600, color: 'var(--text-primary)'
             }}
           />
         </div>
@@ -80,21 +79,21 @@ export const ReportsPage: React.FC = () => {
 
       {/* KPI Cards */}
       <div className="kpi-grid" style={{ flexShrink: 0 }}>
-        <div className="kpi-card" style={{ borderLeft: '4px solid var(--primary)' }}>
+        <div className="kpi-card" style={{ borderLeft: '3px solid var(--primary)' }}>
           <div className="kpi-label">Total Revenue</div>
           <div className="kpi-value green">{formatCurrency(metrics.summary?.total_revenue)}</div>
         </div>
-        <div className="kpi-card" style={{ borderLeft: '4px solid #3b82f6' }}>
+        <div className="kpi-card" style={{ borderLeft: '3px solid #64748b' }}>
           <div className="kpi-label">Total Orders</div>
-          <div className="kpi-value blue">{metrics.summary?.total_orders || 0}</div>
+          <div className="kpi-value" style={{ color: 'var(--text-primary)' }}>{metrics.summary?.total_orders || 0}</div>
         </div>
-        <div className="kpi-card" style={{ borderLeft: '4px solid #8b5cf6' }}>
+        <div className="kpi-card" style={{ borderLeft: '3px solid #64748b' }}>
           <div className="kpi-label">Avg Ticket Value</div>
-          <div className="kpi-value" style={{ color: '#6d28d9' }}>{formatCurrency(metrics.summary?.avg_order_value)}</div>
+          <div className="kpi-value" style={{ color: 'var(--text-primary)' }}>{formatCurrency(metrics.summary?.avg_order_value)}</div>
         </div>
-        <div className="kpi-card" style={{ borderLeft: '4px solid #f59e0b' }}>
+        <div className="kpi-card" style={{ borderLeft: '3px solid #64748b' }}>
           <div className="kpi-label">Discounts Given</div>
-          <div className="kpi-value amber">{formatCurrency(metrics.summary?.total_discount)}</div>
+          <div className="kpi-value" style={{ color: '#475569' }}>{formatCurrency(metrics.summary?.total_discount)}</div>
         </div>
       </div>
 
@@ -123,11 +122,11 @@ export const ReportsPage: React.FC = () => {
                     <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>{method}</span>
                   </div>
                   <span style={{
-                    background: 'var(--primary-bg)', color: 'var(--primary-dark)',
+                    background: '#ffffff', color: '#475569', border: '1px solid var(--border)',
                     padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 700
                   }}>{pct}%</span>
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--primary-dark)' }}>
+                <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)' }}>
                   {formatCurrency(amount)}
                 </div>
                 {/* Bar */}

@@ -54,11 +54,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
   const roleLabels: Record<string, { label: string; bg: string }> = {
     owner: { label: 'Owner', bg: '#16a34a' },
     admin: { label: 'Admin', bg: '#16a34a' },
-    manager: { label: 'Manager', bg: '#2563eb' },
-    cashier: { label: 'Cashier', bg: '#d97706' }
+    manager: { label: 'Manager', bg: '#0f172a' },
+    cashier: { label: 'Cashier', bg: '#475569' }
   }
 
-  const roleInfo = roleLabels[userRole] || { label: 'Cashier', bg: '#64748b' }
+  const roleInfo = roleLabels[userRole] || { label: 'Cashier', bg: '#475569' }
   const initials = currentUser?.name?.split(' ').map((n: string) => n[0]).slice(0, 2).join('') || 'CX'
 
   return (

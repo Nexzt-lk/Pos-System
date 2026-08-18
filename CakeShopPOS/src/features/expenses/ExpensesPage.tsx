@@ -109,8 +109,8 @@ export const ExpensesPage: React.FC = () => {
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-bg)')}
                     onMouseLeave={e => (e.currentTarget.style.background = '')}>
                     <td style={{ padding: '11px 16px' }}>
-                      <span className="badge badge-cat"
-                        style={{ backgroundColor: CATEGORY_COLORS[exp.category] || '#6b7280' }}>
+                      <span className="badge"
+                        style={{ backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', fontWeight: 600 }}>
                         {exp.category}
                       </span>
                     </td>

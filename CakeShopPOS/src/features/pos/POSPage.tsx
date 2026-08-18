@@ -3,6 +3,7 @@ import { ProductGrid } from './ProductGrid'
 import { Cart } from './Cart'
 import { PaymentModal } from './PaymentModal'
 import { ReceiptModal } from './ReceiptModal'
+import { DiscountModal } from './DiscountModal'
 import { Product, Category } from '../../types/product'
 import { useCartStore } from '../../store/cartStore'
 import { useAppStore } from '../../store/appStore'
@@ -16,6 +17,7 @@ export const POSPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true)
 
   const [isPaymentOpen, setIsPaymentOpen] = useState(false)
+  const [isDiscountOpen, setIsDiscountOpen] = useState(false)
   const [isReceiptOpen, setIsReceiptOpen] = useState(false)
   const [completedOrder, setCompletedOrder] = useState<any | null>(null)
 
@@ -40,13 +42,14 @@ export const POSPage: React.FC = () => {
           { id: 'c4', shop_id: currentShop.id, name: 'Beverages & Coffee', color: '#06b6d4', sort_order: 4, is_active: true }
         ])
         setProducts([
-          { id: 'p1', shop_id: currentShop.id, category_id: 'c1', name: 'Black Forest Cake 1kg', price: 3800, barcode: '4790001001', unit: 'pcs', current_stock: 12, track_inventory: true, is_active: true, category_name: 'Signature Cakes', category_color: '#ec4899' },
-          { id: 'p2', shop_id: currentShop.id, category_id: 'c1', name: 'Red Velvet Gateau 1kg', price: 4200, barcode: '4790001002', unit: 'pcs', current_stock: 8, track_inventory: true, is_active: true, category_name: 'Signature Cakes', category_color: '#ec4899' },
-          { id: 'p3', shop_id: currentShop.id, category_id: 'c1', name: 'Ribbon Butter Cake 500g', price: 1650, barcode: '4790001003', unit: 'pcs', current_stock: 20, track_inventory: true, is_active: true, category_name: 'Signature Cakes', category_color: '#ec4899' },
-          { id: 'p4', shop_id: currentShop.id, category_id: 'c2', name: 'Spicy Chicken Pastry', price: 220, barcode: '4790001004', unit: 'pcs', current_stock: 35, track_inventory: true, is_active: true, category_name: 'Pastries & Savories', category_color: '#f59e0b' },
-          { id: 'p5', shop_id: currentShop.id, category_id: 'c2', name: 'Fish Bun (Seeni Sambol)', price: 150, barcode: '4790001005', unit: 'pcs', current_stock: 40, track_inventory: true, is_active: true, category_name: 'Pastries & Savories', category_color: '#f59e0b' },
-          { id: 'p6', shop_id: currentShop.id, category_id: 'c3', name: 'Choco Fudge Cupcake', price: 280, barcode: '4790001006', unit: 'pcs', current_stock: 25, track_inventory: true, is_active: true, category_name: 'Desserts & Cupcakes', category_color: '#8b5cf6' },
-          { id: 'p7', shop_id: currentShop.id, category_id: 'c4', name: 'Iced Caramel Latte', price: 750, barcode: '4790001008', unit: 'pcs', current_stock: 50, track_inventory: false, is_active: true, category_name: 'Beverages & Coffee', category_color: '#06b6d4' }
+          { id: 'p1', shop_id: currentShop.id, category_id: 'c1', name: 'Black Forest Cake 1kg', price: 3800, barcode: '4790001001', unit: 'pcs', current_stock: 12, track_inventory: true, is_active: true, category_name: 'Signature Cakes', image_path: 'products/black_forest.jpg' },
+          { id: 'p2', shop_id: currentShop.id, category_id: 'c1', name: 'Red Velvet Gateau 1kg', price: 4200, barcode: '4790001002', unit: 'pcs', current_stock: 8, track_inventory: true, is_active: true, category_name: 'Signature Cakes', image_path: 'products/red_velvet.jpg' },
+          { id: 'p3', shop_id: currentShop.id, category_id: 'c1', name: 'Ribbon Butter Cake 500g', price: 1650, barcode: '4790001003', unit: 'pcs', current_stock: 20, track_inventory: true, is_active: true, category_name: 'Signature Cakes', image_path: 'products/ribbon_butter.jpg' },
+          { id: 'p4', shop_id: currentShop.id, category_id: 'c2', name: 'Spicy Chicken Pastry', price: 220, barcode: '4790001004', unit: 'pcs', current_stock: 35, track_inventory: true, is_active: true, category_name: 'Pastries & Savories', image_path: 'products/spicy_chicken.jpg' },
+          { id: 'p5', shop_id: currentShop.id, category_id: 'c2', name: 'Fish Bun (Seeni Sambol)', price: 150, barcode: '4790001005', unit: 'pcs', current_stock: 40, track_inventory: true, is_active: true, category_name: 'Pastries & Savories', image_path: 'products/fish_bun.jpg' },
+          { id: 'p6', shop_id: currentShop.id, category_id: 'c3', name: 'Choco Fudge Cupcake', price: 280, barcode: '4790001006', unit: 'pcs', current_stock: 25, track_inventory: true, is_active: true, category_name: 'Desserts & Cupcakes', image_path: 'products/choco_fudge_cupcake.jpg' },
+          { id: 'p7', shop_id: currentShop.id, category_id: 'c3', name: 'Vanilla Eclair', price: 260, barcode: '4790001007', unit: 'pcs', current_stock: 30, track_inventory: true, is_active: true, category_name: 'Desserts & Cupcakes', image_path: 'products/vanilla_eclair.jpg' },
+          { id: 'p8', shop_id: currentShop.id, category_id: 'c4', name: 'Iced Caramel Latte', price: 750, barcode: '4790001008', unit: 'pcs', current_stock: 50, track_inventory: false, is_active: true, category_name: 'Beverages & Coffee', image_path: 'products/iced_caramel_latte.jpg' }
         ])
       }
     } catch (err) {
@@ -85,7 +88,13 @@ export const POSPage: React.FC = () => {
       {/* 🧾 Right Active Bill Cart Panel */}
       <Cart
         onOpenPaymentModal={() => setIsPaymentOpen(true)}
-        onOpenDiscountModal={() => {}}
+        onOpenDiscountModal={() => setIsDiscountOpen(true)}
+      />
+
+      {/* 🏷️ Quick Discount Modal */}
+      <DiscountModal
+        isOpen={isDiscountOpen}
+        onClose={() => setIsDiscountOpen(false)}
       />
 
       {/* 💳 Payment & Checkout Modal */}
@@ -108,3 +117,4 @@ export const POSPage: React.FC = () => {
     </div>
   )
 }
+

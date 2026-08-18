@@ -153,7 +153,7 @@ export const InventoryPage: React.FC = () => {
                       {product.name}
                     </td>
                     <td style={{ padding: '11px 16px' }}>
-                      <span className="badge badge-cat" style={{ backgroundColor: product.category_color || '#16a34a' }}>
+                      <span className="badge" style={{ backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', fontWeight: 600 }}>
                         {product.category_name}
                       </span>
                     </td>

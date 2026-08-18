@@ -127,7 +127,7 @@ export const SettingsPage: React.FC = () => {
                 style={{
                   width: '100%', padding: '9px 12px', borderRadius: 'var(--radius)',
                   border: '1.5px solid var(--border)', background: 'var(--surface)',
-                  fontSize: 13, fontWeight: 700, color: 'var(--info)', fontFamily: 'Inter, monospace',
+                  fontSize: 13, fontWeight: 700, color: 'var(--text-primary)',
                   outline: 'none', cursor: 'pointer'
                 }}
               >

@@ -1,7 +1,8 @@
 import React from 'react'
-import { Plus, Cake } from 'lucide-react'
+import { Plus, Cake, Check } from 'lucide-react'
 import { Product } from '../../types/product'
 import { formatCurrency } from '../../lib/formatters'
+import { useCartStore } from '../../store/cartStore'
 
 interface ProductCardProps {
   product: Product
@@ -9,25 +10,63 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
+  const items = useCartStore((s) => s.items)
+  const cartItem = items.find((i) => i.product_id === product.id)
+  const inCartQty = cartItem?.quantity || 0
+
   const isOutOfStock = product.track_inventory && (product.current_stock ?? 0) <= 0
   const isLow = product.track_inventory && !isOutOfStock && (product.current_stock ?? 0) <= 5
 
+  const getImgSrc = (path?: string) => {
+    if (!path) return null
+    if (path.startsWith('http') || path.startsWith('data:')) return path
+    if (window.electronAPI) return `app-images:///${path}`
+    return `/images/${path.startsWith('/') ? path.slice(1) : path}`
+  }
+
+  const imgSrc = getImgSrc(product.image_path)
+
   return (
     <div
-      className={`product-card ${isOutOfStock ? 'out-of-stock' : ''}`}
+      className={`product-card ${isOutOfStock ? 'out-of-stock' : ''} ${inCartQty > 0 ? 'selected-in-cart' : ''}`}
       onClick={() => !isOutOfStock && onAddToCart(product)}
     >
       {/* Product Image */}
-      <div className="product-img-placeholder" style={{ position: 'relative' }}>
-        {product.image_path ? (
+      <div className="product-img-placeholder" style={{ position: 'relative', background: '#ffffff', overflow: 'hidden' }}>
+        {imgSrc ? (
           <img
-            src={`app-images:///${product.image_path}`}
+            src={imgSrc}
             alt={product.name}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            onError={(e) => { e.currentTarget.style.display = 'none' }}
+            style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '6px', transition: 'transform 0.2s ease' }}
+            onError={(e) => {
+              if (e.currentTarget.src.startsWith('app-images:///')) {
+                // Fallback to local web assets
+                e.currentTarget.src = `/images/${product.image_path}`
+              } else {
+                e.currentTarget.style.display = 'none'
+              }
+            }}
           />
         ) : (
           <Cake size={36} color="#94a3b8" />
+        )}
+
+        {/* In Cart Indicator */}
+        {inCartQty > 0 && (
+          <span style={{
+            position: 'absolute',
+            top: 8,
+            left: 8,
+            background: 'var(--primary)',
+            color: '#ffffff',
+            padding: '2px 7px',
+            borderRadius: 6,
+            fontSize: 10,
+            fontWeight: 800,
+            boxShadow: '0 2px 6px rgba(22, 163, 74, 0.4)'
+          }}>
+            {inCartQty} in cart
+          </span>
         )}
 
         {/* Stock badge */}
@@ -41,10 +80,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
 
       {/* Product Info */}
       <div className="product-info">
-        <span
-          className="product-cat-label"
-          style={{ backgroundColor: product.category_color || '#16a34a' }}
-        >
+        <span className="product-cat-label">
           {product.category_name || 'General'}
         </span>
 

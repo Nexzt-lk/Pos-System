@@ -7,15 +7,23 @@ export const setupImageProtocol = () => {
   protocol.handle('app-images', (request) => {
     const url = request.url.replace('app-images:///', '')
     const decodedUrl = decodeURIComponent(url)
-    const baseDir = path.join(app.getPath('userData'), 'images')
-    const fullPath = path.join(baseDir, decodedUrl)
+    
+    // Check multiple candidate locations
+    const candidatePaths = [
+      path.join(app.getPath('userData'), 'images', decodedUrl),
+      path.join(process.cwd(), 'public', 'images', decodedUrl),
+      path.join(__dirname, '../../public/images', decodedUrl),
+      path.join(app.getAppPath(), 'public', 'images', decodedUrl)
+    ]
 
-    if (fs.existsSync(fullPath)) {
-      return net.fetch(`file://${fullPath}`)
-    } else {
-      console.warn(`[ImageService] Requested image not found at: ${fullPath}`)
-      return new Response('Not Found', { status: 404 })
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        return net.fetch(`file://${p}`)
+      }
     }
+
+    console.warn(`[ImageService] Requested image not found for url: ${decodedUrl}`)
+    return new Response('Not Found', { status: 404 })
   })
 }
 
