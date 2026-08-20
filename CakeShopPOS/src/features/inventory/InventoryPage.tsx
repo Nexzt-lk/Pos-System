@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Package, AlertTriangle, PlusCircle, TrendingDown, TrendingUp, RefreshCw } from 'lucide-react'
+import { Package, AlertTriangle, PlusCircle, RefreshCw } from 'lucide-react'
 import { Modal, Form, Select, InputNumber, Input, message } from 'antd'
 import { useAppStore } from '../../store/appStore'
 import { Product } from '../../types/product'

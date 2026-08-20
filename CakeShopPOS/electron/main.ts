@@ -107,7 +107,7 @@ function setupIpcHandlers() {
   ipcMain.handle('db:get-low-stock', async (_, shopId: string) => await inventoryRepo.getLowStock(shopId))
   ipcMain.handle('db:record-stock-movement', async (_, movement) => await inventoryRepo.recordMovement(movement))
 
-  ipcMain.handle('auth:login-email', async (_, { email, password, shopId }: { email: string; password: string; shopId?: string }) => {
+  ipcMain.handle('auth:login-email', async (_, { email, password }: { email: string; password: string; shopId?: string }) => {
     try {
       const db = await getDatabase()
       const input = (email || '').trim().toLowerCase()

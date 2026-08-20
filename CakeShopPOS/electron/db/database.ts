@@ -1,6 +1,5 @@
 import initSqlJs from 'sql.js'
 import path from 'path'
-import { app } from 'electron'
 import fs from 'fs'
 import { LOCAL_SCHEMA_SQL } from './schema'
 

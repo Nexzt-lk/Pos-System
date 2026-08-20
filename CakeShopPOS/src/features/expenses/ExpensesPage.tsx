@@ -110,7 +110,12 @@ export const ExpensesPage: React.FC = () => {
                     onMouseLeave={e => (e.currentTarget.style.background = '')}>
                     <td style={{ padding: '11px 16px' }}>
                       <span className="badge"
-                        style={{ backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', fontWeight: 600 }}>
+                        style={{
+                          backgroundColor: `${CATEGORY_COLORS[exp.category] || '#475569'}18`,
+                          color: CATEGORY_COLORS[exp.category] || '#475569',
+                          border: `1px solid ${CATEGORY_COLORS[exp.category] || '#e2e8f0'}40`,
+                          fontWeight: 700
+                        }}>
                         {exp.category}
                       </span>
                     </td>

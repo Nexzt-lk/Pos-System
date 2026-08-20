@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X, Banknote, CreditCard, Building2, ArrowRightLeft, CheckCircle2 } from 'lucide-react'
+import { X, Banknote, CreditCard, Building2, CheckCircle2 } from 'lucide-react'
 import { useCartStore } from '../../store/cartStore'
 import { useAppStore } from '../../store/appStore'
 import { formatCurrency, generateOrderNumber } from '../../lib/formatters'

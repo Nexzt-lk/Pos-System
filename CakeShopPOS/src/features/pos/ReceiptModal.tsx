@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { X, Printer, Receipt, CheckCircle2, ArrowRight } from 'lucide-react'
+import { X, Printer, Receipt, CheckCircle2 } from 'lucide-react'
 import { formatCurrency, formatDateTime } from '../../lib/formatters'
 import { useAppStore } from '../../store/appStore'
 

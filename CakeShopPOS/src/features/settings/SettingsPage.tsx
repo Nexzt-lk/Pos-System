@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Settings, Printer, Store, Monitor, Wifi, Check, ChevronRight, RefreshCw } from 'lucide-react'
+import { Settings, Printer, Store, Monitor, Wifi, RefreshCw } from 'lucide-react'
 import { message } from 'antd'
 import { useAppStore } from '../../store/appStore'
 

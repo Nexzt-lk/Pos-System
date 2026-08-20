@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { Modal, Radio } from 'antd'
-import { Percent, DollarSign, Tag, Check, X } from 'lucide-react'
+import { Modal } from 'antd'
+import { Percent, DollarSign, Tag, Check } from 'lucide-react'
 import { useCartStore } from '../../store/cartStore'
 import { DiscountType } from '../../types/order'
 import { formatCurrency } from '../../lib/formatters'

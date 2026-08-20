@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import {
-  ShieldCheck, Lock, Unlock, Eye, EyeOff, Store, Clock,
-  ArrowRight, KeyRound, CheckCircle2,
+  ShieldCheck, Lock, Eye, EyeOff, Store, Clock,
+  ArrowRight, KeyRound,
   AlertTriangle, RefreshCw,
-  Cake, User, Activity, HardDrive
+  User, Activity, HardDrive
 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import dayjs from 'dayjs'

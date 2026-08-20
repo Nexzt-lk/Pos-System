@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react'
-import { Search, Sparkles, AlertCircle, Scan, X, SlidersHorizontal } from 'lucide-react'
+import { Search, Sparkles, AlertCircle, Scan, X } from 'lucide-react'
 import { Product, Category } from '../../types/product'
 import { ProductCard } from './ProductCard'
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner'

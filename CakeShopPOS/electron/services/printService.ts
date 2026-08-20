@@ -1,4 +1,4 @@
-import { ThermalPrinter, PrinterTypes } from 'node-thermal-printer'
+import { ThermalPrinter, PrinterTypes, CharacterSet } from 'node-thermal-printer'
 
 export interface ReceiptPrintData {
   shopName: string
@@ -33,7 +33,7 @@ export const printService = {
       const printer = new ThermalPrinter({
         type: PrinterTypes.EPSON,
         interface: 'printer:auto', // Or specific USB path
-        characterSet: 'SLOVENIA',
+        characterSet: CharacterSet.SLOVENIA,
         removeSpecialCharacters: false,
         lineCharacter: '-'
       })
