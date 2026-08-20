@@ -7,9 +7,13 @@ interface CartItemProps {
   item: CartItemType
   onUpdateQuantity: (productId: string, quantity: number) => void
   onRemoveItem: (productId: string) => void
+  onEditItem?: (item: CartItemType) => void
 }
 
-export const CartItem: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRemoveItem }) => {
+export const CartItem: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRemoveItem, onEditItem }) => {
+  const isWeight = item.unit?.toLowerCase() === 'kg' || item.unit?.toLowerCase() === 'g'
+  const stepDelta = isWeight ? 0.25 : 1
+
   const getImgSrc = (path?: string) => {
     if (!path) return null
     if (path.startsWith('http') || path.startsWith('data:')) return path
@@ -22,18 +26,22 @@ export const CartItem: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRe
   return (
     <div className="cart-item">
       {/* 🖼️ Mini Transparent Image Thumbnail */}
-      <div style={{
-        width: 44,
-        height: 44,
-        borderRadius: 8,
-        background: 'transparent',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-        flexShrink: 0,
-        padding: 2
-      }}>
+      <div
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 8,
+          background: 'transparent',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+          flexShrink: 0,
+          padding: 2,
+          cursor: onEditItem ? 'pointer' : 'default'
+        }}
+        onClick={() => onEditItem?.(item)}
+      >
         {imgSrc ? (
           <img
             src={imgSrc}
@@ -47,25 +55,45 @@ export const CartItem: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRe
       </div>
 
       {/* 📝 Name & Unit Price */}
-      <div className="cart-item-info">
+      <div
+        className="cart-item-info"
+        style={{ cursor: onEditItem ? 'pointer' : 'default' }}
+        onClick={() => onEditItem?.(item)}
+        title="Click to adjust weight / quantity"
+      >
         <div className="cart-item-name" title={item.product_name}>{item.product_name}</div>
-        <div className="cart-item-price">{formatCurrency(item.unit_price)} × {item.quantity}</div>
+        <div className="cart-item-price">
+          {item.quantity} {item.unit || 'pcs'} × {formatCurrency(item.unit_price)}
+        </div>
       </div>
 
       {/* 🔢 Quantity Stepper */}
       <div className="qty-stepper">
         <button
           className="qty-btn"
-          title="Decrease quantity"
-          onClick={() => onUpdateQuantity(item.product_id, item.quantity - 1)}
+          title={`Decrease by ${stepDelta} ${item.unit || 'pcs'}`}
+          onClick={() => {
+            const nextQty = Math.max(0, Math.round((item.quantity - stepDelta) * 1000) / 1000)
+            onUpdateQuantity(item.product_id, nextQty)
+          }}
         >
           <Minus size={13} />
         </button>
-        <span className="qty-num">{item.quantity}</span>
+        <span
+          className="qty-num"
+          style={{ cursor: onEditItem ? 'pointer' : 'default', minWidth: 44, textAlign: 'center' }}
+          onClick={() => onEditItem?.(item)}
+          title="Click to enter exact weight / count"
+        >
+          {item.quantity} {isWeight ? 'kg' : ''}
+        </span>
         <button
           className="qty-btn"
-          title="Increase quantity"
-          onClick={() => onUpdateQuantity(item.product_id, item.quantity + 1)}
+          title={`Increase by ${stepDelta} ${item.unit || 'pcs'}`}
+          onClick={() => {
+            const nextQty = Math.round((item.quantity + stepDelta) * 1000) / 1000
+            onUpdateQuantity(item.product_id, nextQty)
+          }}
         >
           <Plus size={13} />
         </button>

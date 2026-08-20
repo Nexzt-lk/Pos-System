@@ -19,9 +19,10 @@ interface CartState {
   cashTendered: number
 
   // Actions
-  addItem: (product: Product, quantity?: number) => void
+  addItem: (product: Product, quantity?: number, replaceQty?: boolean) => void
   removeItem: (productId: string) => void
   updateQuantity: (productId: string, quantity: number) => void
+  setItemQuantity: (productId: string, quantity: number) => void
   setItemDiscount: (productId: string, discountAmount: number) => void
   setOrderDiscount: (type: DiscountType, value: number) => void
   setCustomerNote: (note: string) => void
@@ -47,29 +48,34 @@ export const useCartStore = create<CartState>((set, get) => ({
   paymentMethod: 'CASH',
   cashTendered: 0,
 
-  addItem: (product, quantity = 1) => {
+  addItem: (product, quantity = 1, replaceQty = false) => {
+    const qty = Math.round(quantity * 1000) / 1000
+    if (qty <= 0) return
+
     set((state) => {
       const existingIndex = state.items.findIndex((i) => i.product_id === product.id)
       if (existingIndex > -1) {
         const updated = [...state.items]
         const existing = updated[existingIndex]
-        const newQty = existing.quantity + quantity
+        const newQty = replaceQty ? qty : Math.round((existing.quantity + qty) * 1000) / 1000
+        const calculatedSubtotal = Math.round((newQty * existing.unit_price - existing.discount) * 100) / 100
         existing.quantity = newQty
-        existing.subtotal = newQty * existing.unit_price - existing.discount
+        existing.subtotal = Math.max(0, calculatedSubtotal)
         return { items: updated }
       } else {
+        const calculatedSubtotal = Math.round((qty * product.price) * 100) / 100
         const newItem: CartItem = {
           shop_id: product.shop_id,
           product_id: product.id,
           product_name: product.name,
           unit_price: product.price,
           cost_price: product.cost_price,
-          quantity: quantity,
+          quantity: qty,
           discount: 0,
-          subtotal: quantity * product.price,
+          subtotal: calculatedSubtotal,
           barcode: product.barcode,
           image_path: product.image_path,
-          unit: product.unit,
+          unit: product.unit || 'pcs',
           current_stock: product.current_stock
         }
         return { items: [...state.items, newItem] }
@@ -83,8 +89,9 @@ export const useCartStore = create<CartState>((set, get) => ({
     }))
   },
 
-  updateQuantity: (productId, quantity) => {
-    if (quantity <= 0) {
+  setItemQuantity: (productId, quantity) => {
+    const qty = Math.round(quantity * 1000) / 1000
+    if (qty <= 0) {
       get().removeItem(productId)
       return
     }
@@ -93,8 +100,27 @@ export const useCartStore = create<CartState>((set, get) => ({
         item.product_id === productId
           ? {
               ...item,
-              quantity,
-              subtotal: quantity * item.unit_price - item.discount
+              quantity: qty,
+              subtotal: Math.max(0, Math.round((qty * item.unit_price - item.discount) * 100) / 100)
+            }
+          : item
+      )
+    }))
+  },
+
+  updateQuantity: (productId, quantity) => {
+    const qty = Math.round(quantity * 1000) / 1000
+    if (qty <= 0) {
+      get().removeItem(productId)
+      return
+    }
+    set((state) => ({
+      items: state.items.map((item) =>
+        item.product_id === productId
+          ? {
+              ...item,
+              quantity: qty,
+              subtotal: Math.max(0, Math.round((qty * item.unit_price - item.discount) * 100) / 100)
             }
           : item
       )

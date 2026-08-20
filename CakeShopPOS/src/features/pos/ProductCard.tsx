@@ -53,7 +53,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
         {/* Dynamic In-Cart Counter Pill */}
         {inCartQty > 0 && (
           <span className="card-incart-badge">
-            {inCartQty} in cart
+            {inCartQty} {product.unit || 'pcs'} in cart
           </span>
         )}
 
@@ -84,6 +84,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
         <div className="product-footer">
           <div className="product-price">
             {formatCurrency(product.price)}
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginLeft: 3 }}>
+              /{product.unit || 'pcs'}
+            </span>
           </div>
           {!isOutOfStock && (
             <button

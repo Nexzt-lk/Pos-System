@@ -4,12 +4,15 @@ import { useCartStore } from '../../store/cartStore'
 import { CartItem } from './CartItem'
 import { formatCurrency } from '../../lib/formatters'
 
+import { CartItem as CartItemType } from '../../store/cartStore'
+
 interface CartProps {
   onOpenPaymentModal: () => void
   onOpenDiscountModal: () => void
+  onEditItem?: (item: CartItemType) => void
 }
 
-export const Cart: React.FC<CartProps> = ({ onOpenPaymentModal, onOpenDiscountModal }) => {
+export const Cart: React.FC<CartProps> = ({ onOpenPaymentModal, onOpenDiscountModal, onEditItem }) => {
   const items = useCartStore((s) => s.items)
   const updateQuantity = useCartStore((s) => s.updateQuantity)
   const removeItem = useCartStore((s) => s.removeItem)
@@ -71,6 +74,7 @@ export const Cart: React.FC<CartProps> = ({ onOpenPaymentModal, onOpenDiscountMo
               item={item}
               onUpdateQuantity={updateQuantity}
               onRemoveItem={removeItem}
+              onEditItem={onEditItem}
             />
           ))}
         </div>
