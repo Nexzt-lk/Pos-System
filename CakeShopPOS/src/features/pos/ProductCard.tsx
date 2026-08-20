@@ -7,9 +7,10 @@ import { useCartStore } from '../../store/cartStore'
 interface ProductCardProps {
   product: Product
   onAddToCart: (product: Product) => void
+  isFocused?: boolean
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, isFocused }) => {
   const items = useCartStore((s) => s.items)
   const cartItem = items.find((i) => i.product_id === product.id)
   const inCartQty = cartItem?.quantity || 0
@@ -28,7 +29,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
 
   return (
     <div
-      className={`product-card ${isOutOfStock ? 'out-of-stock' : ''} ${inCartQty > 0 ? 'selected-in-cart' : ''}`}
+      className={`product-card ${isOutOfStock ? 'out-of-stock' : ''} ${inCartQty > 0 ? 'selected-in-cart' : ''} ${isFocused ? 'keyboard-focused' : ''}`}
+      style={isFocused ? {
+        border: '2px solid var(--primary)',
+        boxShadow: '0 0 0 3px rgba(236, 72, 153, 0.35)',
+        transform: 'translateY(-3px)'
+      } : undefined}
       onClick={() => !isOutOfStock && onAddToCart(product)}
     >
       {/* 📸 Isolated Studio Image Showcase Viewport */}

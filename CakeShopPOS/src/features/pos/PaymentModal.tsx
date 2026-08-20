@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { X, Banknote, CreditCard, Building2, CheckCircle2 } from 'lucide-react'
 import { useCartStore } from '../../store/cartStore'
 import { useAppStore } from '../../store/appStore'
@@ -30,6 +30,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onO
   const [referenceNo, setReferenceNo] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
 
+  const cashInputRef = useRef<HTMLInputElement>(null)
+
   const numCashTendered = parseFloat(cashTendered) || 0
   const changeDue = Math.max(0, numCashTendered - totalAmount)
   const isValid = paymentMethod !== 'CASH' || numCashTendered >= totalAmount
@@ -40,6 +42,62 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onO
     Math.ceil(totalAmount / 1000) * 1000,
     5000
   ].filter((v, i, a) => a.indexOf(v) === i && v >= totalAmount).slice(0, 4)
+
+  // Auto-focus and initialize when opened
+  useEffect(() => {
+    if (isOpen) {
+      setCashTendered(String(Math.ceil(totalAmount)))
+      setPaymentMethod('CASH')
+      setReferenceNo('')
+      setTimeout(() => {
+        cashInputRef.current?.focus()
+        cashInputRef.current?.select()
+      }, 60)
+    }
+  }, [isOpen, totalAmount])
+
+  // Keyboard Shortcuts (Enter / F10 to complete, Esc to cancel, F1/F2/F3 for methods)
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onClose()
+      } else if (e.key === 'Enter' || e.key === 'F10') {
+        e.preventDefault()
+        if (isValid && !isProcessing) {
+          handleComplete()
+        }
+      } else if (e.key === 'F1') {
+        e.preventDefault()
+        setPaymentMethod('CASH')
+        cashInputRef.current?.focus()
+        cashInputRef.current?.select()
+      } else if (e.key === 'F2') {
+        e.preventDefault()
+        setPaymentMethod('CARD')
+      } else if (e.key === 'F3') {
+        e.preventDefault()
+        setPaymentMethod('TRANSFER')
+      } else if (e.key === 'F5' && quickPresets[0]) {
+        e.preventDefault()
+        setCashTendered(String(quickPresets[0]))
+      } else if (e.key === 'F6' && quickPresets[1]) {
+        e.preventDefault()
+        setCashTendered(String(quickPresets[1]))
+      } else if (e.key === 'F7' && quickPresets[2]) {
+        e.preventDefault()
+        setCashTendered(String(quickPresets[2]))
+      } else if (e.key === 'F8' && quickPresets[3]) {
+        e.preventDefault()
+        setCashTendered(String(quickPresets[3]))
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, isValid, isProcessing, numCashTendered, totalAmount, paymentMethod, quickPresets])
 
   const handleComplete = async () => {
     if (!currentShop || !isValid) return
@@ -119,14 +177,21 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onO
             <div className="field-label" style={{ marginBottom: 8 }}>Select Payment Method</div>
             <div className="payment-methods">
               {[
-                { id: 'CASH', label: 'Cash', icon: <Banknote size={20} /> },
-                { id: 'CARD', label: 'Card', icon: <CreditCard size={20} /> },
-                { id: 'TRANSFER', label: 'Transfer', icon: <Building2 size={20} /> }
+                { id: 'CASH', label: 'Cash (F1)', icon: <Banknote size={20} /> },
+                { id: 'CARD', label: 'Card (F2)', icon: <CreditCard size={20} /> },
+                { id: 'TRANSFER', label: 'Transfer (F3)', icon: <Building2 size={20} /> }
               ].map((m) => (
                 <button
                   key={m.id}
+                  type="button"
                   className={`payment-method-btn ${paymentMethod === m.id ? 'selected' : ''}`}
-                  onClick={() => { setPaymentMethod(m.id as PaymentMethod); if (m.id === 'CASH') setCashTendered(String(Math.ceil(totalAmount))) }}
+                  onClick={() => {
+                    setPaymentMethod(m.id as PaymentMethod)
+                    if (m.id === 'CASH') {
+                      setCashTendered(String(Math.ceil(totalAmount)))
+                      cashInputRef.current?.focus()
+                    }
+                  }}
                 >
                   <div className="payment-method-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{m.icon}</div>
                   <div className="payment-method-label">{m.label}</div>
@@ -141,6 +206,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onO
               <div>
                 <div className="field-label">Cash Tendered (Rs.)</div>
                 <input
+                  ref={cashInputRef}
                   type="number"
                   className="cash-input"
                   value={cashTendered}
@@ -149,9 +215,15 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onO
               </div>
 
               <div className="quick-cash">
-                {quickPresets.map((p) => (
-                  <button key={p} className="quick-cash-btn" onClick={() => setCashTendered(String(p))}>
-                    Rs. {p.toLocaleString()}
+                {quickPresets.map((p, idx) => (
+                  <button
+                    key={p}
+                    type="button"
+                    className="quick-cash-btn"
+                    onClick={() => setCashTendered(String(p))}
+                    title={`Shortcut: F${idx + 5}`}
+                  >
+                    Rs. {p.toLocaleString()} <span style={{ opacity: 0.5, fontSize: 10 }}>[F{idx + 5}]</span>
                   </button>
                 ))}
               </div>

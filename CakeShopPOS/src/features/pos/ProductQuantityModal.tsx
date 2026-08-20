@@ -32,7 +32,9 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
   // Mode for weight input: 'kg' or 'g'
   const [weightInputMode, setWeightInputMode] = useState<'kg' | 'g'>('kg')
 
-  // Reset when opened or product changes
+  const inputRef = React.useRef<HTMLInputElement>(null)
+
+  // Reset and auto-focus when opened or product changes
   useEffect(() => {
     if (isOpen && product) {
       if (currentCartQuantity > 0) {
@@ -41,8 +43,12 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
         setInputValue(isWeightBased ? '1' : '1')
       }
       setWeightInputMode('kg')
+      setTimeout(() => {
+        inputRef.current?.focus()
+        inputRef.current?.select()
+      }, 50)
     }
-  }, [isOpen, product?.id, currentCartQuantity])
+  }, [isOpen, product?.id, currentCartQuantity, isWeightBased])
 
   // Presets
   const weightPresets = [
@@ -63,18 +69,21 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
   // Handlers for adjustments
   const handleSetPreset = (val: number) => {
     setInputValue(String(val))
+    inputRef.current?.focus()
   }
 
   const handleStepWeight = (deltaKg: number) => {
     const current = parseFloat(inputValue) || 0
     const next = Math.max(0.05, Math.round((current + deltaKg) * 1000) / 1000)
     setInputValue(String(next))
+    inputRef.current?.focus()
   }
 
   const handleStepCount = (delta: number) => {
     const current = parseInt(inputValue, 10) || 0
     const next = Math.max(1, current + delta)
     setInputValue(String(next))
+    inputRef.current?.focus()
   }
 
   // Keypad input handlers
@@ -83,6 +92,7 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
       if (!inputValue.includes('.')) {
         setInputValue((prev) => (prev === '' || prev === '0' ? '0.' : prev + '.'))
       }
+      inputRef.current?.focus()
       return
     }
     if (inputValue === '0' || inputValue === '') {
@@ -90,6 +100,7 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
     } else {
       setInputValue((prev) => prev + digit)
     }
+    inputRef.current?.focus()
   }
 
   const handleKeypadBackspace = () => {
@@ -97,10 +108,12 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
       if (prev.length <= 1) return '0'
       return prev.slice(0, -1)
     })
+    inputRef.current?.focus()
   }
 
   const handleKeypadClear = () => {
     setInputValue('0')
+    inputRef.current?.focus()
   }
 
   // Toggle grams input mode
@@ -113,6 +126,7 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
       setInputValue(String(num / 1000))
     }
     setWeightInputMode(mode)
+    inputRef.current?.focus()
   }
 
   // Final quantity to commit (always normalized to product.unit)
@@ -138,7 +152,7 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
     onClose()
   }
 
-  // Keyboard shortcut listener (Enter to confirm, Esc to close)
+  // Keyboard shortcut listener (Enter to confirm, Esc to close, Arrows to step, K/G to toggle unit)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -147,11 +161,31 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
       } else if (e.key === 'Enter') {
         e.preventDefault()
         handleConfirm()
+      } else if (e.key === 'ArrowUp' || e.key === '+') {
+        e.preventDefault()
+        if (isWeightBased) {
+          handleStepWeight(0.25)
+        } else {
+          handleStepCount(1)
+        }
+      } else if (e.key === 'ArrowDown' || e.key === '-') {
+        e.preventDefault()
+        if (isWeightBased) {
+          handleStepWeight(-0.25)
+        } else {
+          handleStepCount(-1)
+        }
+      } else if (isWeightBased && (e.key === 'k' || e.key === 'K') && document.activeElement !== inputRef.current) {
+        e.preventDefault()
+        handleToggleWeightMode('kg')
+      } else if (isWeightBased && (e.key === 'g' || e.key === 'G') && document.activeElement !== inputRef.current) {
+        e.preventDefault()
+        handleToggleWeightMode('g')
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [inputValue, weightInputMode, product, normalizedQty])
+  }, [inputValue, weightInputMode, product, normalizedQty, isWeightBased])
 
   return (
     <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
@@ -298,6 +332,7 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
             {/* Big Editable Quantity / Weight Display */}
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
               <input
+                ref={inputRef}
                 type="text"
                 value={inputValue}
                 onChange={(e) => {

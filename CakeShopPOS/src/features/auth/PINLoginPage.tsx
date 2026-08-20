@@ -63,6 +63,27 @@ export const PINLoginPage: React.FC = () => {
     }
   }
 
+  // Physical keyboard support for typing PIN directly (0-9, Backspace, Escape)
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isLoading) return
+
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault()
+        handleKeyPress(e.key)
+      } else if (e.key === 'Backspace') {
+        e.preventDefault()
+        handleDelete()
+      } else if (e.key === 'Escape' || e.key === 'Delete') {
+        e.preventDefault()
+        handleClear()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [pin, isLoading])
+
   return (
     <div className="pin-screen">
       <div className="pin-card">

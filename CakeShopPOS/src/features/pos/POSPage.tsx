@@ -5,6 +5,7 @@ import { PaymentModal } from './PaymentModal'
 import { ReceiptModal } from './ReceiptModal'
 import { DiscountModal } from './DiscountModal'
 import { ProductQuantityModal } from './ProductQuantityModal'
+import { KeyboardShortcutsModal } from './KeyboardShortcutsModal'
 import { Product, Category } from '../../types/product'
 import { useCartStore, CartItem as CartItemType } from '../../store/cartStore'
 import { useAppStore } from '../../store/appStore'
@@ -12,6 +13,7 @@ import { useAppStore } from '../../store/appStore'
 export const POSPage: React.FC = () => {
   const currentShop = useAppStore((state) => state.currentShop)
   const addItem = useCartStore((state) => state.addItem)
+  const clearCart = useCartStore((state) => state.clearCart)
   const cartItems = useCartStore((state) => state.items)
 
   const [products, setProducts] = useState<Product[]>([])
@@ -26,6 +28,7 @@ export const POSPage: React.FC = () => {
   const [isPaymentOpen, setIsPaymentOpen] = useState(false)
   const [isDiscountOpen, setIsDiscountOpen] = useState(false)
   const [isReceiptOpen, setIsReceiptOpen] = useState(false)
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false)
   const [completedOrder, setCompletedOrder] = useState<any | null>(null)
 
   // Fetch local products & categories on load or branch change
@@ -104,17 +107,35 @@ export const POSPage: React.FC = () => {
     addItem(product, quantity, true)
   }
 
-  // Keyboard Shortcuts (F4 to pay)
+  // Global POS Keyboard Shortcuts (F1: Help, F3: Discount, F4: Pay, F9: Clear Cart)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F4' && !isQtyModalOpen) {
+      // Don't trigger global actions if sub-modals are open
+      if (isQtyModalOpen || isPaymentOpen || isDiscountOpen || isReceiptOpen || isShortcutsOpen) {
+        return
+      }
+
+      if (e.key === 'F1') {
         e.preventDefault()
-        setIsPaymentOpen(true)
+        setIsShortcutsOpen(true)
+      } else if (e.key === 'F3' || (e.ctrlKey && (e.key === 'd' || e.key === 'D'))) {
+        e.preventDefault()
+        setIsDiscountOpen(true)
+      } else if (e.key === 'F4') {
+        e.preventDefault()
+        if (cartItems.length > 0) {
+          setIsPaymentOpen(true)
+        }
+      } else if (e.key === 'F9' || (e.ctrlKey && e.key === 'Delete')) {
+        e.preventDefault()
+        if (cartItems.length > 0) {
+          clearCart()
+        }
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isQtyModalOpen])
+  }, [isQtyModalOpen, isPaymentOpen, isDiscountOpen, isReceiptOpen, isShortcutsOpen, cartItems, clearCart])
 
   return (
     <div style={{ display: 'flex', height: '100%', width: '100%', overflow: 'hidden' }}>
@@ -167,6 +188,12 @@ export const POSPage: React.FC = () => {
         isOpen={isReceiptOpen}
         onClose={() => setIsReceiptOpen(false)}
         orderData={completedOrder}
+      />
+
+      {/* ⌨️ Keyboard Shortcuts Help Modal */}
+      <KeyboardShortcutsModal
+        isOpen={isShortcutsOpen}
+        onClose={() => setIsShortcutsOpen(false)}
       />
     </div>
   )

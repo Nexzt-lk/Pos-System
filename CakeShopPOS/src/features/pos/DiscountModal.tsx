@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Modal } from 'antd'
 import { Percent, DollarSign, Tag, Check } from 'lucide-react'
 import { useCartStore } from '../../store/cartStore'
@@ -19,7 +19,19 @@ export const DiscountModal: React.FC<DiscountModalProps> = ({ isOpen, onClose })
   const [type, setType] = useState<DiscountType>(discountType || 'percent')
   const [val, setVal] = useState<number>(discountValue || 0)
 
+  const inputRef = useRef<HTMLInputElement>(null)
   const subtotal = getSubtotal()
+
+  useEffect(() => {
+    if (isOpen) {
+      setType(discountType || 'percent')
+      setVal(discountValue || 0)
+      setTimeout(() => {
+        inputRef.current?.focus()
+        inputRef.current?.select()
+      }, 60)
+    }
+  }, [isOpen, discountType, discountValue])
 
   const handleApply = () => {
     setOrderDiscount(type, Number(val) || 0)
@@ -31,6 +43,24 @@ export const DiscountModal: React.FC<DiscountModalProps> = ({ isOpen, onClose })
     setVal(0)
     onClose()
   }
+
+  // Keyboard shortcuts (Enter to apply, Esc to close, P/F to switch type)
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onClose()
+      } else if (e.key === 'Enter') {
+        e.preventDefault()
+        handleApply()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, type, val])
 
   const calculatedDiscount = type === 'percent' ? (subtotal * (Number(val) || 0)) / 100 : Number(val) || 0
 

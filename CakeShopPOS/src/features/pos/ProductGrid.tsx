@@ -16,27 +16,13 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL')
   const [searchQuery, setSearchQuery] = useState<string>('')
+  const [focusedIndex, setFocusedIndex] = useState<number>(-1)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   useBarcodeScanner((barcode) => {
     const matched = products.find((p) => p.barcode === barcode)
     if (matched) onAddToCart(matched)
   })
-
-  // Keyboard shortcut '/' to focus search
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === '/' && document.activeElement !== searchInputRef.current) {
-        e.preventDefault()
-        searchInputRef.current?.focus()
-      } else if (e.key === 'Escape' && document.activeElement === searchInputRef.current) {
-        setSearchQuery('')
-        searchInputRef.current?.blur()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
 
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
@@ -47,6 +33,62 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
       return matchesCat && matchesSearch
     })
   }, [products, selectedCategory, searchQuery])
+
+  // Reset focused item when search or category changes
+  useEffect(() => {
+    setFocusedIndex(-1)
+  }, [searchQuery, selectedCategory])
+
+  // Keyboard shortcut listener (F2 / '/' to search, Arrow keys to navigate, Enter to select, Alt+1..9 for categories)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Focus search: F2, '/', or Ctrl+F
+      if ((e.key === 'F2' || e.key === '/' || (e.ctrlKey && e.key === 'f')) && document.activeElement !== searchInputRef.current) {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+        searchInputRef.current?.select()
+        return
+      }
+
+      // Alt+0 for All items, Alt+1..9 for categories
+      if (e.altKey && !isNaN(Number(e.key))) {
+        const num = Number(e.key)
+        e.preventDefault()
+        if (num === 0 || num === 1) {
+          setSelectedCategory('ALL')
+        } else if (categories[num - 2]) {
+          setSelectedCategory(categories[num - 2].id)
+        }
+        return
+      }
+
+      // Arrow navigation across products
+      if (filteredProducts.length > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault()
+          setFocusedIndex((prev) => (prev + 1 < filteredProducts.length ? prev + 1 : 0))
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault()
+          setFocusedIndex((prev) => (prev - 1 >= 0 ? prev - 1 : filteredProducts.length - 1))
+        } else if (e.key === 'Enter') {
+          // If searching or navigating, Enter opens the focused (or first) product
+          const targetIndex = focusedIndex >= 0 ? focusedIndex : 0
+          if (filteredProducts[targetIndex]) {
+            e.preventDefault()
+            onAddToCart(filteredProducts[targetIndex])
+          }
+        }
+      }
+
+      if (e.key === 'Escape' && document.activeElement === searchInputRef.current) {
+        setSearchQuery('')
+        searchInputRef.current?.blur()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [filteredProducts, focusedIndex, categories, onAddToCart])
 
   return (
     <div className="catalog-panel" style={{ display: 'flex', flexDirection: 'column', flex: 1, padding: '16px 20px', gap: 14, overflow: 'hidden' }}>
@@ -182,8 +224,13 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
         </div>
       ) : (
         <div className="product-grid">
-          {filteredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} onAddToCart={onAddToCart} />
+          {filteredProducts.map((product, idx) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              onAddToCart={onAddToCart}
+              isFocused={focusedIndex === idx}
+            />
           ))}
         </div>
       )}
