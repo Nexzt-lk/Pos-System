@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import {
   ShoppingCart, Cake, Package, BarChart3,
-  Receipt, Settings, LogOut, Clock, Store, Monitor,
-  PanelLeftClose, PanelLeftOpen
+  Receipt, Settings, LogOut, Clock, Store, Monitor
 } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
 import { SyncIndicator } from './SyncIndicator'
@@ -24,7 +23,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
   const logout = useAppStore((s) => s.logout)
   const setShop = useAppStore((s) => s.setShop)
 
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
   const [currentTime, setCurrentTime] = useState(dayjs().format('hh:mm:ss A'))
 
   useEffect(() => {
@@ -66,14 +65,22 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
     <div className="pos-layout">
       {/* ───── Sidebar ───── */}
       <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
-        {/* Brand with Nexzt Logo */}
-        <div className="sidebar-brand" style={{
-          padding: isSidebarCollapsed ? '10px 4px 14px' : '14px 10px 16px',
-          alignItems: 'center',
-          justifyContent: isSidebarCollapsed ? 'center' : 'flex-start',
-          borderBottom: '1px solid var(--border-light)',
-          marginBottom: 6
-        }}>
+        {/* Brand with Nexzt Logo (Click to Toggle Expand/Collapse) */}
+        <div
+          className="sidebar-brand"
+          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          title={isSidebarCollapsed ? 'Click to expand sidebar' : 'Click to collapse sidebar'}
+          style={{
+            padding: isSidebarCollapsed ? '10px 4px 14px' : '14px 10px 16px',
+            alignItems: 'center',
+            justifyContent: isSidebarCollapsed ? 'center' : 'flex-start',
+            borderBottom: '1px solid var(--border-light)',
+            marginBottom: 6,
+            cursor: 'pointer',
+            userSelect: 'none',
+            transition: 'opacity 0.15s ease'
+          }}
+        >
           {!isSidebarCollapsed ? (
             <div style={{
               display: 'flex',
@@ -104,7 +111,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
               alignItems: 'center',
               justifyContent: 'center',
               overflow: 'hidden',
-              padding: 2
+              padding: 2,
+              transition: 'transform 0.18s ease'
             }}>
               <img
                 src={nexztIcon}
@@ -170,24 +178,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
         {/* Topbar */}
         <header className="topbar">
           <div className="topbar-left">
-            {/* Sidebar Toggle Button */}
-            <button
-              type="button"
-              className="branch-pill"
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              title={isSidebarCollapsed ? "Expand Sidebar (Ctrl+B)" : "Collapse Sidebar (Maximize POS space)"}
-              style={{
-                background: isSidebarCollapsed ? 'var(--primary-bg)' : '#ffffff',
-                borderColor: isSidebarCollapsed ? 'var(--primary)' : 'var(--border)',
-                color: isSidebarCollapsed ? 'var(--primary)' : 'var(--text-secondary)',
-                padding: '6px 10px',
-                cursor: 'pointer'
-              }}
-            >
-              {isSidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
-              <span style={{ fontSize: 11, fontWeight: 700 }}>{isSidebarCollapsed ? 'Expand' : 'Sidebar'}</span>
-            </button>
-
             <button className="branch-pill" onClick={toggleBranch} title="Click to switch branch">
               <Store size={13} />
               <span>{currentShop?.name || 'Kandy Branch'}</span>
