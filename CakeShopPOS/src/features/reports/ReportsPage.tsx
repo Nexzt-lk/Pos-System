@@ -19,7 +19,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Award,
-  Layers
+  Layers,
+  CalendarDays,
+  CalendarRange,
+  Clock
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -321,15 +324,18 @@ export const ReportsPage: React.FC = () => {
             border: '1px solid var(--border)'
           }}>
             {[
-              { key: 'daily', label: '☀️ Daily', title: 'Hourly Breakdown' },
-              { key: 'weekly', label: '📅 Weekly', title: '7 Days View' },
-              { key: 'monthly', label: '🗓️ Monthly', title: '30 Days View' },
-              { key: 'custom', label: '📆 Custom', title: 'Date Range' }
+              { key: 'daily', label: 'Daily', icon: <Clock size={13} /> },
+              { key: 'weekly', label: 'Weekly', icon: <CalendarDays size={13} /> },
+              { key: 'monthly', label: 'Monthly', icon: <Calendar size={13} /> },
+              { key: 'custom', label: 'Custom', icon: <CalendarRange size={13} /> }
             ].map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setPeriod(tab.key as PeriodType)}
                 style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
                   padding: '6px 14px',
                   borderRadius: 'var(--radius-sm)',
                   border: 'none',
@@ -342,7 +348,8 @@ export const ReportsPage: React.FC = () => {
                   transition: 'all 0.18s ease'
                 }}
               >
-                {tab.label}
+                {tab.icon}
+                <span>{tab.label}</span>
               </button>
             ))}
           </div>
@@ -1205,7 +1212,7 @@ export const ReportsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Category Breakdown & Performance Highlights */}
+        {/* Category Breakdown */}
         <div style={{
           background: 'var(--surface)',
           borderRadius: 'var(--radius-lg)',
@@ -1214,7 +1221,8 @@ export const ReportsPage: React.FC = () => {
           boxShadow: 'var(--shadow-sm)'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Layers size={16} color="#8b5cf6" />
               Category Distribution
             </h3>
             <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>
@@ -1673,4 +1681,3 @@ function generateMockAnalytics(period: PeriodType, dateStr: string): AnalyticsSt
     ]
   }
 }
-

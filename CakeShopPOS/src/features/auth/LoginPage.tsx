@@ -237,12 +237,22 @@ export const LoginPage: React.FC = () => {
         }}>
           {/* Top Nexzt Brand Logo */}
           <div>
-            <div style={{ marginBottom: 20 }}>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '8px 14px',
+              background: '#ffffff',
+              borderRadius: 14,
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+              marginBottom: 20
+            }}>
               <img
                 src={nexztLogo}
-                alt="Nexzt Logo"
+                alt="Nexzt POS"
                 style={{
-                  height: 48,
+                  height: 38,
+                  maxWidth: '180px',
                   objectFit: 'contain',
                   display: 'block'
                 }}

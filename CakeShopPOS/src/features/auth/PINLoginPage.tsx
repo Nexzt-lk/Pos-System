@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Delete, UserCheck } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
+import nexztIcon from '../../assets/nexzt-icon.png'
 
 export const PINLoginPage: React.FC = () => {
   const [pin, setPin] = useState('')
@@ -66,7 +67,31 @@ export const PINLoginPage: React.FC = () => {
     <div className="pin-screen">
       <div className="pin-card">
         {/* Logo */}
-        <div className="pin-logo">N</div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '6px',
+            background: '#ffffff',
+            borderRadius: 16,
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+            width: 60,
+            height: 60
+          }}>
+            <img
+              src={nexztIcon}
+              alt="Nexzt POS"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                display: 'block'
+              }}
+            />
+          </div>
+        </div>
 
         <h1 className="pin-title">Rasa Cake House</h1>
         <p className="pin-subtitle">

@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react'
 import {
   ShoppingCart, Cake, Package, BarChart3,
   Receipt, Settings, LogOut, Clock, Store, Monitor,
-  PanelLeftClose, PanelLeftOpen, Menu
+  PanelLeftClose, PanelLeftOpen
 } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
 import { SyncIndicator } from './SyncIndicator'
 import dayjs from 'dayjs'
 
 import nexztLogo from '../assets/nexzt-logo.png'
+import nexztIcon from '../assets/nexzt-icon.png'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -66,31 +67,55 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
       {/* ───── Sidebar ───── */}
       <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
         {/* Brand with Nexzt Logo */}
-        <div className="sidebar-brand" style={{ padding: isSidebarCollapsed ? '10px 4px 16px' : '14px 12px 16px', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'space-between' }}>
+        <div className="sidebar-brand" style={{
+          padding: isSidebarCollapsed ? '10px 4px 14px' : '14px 10px 16px',
+          alignItems: 'center',
+          justifyContent: isSidebarCollapsed ? 'center' : 'flex-start',
+          borderBottom: '1px solid var(--border-light)',
+          marginBottom: 6
+        }}>
           {!isSidebarCollapsed ? (
-            <img
-              src={nexztLogo}
-              alt="Nexzt"
-              style={{
-                height: 34,
-                maxWidth: '100%',
-                objectFit: 'contain'
-              }}
-            />
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              width: '100%',
+              overflow: 'hidden'
+            }}>
+              <img
+                src={nexztLogo}
+                alt="Nexzt POS"
+                style={{
+                  height: 36,
+                  maxWidth: '100%',
+                  objectFit: 'contain',
+                  display: 'block'
+                }}
+              />
+            </div>
           ) : (
             <div style={{
-              width: 34,
-              height: 34,
-              borderRadius: 8,
-              background: '#16a34a',
-              color: 'white',
+              width: 42,
+              height: 42,
+              borderRadius: 12,
+              background: '#ffffff',
+              border: '1.5px solid var(--border)',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.06)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontWeight: 800,
-              fontSize: 16
+              overflow: 'hidden',
+              padding: 2
             }}>
-              N
+              <img
+                src={nexztIcon}
+                alt="Nexzt"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  display: 'block'
+                }}
+              />
             </div>
           )}
         </div>
