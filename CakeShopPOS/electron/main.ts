@@ -102,6 +102,7 @@ function setupIpcHandlers() {
   )
   ipcMain.handle('db:create-order', async (_, orderData) => await orderRepo.createOrderTransaction(orderData))
   ipcMain.handle('db:get-daily-summary', async (_, { shopId, dateStr }) => await orderRepo.getDailySummary(shopId, dateStr))
+  ipcMain.handle('db:get-analytics', async (_, params) => await orderRepo.getAnalytics(params))
 
   ipcMain.handle('db:get-low-stock', async (_, shopId: string) => await inventoryRepo.getLowStock(shopId))
   ipcMain.handle('db:record-stock-movement', async (_, movement) => await inventoryRepo.recordMovement(movement))
