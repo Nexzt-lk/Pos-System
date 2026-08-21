@@ -467,10 +467,10 @@ body, html {
   flex: 1;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
+  gap: 12px;
   align-content: start;
-  padding: 2px 2px 14px;
+  padding: 2px 2px 24px;
 }
 
 .product-card {
@@ -484,6 +484,8 @@ body, html {
   flex-direction: column;
   user-select: none;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  min-height: 270px;
+  height: 100%;
 }
 
 .product-card:hover {
@@ -512,34 +514,46 @@ body, html {
   box-shadow: none;
 }
 
-/* 📸 Seamless Floating Product Image Viewport (No Background Box) */
+/* 📸 Modern Rich Product Image Viewport */
 .product-card-img-wrap {
   width: 100%;
-  height: 146px;
-  background: transparent;
-  border-bottom: none;
+  height: 125px;
+  min-height: 125px;
+  max-height: 125px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #fdf2f8 0%, #f1f5f9 100%);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   overflow: hidden;
-  padding: 12px 14px 4px;
+  padding: 0;
 }
 
 .product-card-img {
-  max-width: 90%;
-  max-height: 90%;
-  width: auto;
-  height: auto;
-  object-fit: contain;
-  mix-blend-mode: multiply;
-  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.06));
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), filter 0.25s ease;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  display: block;
 }
 
 .product-card:hover .product-card-img {
-  transform: scale(1.08) translateY(-3px);
-  filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.1));
+  transform: scale(1.08);
+}
+
+.product-card-img-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #fdf2f8 0%, #f8fafc 100%);
+  color: #cbd5e1;
+  gap: 6px;
 }
 
 .card-incart-badge {
@@ -574,10 +588,10 @@ body, html {
 .stock-badge.ok { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
 
 .product-info {
-  padding: 12px 14px 14px;
+  padding: 10px 12px 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
   flex: 1;
   background: #ffffff;
 }
@@ -585,26 +599,28 @@ body, html {
 .product-cat-label {
   display: inline-block;
   align-self: flex-start;
-  padding: 2px 8px;
+  padding: 2px 7px;
   border-radius: 6px;
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 700;
   color: #64748b;
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  margin-bottom: 2px;
 }
 
 .product-name {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-primary);
-  line-height: 1.35;
+  line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  min-height: 34px;
 }
 
 .product-footer {
@@ -612,11 +628,11 @@ body, html {
   align-items: center;
   justify-content: space-between;
   margin-top: auto;
-  padding-top: 4px;
+  padding-top: 6px;
 }
 
 .product-price {
-  font-size: 15.5px;
+  font-size: 14.5px;
   font-weight: 800;
   color: var(--primary);
   letter-spacing: -0.01em;

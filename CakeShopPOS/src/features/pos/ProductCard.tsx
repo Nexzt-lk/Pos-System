@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Plus, Cake } from 'lucide-react'
 import { Product } from '../../types/product'
 import { formatCurrency } from '../../lib/formatters'
 import { useCartStore } from '../../store/cartStore'
+import { getProductImageSrc } from '../../lib/imageHelper'
 
 interface ProductCardProps {
   product: Product
@@ -15,17 +16,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
   const cartItem = items.find((i) => i.product_id === product.id)
   const inCartQty = cartItem?.quantity || 0
 
+  const [hasImgError, setHasImgError] = useState(false)
+
   const isOutOfStock = product.track_inventory && (product.current_stock ?? 0) <= 0
   const isLow = product.track_inventory && !isOutOfStock && (product.current_stock ?? 0) <= 5
 
-  const getImgSrc = (path?: string) => {
-    if (!path) return null
-    if (path.startsWith('http') || path.startsWith('data:')) return path
-    if (window.electronAPI) return `app-images:///${path}`
-    return `/images/${path.startsWith('/') ? path.slice(1) : path}`
-  }
-
-  const imgSrc = getImgSrc(product.image_path)
+  const imgSrc = getProductImageSrc(product.image_path)
 
   return (
     <div
@@ -37,23 +33,27 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
       } : undefined}
       onClick={() => !isOutOfStock && onAddToCart(product)}
     >
-      {/* 📸 Isolated Studio Image Showcase Viewport */}
+      {/* 📸 Modern Rich Product Image Viewport */}
       <div className="product-card-img-wrap">
-        {imgSrc ? (
+        {imgSrc && !hasImgError ? (
           <img
             className="product-card-img"
             src={imgSrc}
             alt={product.name}
+            loading="lazy"
             onError={(e) => {
+              const clean = product.image_path?.startsWith('/') ? product.image_path.slice(1) : product.image_path
               if (e.currentTarget.src.startsWith('app-images:///')) {
-                e.currentTarget.src = `/images/${product.image_path}`
+                e.currentTarget.src = `/images/${clean}`
               } else {
-                e.currentTarget.style.display = 'none'
+                setHasImgError(true)
               }
             }}
           />
         ) : (
-          <Cake size={38} color="#cbd5e1" />
+          <div className="product-card-img-placeholder">
+            <Cake size={36} color="#db2777" style={{ opacity: 0.6 }} />
+          </div>
         )}
 
         {/* Dynamic In-Cart Counter Pill */}

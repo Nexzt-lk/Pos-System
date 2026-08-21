@@ -1,24 +1,28 @@
 import { app, dialog, protocol, net } from 'electron'
 import path from 'path'
 import fs from 'fs'
+import { pathToFileURL } from 'url'
 
 export const setupImageProtocol = () => {
   // Register custom protocol: app-images:///products/abc.jpg -> AppData/CakeShopPOS/images/products/abc.jpg
   protocol.handle('app-images', (request) => {
-    const url = request.url.replace('app-images:///', '')
+    const url = request.url.replace(/^app-images:\/\/\/?/, '')
     const decodedUrl = decodeURIComponent(url)
     
     // Check multiple candidate locations
     const candidatePaths = [
       path.join(app.getPath('userData'), 'images', decodedUrl),
       path.join(process.cwd(), 'public', 'images', decodedUrl),
+      path.join(process.cwd(), 'public', decodedUrl),
       path.join(__dirname, '../../public/images', decodedUrl),
-      path.join(app.getAppPath(), 'public', 'images', decodedUrl)
+      path.join(__dirname, '../../public', decodedUrl),
+      path.join(app.getAppPath(), 'public', 'images', decodedUrl),
+      path.join(app.getAppPath(), 'public', decodedUrl)
     ]
 
     for (const p of candidatePaths) {
       if (fs.existsSync(p)) {
-        return net.fetch(`file://${p}`)
+        return net.fetch(pathToFileURL(p).href)
       }
     }
 

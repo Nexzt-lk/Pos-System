@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react'
-import { X, Plus, Minus, Scale, ShoppingBag, AlertTriangle, Check } from 'lucide-react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
+import { X, Plus, Minus, Scale, AlertTriangle, Check, Cake } from 'lucide-react'
 import { Product } from '../../types/product'
 import { formatCurrency } from '../../lib/formatters'
+import { getProductImageSrc } from '../../lib/imageHelper'
 
 interface ProductQuantityModalProps {
   isOpen: boolean
@@ -21,7 +22,8 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
   if (!isOpen || !product) return null
 
   const isWeightBased = product.unit?.toLowerCase() === 'kg' || product.unit?.toLowerCase() === 'g'
-  const isGramsUnit = product.unit?.toLowerCase() === 'g'
+  const [hasModalImgError, setHasModalImgError] = useState(false)
+  const modalImgSrc = getProductImageSrc(product.image_path)
 
   // Default initial quantity: if editing existing cart item use current, otherwise 1 (or 1kg / 0.5kg)
   const [inputValue, setInputValue] = useState<string>(() => {
@@ -29,19 +31,16 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
     return isWeightBased ? '1' : '1'
   })
 
-  // Mode for weight input: 'kg' or 'g'
+  // Mode for weight items: 'kg' or 'g'
   const [weightInputMode, setWeightInputMode] = useState<'kg' | 'g'>('kg')
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  const inputRef = React.useRef<HTMLInputElement>(null)
-
-  // Reset and auto-focus when opened or product changes
+  // Auto-focus input on open
   useEffect(() => {
-    if (isOpen && product) {
-      if (currentCartQuantity > 0) {
-        setInputValue(String(currentCartQuantity))
-      } else {
-        setInputValue(isWeightBased ? '1' : '1')
-      }
+    if (isOpen) {
+      setHasModalImgError(false)
+      const initial = currentCartQuantity > 0 ? String(currentCartQuantity) : '1'
+      setInputValue(initial)
       setWeightInputMode('kg')
       setTimeout(() => {
         inputRef.current?.focus()
@@ -50,109 +49,70 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
     }
   }, [isOpen, product?.id, currentCartQuantity, isWeightBased])
 
-  // Presets
-  const weightPresets = [
-    { label: '250 g', value: 0.25 },
-    { label: '500 g (½ kg)', value: 0.5 },
-    { label: '750 g', value: 0.75 },
-    { label: '1.0 kg', value: 1.0 },
-    { label: '1.25 kg', value: 1.25 },
-    { label: '1.5 kg', value: 1.5 },
-    { label: '2.0 kg', value: 2.0 },
-    { label: '2.5 kg', value: 2.5 },
-    { label: '3.0 kg', value: 3.0 },
-    { label: '5.0 kg', value: 5.0 }
-  ]
+  // Normalized quantity in base units (kg for weight items, integer count for pcs)
+  const normalizedQty = useMemo(() => {
+    const raw = parseFloat(inputValue) || 0
+    if (raw <= 0) return 0
+    if (isWeightBased) {
+      return weightInputMode === 'g' ? Math.round((raw / 1000) * 1000) / 1000 : Math.round(raw * 1000) / 1000
+    }
+    return Math.max(1, Math.round(raw))
+  }, [inputValue, weightInputMode, isWeightBased])
 
-  const countPresets = [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24]
+  // Calculated subtotal for this line item
+  const displaySubtotal = useMemo(() => {
+    if (!product || normalizedQty <= 0) return 0
+    return Math.round(product.price * normalizedQty * 100) / 100
+  }, [product, normalizedQty])
+
+  // Check inventory limit
+  const isStockTracked = product.track_inventory && (product.current_stock ?? 0) > 0
+  const isExceedingStock = isStockTracked && normalizedQty > (product.current_stock ?? 0)
 
   // Handlers for adjustments
-  const handleSetPreset = (val: number) => {
+  const handleStep = (delta: number) => {
+    const current = parseFloat(inputValue) || 0
+    let next: number
+    if (isWeightBased) {
+      if (weightInputMode === 'g') {
+        const deltaGrams = delta * 1000
+        next = Math.max(50, Math.round(current + deltaGrams))
+      } else {
+        next = Math.max(0.1, Math.round((current + delta) * 100) / 100)
+      }
+    } else {
+      next = Math.max(1, Math.round(current + delta))
+    }
+    setInputValue(String(next))
+    inputRef.current?.focus()
+  }
+
+  const handleSetPreset = (val: number, mode: 'kg' | 'g' = 'kg') => {
+    setWeightInputMode(mode)
     setInputValue(String(val))
     inputRef.current?.focus()
   }
 
-  const handleStepWeight = (deltaKg: number) => {
+  const handleToggleWeightMode = (newMode: 'kg' | 'g') => {
+    if (newMode === weightInputMode) return
     const current = parseFloat(inputValue) || 0
-    const next = Math.max(0.05, Math.round((current + deltaKg) * 1000) / 1000)
-    setInputValue(String(next))
-    inputRef.current?.focus()
-  }
-
-  const handleStepCount = (delta: number) => {
-    const current = parseInt(inputValue, 10) || 0
-    const next = Math.max(1, current + delta)
-    setInputValue(String(next))
-    inputRef.current?.focus()
-  }
-
-  // Keypad input handlers
-  const handleKeypadDigit = (digit: string) => {
-    if (digit === '.') {
-      if (!inputValue.includes('.')) {
-        setInputValue((prev) => (prev === '' || prev === '0' ? '0.' : prev + '.'))
-      }
-      inputRef.current?.focus()
-      return
-    }
-    if (inputValue === '0' || inputValue === '') {
-      setInputValue(digit)
+    if (newMode === 'g') {
+      setInputValue(String(Math.round(current * 1000)))
     } else {
-      setInputValue((prev) => prev + digit)
+      setInputValue(String(Math.round((current / 1000) * 100) / 100))
     }
+    setWeightInputMode(newMode)
     inputRef.current?.focus()
   }
-
-  const handleKeypadBackspace = () => {
-    setInputValue((prev) => {
-      if (prev.length <= 1) return '0'
-      return prev.slice(0, -1)
-    })
-    inputRef.current?.focus()
-  }
-
-  const handleKeypadClear = () => {
-    setInputValue('0')
-    inputRef.current?.focus()
-  }
-
-  // Toggle grams input mode
-  const handleToggleWeightMode = (mode: 'kg' | 'g') => {
-    if (mode === weightInputMode) return
-    const num = parseFloat(inputValue) || 0
-    if (mode === 'g') {
-      setInputValue(String(Math.round(num * 1000)))
-    } else {
-      setInputValue(String(num / 1000))
-    }
-    setWeightInputMode(mode)
-    inputRef.current?.focus()
-  }
-
-  // Final quantity to commit (always normalized to product.unit)
-  const getNormalizedQuantity = (): number => {
-    const num = parseFloat(inputValue) || 0
-    if (isWeightBased && weightInputMode === 'g' && !isGramsUnit) {
-      return Math.round((num / 1000) * 1000) / 1000 // Convert g back to kg
-    }
-    return Math.round(num * 1000) / 1000
-  }
-
-  const normalizedQty = getNormalizedQuantity()
-  const displaySubtotal = Math.round(normalizedQty * product.price * 100) / 100
-
-  // Inventory validation
-  const isStockTracked = product.track_inventory && product.current_stock !== undefined
-  const maxStock = isStockTracked ? (product.current_stock ?? 0) : 999999
-  const isExceedingStock = isStockTracked && normalizedQty > maxStock
 
   const handleConfirm = () => {
-    if (normalizedQty <= 0) return
-    onConfirm(product, normalizedQty)
-    onClose()
+    if (normalizedQty > 0) {
+      onConfirm(product, normalizedQty)
+      onClose()
+    }
   }
 
-  // Keyboard shortcut listener (Enter to confirm, Esc to close, Arrows to step, K/G to toggle unit)
+  // Keyboard Shortcuts (Enter to confirm, Esc to close, Arrow keys / +/- to step)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -163,18 +123,10 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
         handleConfirm()
       } else if (e.key === 'ArrowUp' || e.key === '+') {
         e.preventDefault()
-        if (isWeightBased) {
-          handleStepWeight(0.25)
-        } else {
-          handleStepCount(1)
-        }
+        handleStep(isWeightBased ? (weightInputMode === 'g' ? 0.25 : 0.25) : 1)
       } else if (e.key === 'ArrowDown' || e.key === '-') {
         e.preventDefault()
-        if (isWeightBased) {
-          handleStepWeight(-0.25)
-        } else {
-          handleStepCount(-1)
-        }
+        handleStep(isWeightBased ? (weightInputMode === 'g' ? -0.25 : -0.25) : -1)
       } else if (isWeightBased && (e.key === 'k' || e.key === 'K') && document.activeElement !== inputRef.current) {
         e.preventDefault()
         handleToggleWeightMode('kg')
@@ -187,24 +139,39 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [inputValue, weightInputMode, product, normalizedQty, isWeightBased])
 
+  // Weight & Count Presets
+  const weightPresets = [
+    { label: '250g', val: 250, mode: 'g' as const },
+    { label: '500g', val: 500, mode: 'g' as const },
+    { label: '1.0 kg', val: 1, mode: 'kg' as const },
+    { label: '1.5 kg', val: 1.5, mode: 'kg' as const },
+    { label: '2.0 kg', val: 2, mode: 'kg' as const },
+    { label: '2.5 kg', val: 2.5, mode: 'kg' as const },
+    { label: '3.0 kg', val: 3, mode: 'kg' as const },
+    { label: '5.0 kg', val: 5, mode: 'kg' as const }
+  ]
+
+  const countPresets = [1, 2, 3, 4, 5, 6, 8, 10, 12, 15]
+
   return (
     <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
       <div
         className="modal-box"
         style={{
-          maxWidth: 580,
-          borderRadius: 24,
-          boxShadow: '0 20px 50px rgba(0,0,0,0.22)',
-          border: '1px solid rgba(226, 232, 240, 0.9)'
+          maxWidth: 430,
+          borderRadius: 20,
+          boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
+          border: '1px solid rgba(226, 232, 240, 0.9)',
+          overflow: 'hidden'
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header with Product Summary */}
+        {/* Header */}
         <div
           className="modal-header"
           style={{
-            padding: '16px 22px',
-            background: 'linear-gradient(135deg, #fdf2f8 0%, #fff 100%)',
+            padding: '12px 18px',
+            background: 'linear-gradient(135deg, #fdf2f8 0%, #ffffff 100%)',
             borderBottom: '1.5px solid #fce7f3'
           }}
         >
@@ -214,28 +181,48 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
                 width: 44,
                 height: 44,
                 borderRadius: 12,
-                background: '#fbcfe8',
+                overflow: 'hidden',
+                background: 'linear-gradient(135deg, #fdf2f8 0%, #f1f5f9 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#db2777',
+                border: '1.5px solid #fce7f3',
                 flexShrink: 0
               }}
             >
-              {isWeightBased ? <Scale size={22} /> : <ShoppingBag size={22} />}
+              {modalImgSrc && !hasModalImgError ? (
+                <img
+                  src={modalImgSrc}
+                  alt={product.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={(e) => {
+                    const clean = product.image_path?.startsWith('/') ? product.image_path.slice(1) : product.image_path
+                    if (e.currentTarget.src.startsWith('app-images:///')) {
+                      e.currentTarget.src = `/images/${clean}`
+                    } else {
+                      setHasModalImgError(true)
+                    }
+                  }}
+                />
+              ) : isWeightBased ? (
+                <Scale size={20} />
+              ) : (
+                <Cake size={20} color="#db2777" style={{ opacity: 0.8 }} />
+              )}
             </div>
             <div>
-              <div style={{ fontSize: 16, fontWeight: 900, color: '#0f172a', lineHeight: 1.2 }}>
+              <div style={{ fontSize: 15, fontWeight: 900, color: '#0f172a', lineHeight: 1.2 }}>
                 {product.name}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
                 <span
                   style={{
                     fontSize: 11,
-                    fontWeight: 700,
+                    fontWeight: 800,
                     color: '#be185d',
                     background: '#fce7f3',
-                    padding: '2px 8px',
+                    padding: '2px 7px',
                     borderRadius: 6
                   }}
                 >
@@ -244,384 +231,293 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
                 {isStockTracked && (
                   <span
                     style={{
-                      fontSize: 11,
+                      fontSize: 10.5,
                       fontWeight: 700,
                       color: isExceedingStock ? '#ef4444' : '#64748b'
                     }}
                   >
-                    Stock: {product.current_stock} {product.unit}
+                    Stock: {product.current_stock}
                   </span>
                 )}
               </div>
             </div>
           </div>
           <button className="modal-close" onClick={onClose}>
-            <X size={16} />
+            <X size={15} />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="modal-body" style={{ padding: '20px 24px', gap: 16 }}>
-          {/* Main Quantity Display Card */}
+        <div className="modal-body" style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Main Quantity Stepper & Direct Type Input */}
           <div
             style={{
               background: '#f8fafc',
               border: '2px solid #e2e8f0',
-              borderRadius: 18,
-              padding: '16px 20px',
+              borderRadius: 16,
+              padding: '10px 14px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              position: 'relative'
+              gap: 10
             }}
           >
+            {/* Left: Unit Switcher (kg/g) or Label */}
             <div>
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 800,
-                  color: '#64748b',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em'
-                }}
-              >
-                {isWeightBased ? 'Select Weight (බර)' : 'Select Quantity (ප්‍රමාණය)'}
+              <div style={{ fontSize: 10, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                {isWeightBased ? 'Weight (බර)' : 'Quantity (ගණන)'}
               </div>
-
-              {/* Weight Unit Switcher (Kg vs Grams) */}
               {isWeightBased && (
-                <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+                <div style={{ display: 'flex', gap: 3, marginTop: 4 }}>
                   <button
                     type="button"
                     onClick={() => handleToggleWeightMode('kg')}
                     style={{
-                      padding: '4px 10px',
+                      padding: '3px 8px',
                       borderRadius: 6,
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: 800,
                       border: 'none',
                       cursor: 'pointer',
                       background: weightInputMode === 'kg' ? '#db2777' : '#e2e8f0',
-                      color: weightInputMode === 'kg' ? '#fff' : '#475569',
-                      transition: 'all 0.15s'
+                      color: weightInputMode === 'kg' ? '#fff' : '#475569'
                     }}
                   >
-                    Kilograms (kg)
+                    Kg
                   </button>
                   <button
                     type="button"
                     onClick={() => handleToggleWeightMode('g')}
                     style={{
-                      padding: '4px 10px',
+                      padding: '3px 8px',
                       borderRadius: 6,
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: 800,
                       border: 'none',
                       cursor: 'pointer',
                       background: weightInputMode === 'g' ? '#db2777' : '#e2e8f0',
-                      color: weightInputMode === 'g' ? '#fff' : '#475569',
-                      transition: 'all 0.15s'
+                      color: weightInputMode === 'g' ? '#fff' : '#475569'
                     }}
                   >
-                    Grams (g)
+                    g
                   </button>
                 </div>
               )}
             </div>
 
-            {/* Big Editable Quantity / Weight Display */}
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <input
-                ref={inputRef}
-                type="text"
-                value={inputValue}
-                onChange={(e) => {
-                  const val = e.target.value
-                  if (/^\d*\.?\d*$/.test(val)) {
-                    setInputValue(val)
-                  }
-                }}
-                style={{
-                  fontSize: 34,
-                  fontWeight: 900,
-                  color: isExceedingStock ? '#ef4444' : '#0f172a',
-                  width: '140px',
-                  textAlign: 'right',
-                  border: 'none',
-                  outline: 'none',
-                  background: 'transparent',
-                  fontFamily: 'monospace'
-                }}
-                autoFocus
-              />
-              <span style={{ fontSize: 18, fontWeight: 800, color: '#94a3b8' }}>
-                {isWeightBased ? weightInputMode : product.unit || 'pcs'}
-              </span>
+            {/* Middle & Right: Stepper Controls + Editable Value */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => handleStep(isWeightBased ? (weightInputMode === 'g' ? -250 : -0.25) : -1)}
+                style={stepperBtnStyle}
+                title="Decrease (-)"
+              >
+                <Minus size={16} />
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'baseline', minWidth: 80, justifyContent: 'center' }}>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    if (/^\d*\.?\d*$/.test(val)) {
+                      setInputValue(val)
+                    }
+                  }}
+                  style={{
+                    fontSize: 26,
+                    fontWeight: 900,
+                    color: isExceedingStock ? '#ef4444' : '#0f172a',
+                    width: '85px',
+                    textAlign: 'center',
+                    border: 'none',
+                    outline: 'none',
+                    background: 'transparent',
+                    fontFamily: 'monospace'
+                  }}
+                  autoFocus
+                />
+                <span style={{ fontSize: 13, fontWeight: 800, color: '#94a3b8' }}>
+                  {isWeightBased ? weightInputMode : product.unit || 'pcs'}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleStep(isWeightBased ? (weightInputMode === 'g' ? 250 : 0.25) : 1)}
+                style={stepperBtnStyle}
+                title="Increase (+)"
+              >
+                <Plus size={16} />
+              </button>
             </div>
           </div>
 
-          {/* Stock Warning Alert if exceeding available quantity */}
+          {/* Stock Warning Alert */}
           {isExceedingStock && (
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8,
-                padding: '10px 14px',
-                borderRadius: 10,
+                gap: 6,
+                padding: '8px 12px',
+                borderRadius: 8,
                 background: '#fef2f2',
                 border: '1px solid #fecaca',
                 color: '#b91c1c',
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: 700
               }}
             >
-              <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+              <AlertTriangle size={14} style={{ flexShrink: 0 }} />
               <span>
-                Quantity exceeds current in-stock balance ({product.current_stock} {product.unit})
+                Quantity exceeds stock ({product.current_stock} {product.unit})
               </span>
             </div>
           )}
 
-          {/* Presets & Steppers Section */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 800,
-                color: '#94a3b8',
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em'
-              }}
-            >
+          {/* Quick Preset Buttons (Compact Grid) */}
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 6 }}>
               Quick Presets
             </div>
 
             {isWeightBased ? (
-              <>
-                {/* Weight Preset Buttons */}
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(5, 1fr)',
-                    gap: 8
-                  }}
-                >
-                  {weightPresets.map((preset) => {
-                    const isSelected = normalizedQty === preset.value
-                    return (
-                      <button
-                        key={preset.value}
-                        type="button"
-                        onClick={() => {
-                          setWeightInputMode('kg')
-                          handleSetPreset(preset.value)
-                        }}
-                        style={{
-                          padding: '10px 4px',
-                          borderRadius: 10,
-                          border: isSelected ? '2px solid #db2777' : '1.5px solid #e2e8f0',
-                          background: isSelected ? '#fdf2f8' : '#ffffff',
-                          color: isSelected ? '#db2777' : '#1e293b',
-                          fontSize: 12,
-                          fontWeight: 800,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          gap: 2,
-                          transition: 'all 0.1s ease'
-                        }}
-                      >
-                        <span>{preset.label}</span>
-                      </button>
-                    )
-                  })}
-                </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                {weightPresets.map((p) => {
+                  const isMatch =
+                    (p.mode === 'kg' && weightInputMode === 'kg' && parseFloat(inputValue) === p.val) ||
+                    (p.mode === 'g' && weightInputMode === 'g' && parseFloat(inputValue) === p.val) ||
+                    (p.mode === 'g' && weightInputMode === 'kg' && parseFloat(inputValue) === p.val / 1000)
+                  return (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => handleSetPreset(p.val, p.mode)}
+                      style={{
+                        padding: '7px 4px',
+                        borderRadius: 8,
+                        border: isMatch ? '2px solid #db2777' : '1px solid #e2e8f0',
+                        background: isMatch ? '#fdf2f8' : '#ffffff',
+                        color: isMatch ? '#db2777' : '#1e293b',
+                        fontSize: 12,
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        transition: 'all 0.1s ease'
+                      }}
+                    >
+                      {p.label}
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
+                {countPresets.map((val) => {
+                  const isMatch = parseInt(inputValue, 10) === val
+                  return (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => handleSetPreset(val)}
+                      style={{
+                        padding: '7px 4px',
+                        borderRadius: 8,
+                        border: isMatch ? '2px solid #db2777' : '1px solid #e2e8f0',
+                        background: isMatch ? '#fdf2f8' : '#ffffff',
+                        color: isMatch ? '#db2777' : '#1e293b',
+                        fontSize: 12.5,
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        transition: 'all 0.1s ease'
+                      }}
+                    >
+                      {val}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
 
-                {/* Weight Increment / Decrement Steppers */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-                  <button
-                    type="button"
-                    onClick={() => handleStepWeight(-0.25)}
-                    style={stepBtnStyle}
-                  >
-                    <Minus size={13} /> 250g
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleStepWeight(-0.5)}
-                    style={stepBtnStyle}
-                  >
-                    <Minus size={13} /> 500g
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleStepWeight(0.25)}
-                    style={stepBtnStyle}
-                  >
-                    <Plus size={13} /> 250g
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleStepWeight(0.5)}
-                    style={stepBtnStyle}
-                  >
-                    <Plus size={13} /> 500g
-                  </button>
-                </div>
+          {/* Quick Increment Chips (+250g / +500g / +1 / +5) */}
+          <div style={{ display: 'flex', gap: 6 }}>
+            {isWeightBased ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleStep(0.25)}
+                  style={chipBtnStyle}
+                >
+                  +250g
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleStep(0.5)}
+                  style={chipBtnStyle}
+                >
+                  +500g
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleStep(1)}
+                  style={chipBtnStyle}
+                >
+                  +1.0 kg
+                </button>
               </>
             ) : (
               <>
-                {/* Count Preset Buttons */}
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(6, 1fr)',
-                    gap: 8
-                  }}
+                <button
+                  type="button"
+                  onClick={() => handleStep(1)}
+                  style={chipBtnStyle}
                 >
-                  {countPresets.map((val) => {
-                    const isSelected = parseInt(inputValue, 10) === val
-                    return (
-                      <button
-                        key={val}
-                        type="button"
-                        onClick={() => handleSetPreset(val)}
-                        style={{
-                          padding: '10px 4px',
-                          borderRadius: 10,
-                          border: isSelected ? '2px solid #db2777' : '1.5px solid #e2e8f0',
-                          background: isSelected ? '#fdf2f8' : '#ffffff',
-                          color: isSelected ? '#db2777' : '#1e293b',
-                          fontSize: 13,
-                          fontWeight: 800,
-                          cursor: 'pointer',
-                          transition: 'all 0.1s ease'
-                        }}
-                      >
-                        {val}
-                      </button>
-                    )
-                  })}
-                </div>
-
-                {/* Count Stepper Buttons */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-                  <button
-                    type="button"
-                    onClick={() => handleStepCount(-1)}
-                    style={stepBtnStyle}
-                  >
-                    <Minus size={13} /> 1
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleStepCount(-5)}
-                    style={stepBtnStyle}
-                  >
-                    <Minus size={13} /> 5
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleStepCount(1)}
-                    style={stepBtnStyle}
-                  >
-                    <Plus size={13} /> 1
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleStepCount(5)}
-                    style={stepBtnStyle}
-                  >
-                    <Plus size={13} /> 5
-                  </button>
-                </div>
+                  +1 pcs
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleStep(5)}
+                  style={chipBtnStyle}
+                >
+                  +5 pcs
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleStep(10)}
+                  style={chipBtnStyle}
+                >
+                  +10 pcs
+                </button>
               </>
             )}
           </div>
 
-          {/* Quick Touch Keypad for Fast Cashier Numpad Operation */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: 8,
-              paddingTop: 4
-            }}
-          >
-            {['1', '2', '3', '+1'].map((k) => (
-              <KeypadButton
-                key={k}
-                label={k}
-                onClick={() =>
-                  k === '+1'
-                    ? isWeightBased
-                      ? handleStepWeight(1)
-                      : handleStepCount(1)
-                    : handleKeypadDigit(k)
-                }
-              />
-            ))}
-            {['4', '5', '6', '+2'].map((k) => (
-              <KeypadButton
-                key={k}
-                label={k}
-                onClick={() =>
-                  k === '+2'
-                    ? isWeightBased
-                      ? handleStepWeight(2)
-                      : handleStepCount(2)
-                    : handleKeypadDigit(k)
-                }
-              />
-            ))}
-            {['7', '8', '9', 'C'].map((k) => (
-              <KeypadButton
-                key={k}
-                label={k}
-                isSpecial={k === 'C'}
-                onClick={() => (k === 'C' ? handleKeypadClear() : handleKeypadDigit(k))}
-              />
-            ))}
-            {['.', '0', '00', '⌫'].map((k) => (
-              <KeypadButton
-                key={k}
-                label={k}
-                isSpecial={k === '⌫'}
-                onClick={() =>
-                  k === '⌫'
-                    ? handleKeypadBackspace()
-                    : k === '00'
-                    ? (handleKeypadDigit('0'), handleKeypadDigit('0'))
-                    : handleKeypadDigit(k)
-                }
-              />
-            ))}
-          </div>
-
-          {/* 🌟 Live Subtotal & Price Summary Banner */}
+          {/* 🌟 Compact Live Price Summary Banner */}
           <div
             style={{
               background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-              borderRadius: 16,
-              padding: '16px 20px',
+              borderRadius: 12,
+              padding: '10px 14px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               color: '#ffffff',
-              boxShadow: '0 4px 14px rgba(15, 23, 42, 0.15)'
+              boxShadow: '0 4px 12px rgba(15, 23, 42, 0.12)'
             }}
           >
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>
-                Calculated Price (මුළු ගාණ)
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>
+                Total Item Price (මුළු ගාණ)
               </div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1', marginTop: 2 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#cbd5e1', marginTop: 1 }}>
                 {normalizedQty} {isWeightBased ? 'kg' : product.unit || 'pcs'} × {formatCurrency(product.price)}
               </div>
             </div>
-            <div style={{ fontSize: 26, fontWeight: 900, color: '#4ade80' }}>
+            <div style={{ fontSize: 20, fontWeight: 900, color: '#4ade80' }}>
               {formatCurrency(displaySubtotal)}
             </div>
           </div>
@@ -631,10 +527,10 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
         <div
           className="modal-footer"
           style={{
-            padding: '16px 24px',
+            padding: '12px 18px',
             borderTop: '1.5px solid #f1f5f9',
             display: 'flex',
-            gap: 12,
+            gap: 10,
             background: '#ffffff'
           }}
         >
@@ -643,11 +539,11 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
             onClick={onClose}
             style={{
               flex: 1,
-              padding: '14px',
-              borderRadius: 12,
+              padding: '10px',
+              borderRadius: 10,
               border: '1.5px solid #e2e8f0',
               background: '#ffffff',
-              fontSize: 13,
+              fontSize: 12.5,
               fontWeight: 700,
               color: '#64748b',
               cursor: 'pointer'
@@ -663,20 +559,20 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
             className="pay-btn"
             style={{
               flex: 2,
-              padding: '14px',
-              borderRadius: 12,
-              fontSize: 14,
+              padding: '10px 14px',
+              borderRadius: 10,
+              fontSize: 13,
               fontWeight: 800,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 8,
+              gap: 6,
               cursor: normalizedQty <= 0 ? 'not-allowed' : 'pointer'
             }}
           >
-            <Check size={18} />
+            <Check size={16} />
             <span>
-              {currentCartQuantity > 0 ? 'Update Item' : 'Add to Cart (Enter)'} • {formatCurrency(displaySubtotal)}
+              {currentCartQuantity > 0 ? 'Update Item' : 'Add to Cart (Enter)'}
             </span>
           </button>
         </div>
@@ -685,47 +581,29 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
   )
 }
 
-const KeypadButton: React.FC<{
-  label: string
-  onClick: () => void
-  isSpecial?: boolean
-}> = ({ label, onClick, isSpecial }) => {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        padding: '12px 0',
-        borderRadius: 10,
-        border: '1.5px solid #e2e8f0',
-        background: isSpecial ? '#f1f5f9' : '#ffffff',
-        color: isSpecial ? '#ef4444' : '#0f172a',
-        fontSize: 15,
-        fontWeight: 800,
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        transition: 'all 0.1s ease',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
-      }}
-    >
-      {label}
-    </button>
-  )
-}
-
-const stepBtnStyle: React.CSSProperties = {
-  padding: '8px 4px',
-  borderRadius: 8,
-  border: '1px solid #e2e8f0',
-  background: '#f8fafc',
-  color: '#475569',
-  fontSize: 12,
-  fontWeight: 700,
+const stepperBtnStyle: React.CSSProperties = {
+  width: 38,
+  height: 38,
+  borderRadius: 10,
+  border: '1.5px solid #e2e8f0',
+  background: '#ffffff',
+  color: '#0f172a',
   cursor: 'pointer',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  gap: 4
+  boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+}
+
+const chipBtnStyle: React.CSSProperties = {
+  flex: 1,
+  padding: '6px 4px',
+  borderRadius: 8,
+  border: '1px solid #e2e8f0',
+  background: '#f8fafc',
+  color: '#475569',
+  fontSize: 11.5,
+  fontWeight: 700,
+  cursor: 'pointer',
+  textAlign: 'center'
 }

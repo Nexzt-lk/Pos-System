@@ -3,6 +3,8 @@ import { Plus, Minus, Trash2, Cake } from 'lucide-react'
 import { CartItem as CartItemType } from '../../store/cartStore'
 import { formatCurrency } from '../../lib/formatters'
 
+import { getProductImageSrc } from '../../lib/imageHelper'
+
 interface CartItemProps {
   item: CartItemType
   onUpdateQuantity: (productId: string, quantity: number) => void
@@ -13,44 +15,45 @@ interface CartItemProps {
 export const CartItem: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRemoveItem, onEditItem }) => {
   const isWeight = item.unit?.toLowerCase() === 'kg' || item.unit?.toLowerCase() === 'g'
   const stepDelta = isWeight ? 0.25 : 1
+  const [hasImgError, setHasImgError] = React.useState(false)
 
-  const getImgSrc = (path?: string) => {
-    if (!path) return null
-    if (path.startsWith('http') || path.startsWith('data:')) return path
-    if (window.electronAPI) return `app-images:///${path}`
-    return `/images/${path.startsWith('/') ? path.slice(1) : path}`
-  }
-
-  const imgSrc = getImgSrc(item.image_path)
+  const imgSrc = getProductImageSrc(item.image_path)
 
   return (
     <div className="cart-item">
-      {/* 🖼️ Mini Transparent Image Thumbnail */}
+      {/* 🖼️ High Quality Mini Image Thumbnail */}
       <div
         style={{
           width: 44,
           height: 44,
-          borderRadius: 8,
-          background: 'transparent',
+          borderRadius: 10,
+          background: 'linear-gradient(135deg, #fdf2f8 0%, #f1f5f9 100%)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           overflow: 'hidden',
           flexShrink: 0,
-          padding: 2,
+          border: '1px solid #e2e8f0',
           cursor: onEditItem ? 'pointer' : 'default'
         }}
         onClick={() => onEditItem?.(item)}
       >
-        {imgSrc ? (
+        {imgSrc && !hasImgError ? (
           <img
             src={imgSrc}
             alt={item.product_name}
-            style={{ width: '100%', height: '100%', objectFit: 'contain', mixBlendMode: 'multiply' }}
-            onError={(e) => { e.currentTarget.style.display = 'none' }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            onError={(e) => {
+              const clean = item.image_path?.startsWith('/') ? item.image_path.slice(1) : item.image_path
+              if (e.currentTarget.src.startsWith('app-images:///')) {
+                e.currentTarget.src = `/images/${clean}`
+              } else {
+                setHasImgError(true)
+              }
+            }}
           />
         ) : (
-          <Cake size={20} color="#94a3b8" />
+          <Cake size={20} color="#db2777" style={{ opacity: 0.7 }} />
         )}
       </div>
 
