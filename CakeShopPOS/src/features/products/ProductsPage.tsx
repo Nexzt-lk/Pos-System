@@ -236,8 +236,8 @@ export const ProductsPage: React.FC = () => {
                 {categories.map((c) => <Select.Option key={c.id} value={c.id}>{c.name}</Select.Option>)}
               </Select>
             </Form.Item>
-            <Form.Item name="barcode" label="Barcode">
-              <Input placeholder="Scan or leave blank" />
+            <Form.Item name="barcode" label="Barcode (Optional)">
+              <Input placeholder="Scan barcode or leave blank" allowClear />
             </Form.Item>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
