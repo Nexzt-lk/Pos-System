@@ -53,3 +53,20 @@ public interface IExpenseRepository
     Task UpdateAsync(Expense expense);
     Task DeleteAsync(string id);
 }
+
+public interface IUserRepository
+{
+    Task<List<User>> GetAllAsync(bool includeInactive = false);
+    Task<User?> GetByIdAsync(string id);
+    Task<User?> GetByEmailAsync(string email);
+    Task<User?> GetByPinAsync(string pin);
+    Task AddAsync(User user);
+    Task UpdateAsync(User user);
+    Task DeleteAsync(string id);
+}
+
+public interface IShopRepository
+{
+    Task<Shop?> GetCurrentShopAsync();
+    Task UpsertAsync(Shop shop);
+}

@@ -32,6 +32,8 @@ builder.Services.AddScoped<IInventoryRepository, InventoryRepository>();
 builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IExpenseRepository, ExpenseRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IShopRepository, ShopRepository>();
 builder.Services.AddScoped<IItemCodeGenerator, ItemCodeGenerator>();
 
 builder.Services.AddScoped<ProductService>();
@@ -39,6 +41,8 @@ builder.Services.AddScoped<CategoryService>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<ExpenseService>();
 builder.Services.AddScoped<ReportService>();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<ShopService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

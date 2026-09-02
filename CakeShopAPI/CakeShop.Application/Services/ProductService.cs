@@ -65,16 +65,24 @@ public class ProductService
         if (p == null) return null;
 
         var stock = await _inventory.GetByProductIdAsync(p.Id);
+        var category = p.CategoryId != null ? await _categories.GetByIdAsync(p.CategoryId) : null;
+
         return new ProductDto
         {
             Id = p.Id,
             CategoryId = p.CategoryId,
+            CategoryName = category?.Name,
             ItemCode = p.ItemCode,
             Name = p.Name,
+            Description = p.Description,
             Price = p.Price,
+            CostPrice = p.CostPrice,
             Barcode = p.Barcode,
             Unit = p.Unit,
-            CurrentStock = stock?.Quantity ?? 0
+            TrackInventory = p.TrackInventory,
+            IsActive = p.IsActive,
+            CurrentStock = stock?.Quantity ?? 0,
+            IsLowStock = stock?.IsLowStock ?? false
         };
     }
 
@@ -104,7 +112,8 @@ public class ProductService
             CostPrice = request.CostPrice,
             Barcode = string.IsNullOrWhiteSpace(request.Barcode) ? null : request.Barcode,
             Unit = request.Unit,
-            TrackInventory = request.TrackInventory
+            TrackInventory = request.TrackInventory,
+            IsActive = true
         };
 
         await _products.AddAsync(product);
@@ -140,10 +149,15 @@ public class ProductService
             CategoryName = category.Name,
             ItemCode = product.ItemCode,
             Name = product.Name,
+            Description = product.Description,
             Price = product.Price,
+            CostPrice = product.CostPrice,
             Barcode = product.Barcode,
             Unit = product.Unit,
-            CurrentStock = request.InitialStock
+            TrackInventory = product.TrackInventory,
+            IsActive = product.IsActive,
+            CurrentStock = request.InitialStock,
+            IsLowStock = product.TrackInventory && request.InitialStock <= request.MinStockAlert
         };
     }
 
