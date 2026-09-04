@@ -2,6 +2,7 @@ using CakeShop.Application.Interfaces;
 using CakeShop.Application.Services;
 using CakeShop.Infrastructure.Data;
 using CakeShop.Infrastructure.Repositories;
+using CakeShop.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,6 +36,8 @@ builder.Services.AddScoped<IExpenseRepository, ExpenseRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IShopRepository, ShopRepository>();
 builder.Services.AddScoped<IItemCodeGenerator, ItemCodeGenerator>();
+builder.Services.AddScoped<IBackupService, BackupService>();
+builder.Services.AddHostedService<ScheduledBackupService>();
 
 builder.Services.AddScoped<ProductService>();
 builder.Services.AddScoped<CategoryService>();
