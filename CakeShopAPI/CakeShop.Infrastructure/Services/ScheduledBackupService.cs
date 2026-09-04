@@ -6,10 +6,10 @@ using Microsoft.Extensions.Logging;
 
 namespace CakeShop.Infrastructure.Services;
 
-// Runs automatically for the lifetime of the API, taking a backup every
-// N hours without anyone needing to remember to trigger it manually.
-// This is the safety net for a shop where nobody thinks about backups
-// until the day they desperately need one.
+// Handles automated backups across the POS lifecycle:
+// 1. Startup Backup: Takes a snapshot shortly after launch.
+// 2. Periodic Backup: Runs periodically every N hours (default 6h).
+// 3. Shutdown Backup: Captures a clean final state when the application closes.
 public class ScheduledBackupService : BackgroundService
 {
     private readonly IServiceProvider _services;
@@ -21,41 +21,79 @@ public class ScheduledBackupService : BackgroundService
         _services = services;
         _logger = logger;
 
-        var hours = int.TryParse(config["Backup:IntervalHours"], out var h) ? h : 24;
+        var hours = int.TryParse(config["Backup:IntervalHours"], out var h) ? h : 6;
         _interval = TimeSpan.FromHours(hours);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Small initial delay so this doesn't compete with the API's own
-        // startup work (schema init, etc.) in the first few seconds.
-        await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+        // 1. Startup Backup: Brief 5s delay so initial DB schema and services finish warming up
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+            if (!stoppingToken.IsCancellationRequested)
+            {
+                _logger.LogInformation("Triggering automated Startup backup...");
+                await TriggerBackupAsync("Startup");
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
 
+        // 2. Periodic Backup: Repeats every interval (e.g. 6 hours)
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                using var scope = _services.CreateScope();
-                var backupService = scope.ServiceProvider.GetRequiredService<IBackupService>();
-                var result = await backupService.RunBackupAsync();
-
-                _logger.LogInformation("Scheduled backup completed: {FileName}", result.FileName);
-
-                if (result.FailedDestinations.Count > 0)
-                {
-                    _logger.LogWarning(
-                        "Some backup destinations failed: {Failures}",
-                        string.Join("; ", result.FailedDestinations));
-                }
+                await Task.Delay(_interval, stoppingToken);
+                _logger.LogInformation("Triggering automated Periodic backup...");
+                await TriggerBackupAsync("Periodic");
+            }
+            catch (OperationCanceledException)
+            {
+                break;
             }
             catch (Exception ex)
             {
-                // Never let a backup failure crash the API — the shop still
-                // needs to keep selling even if today's backup didn't work.
-                _logger.LogError(ex, "Scheduled backup failed");
+                _logger.LogError(ex, "Error during periodic backup cycle");
             }
+        }
+    }
 
-            await Task.Delay(_interval, stoppingToken);
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        // 3. Shutdown Backup: Guaranteed snapshot before closing POS
+        _logger.LogInformation("Application shutting down: triggering Shutdown backup...");
+        await TriggerBackupAsync("Shutdown");
+
+        await base.StopAsync(cancellationToken);
+    }
+
+    private async Task TriggerBackupAsync(string triggerType)
+    {
+        try
+        {
+            using var scope = _services.CreateScope();
+            var backupService = scope.ServiceProvider.GetRequiredService<IBackupService>();
+            var result = await backupService.RunBackupAsync();
+
+            _logger.LogInformation(
+                "{TriggerType} backup completed successfully: {FileName} ({SizeBytes} bytes). Saved to: {Destinations}",
+                triggerType, result.FileName, result.SizeBytes, string.Join(", ", result.CopiedTo));
+
+            if (result.FailedDestinations.Count > 0)
+            {
+                _logger.LogWarning(
+                    "{TriggerType} backup had failed destinations: {Failures}",
+                    triggerType, string.Join("; ", result.FailedDestinations));
+            }
+        }
+        catch (Exception ex)
+        {
+            // Never crash the application if a backup fails
+            _logger.LogError(ex, "{TriggerType} backup failed", triggerType);
         }
     }
 }
