@@ -28,13 +28,32 @@ public class OrderService
         _movements = movements;
     }
 
-    public async Task<OrderDto> CreateSaleAsync(CreateSaleRequest request)
+    public async Task<OrderDto> CreateSaleAsync(CreateSaleRequest request, string? headerIdempotencyKey = null)
     {
         if (request.Items.Count == 0)
             throw new InvalidOperationException("A sale must have at least one item.");
 
+        // Resolve Idempotency Key: HTTP Header > Request Body IdempotencyKey > Request Body LocalId
+        var idempotencyKey = !string.IsNullOrWhiteSpace(headerIdempotencyKey)
+            ? headerIdempotencyKey.Trim()
+            : (!string.IsNullOrWhiteSpace(request.IdempotencyKey)
+                ? request.IdempotencyKey.Trim()
+                : request.LocalId?.Trim());
+
+        // IDEMPOTENCY CHECK: If already processed with this key, return existing order (replay without double-charging or deducting stock twice)
+        if (!string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            var existingOrder = await _orders.GetByLocalIdAsync(idempotencyKey);
+            if (existingOrder != null)
+            {
+                return MapToDto(existingOrder);
+            }
+        }
+
         var order = new Order
         {
+            LocalId = !string.IsNullOrWhiteSpace(idempotencyKey) ? idempotencyKey : Guid.NewGuid().ToString(),
+            CashierId = request.CashierId,
             OrderNo = await _orders.GetNextOrderNumberAsync(request.TerminalId),
             DiscountType = request.DiscountType,
             DiscountAmount = request.DiscountAmount,
@@ -135,7 +154,9 @@ public class OrderService
     private static OrderDto MapToDto(Order order) => new()
     {
         Id = order.Id,
+        LocalId = order.LocalId,
         OrderNo = order.OrderNo,
+        CashierId = order.CashierId,
         Subtotal = order.Subtotal,
         DiscountAmount = order.DiscountAmount,
         TaxAmount = order.TaxAmount,

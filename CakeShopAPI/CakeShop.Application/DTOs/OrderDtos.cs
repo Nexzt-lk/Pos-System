@@ -10,6 +10,13 @@ public class SaleItemRequest
 
 public class CreateSaleRequest
 {
+    /// <summary>
+    /// Unique client-generated UUID / idempotency key to prevent double-charging or duplicate stock deduction
+    /// </summary>
+    public string? IdempotencyKey { get; set; }
+    public string? LocalId { get; set; }
+    public string? CashierId { get; set; }
+
     public string TerminalId { get; set; } = "T1";
     public List<SaleItemRequest> Items { get; set; } = new();
     public string? DiscountType { get; set; }          // "percent" | "fixed", order-level
@@ -26,7 +33,9 @@ public class CreateSaleRequest
 public class OrderDto
 {
     public string Id { get; set; } = string.Empty;
+    public string LocalId { get; set; } = string.Empty;
     public string OrderNo { get; set; } = string.Empty;
+    public string? CashierId { get; set; }
     public decimal Subtotal { get; set; }
     public decimal DiscountAmount { get; set; }
     public decimal TaxAmount { get; set; }

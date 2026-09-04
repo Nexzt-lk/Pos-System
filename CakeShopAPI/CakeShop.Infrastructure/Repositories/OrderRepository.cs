@@ -131,6 +131,25 @@ public class OrderRepository : IOrderRepository
         return order;
     }
 
+    public async Task<Order?> GetByLocalIdAsync(string localId)
+    {
+        using var connection = _factory.CreateConnection();
+
+        Order? order = null;
+        using (var cmd = connection.CreateCommand())
+        {
+            cmd.CommandText = "SELECT * FROM orders WHERE local_id = $localId;";
+            cmd.Parameters.AddWithValue("$localId", localId);
+            using var reader = await cmd.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+                order = MapOrder(reader);
+        }
+        if (order == null) return null;
+
+        await AttachItemsAndPayments(connection, order);
+        return order;
+    }
+
     public async Task<List<Order>> GetByDateRangeAsync(DateTime fromUtc, DateTime toUtc)
     {
         using var connection = _factory.CreateConnection();
@@ -210,6 +229,8 @@ public class OrderRepository : IOrderRepository
         TotalAmount = Convert.ToDecimal(r.GetDouble(r.GetOrdinal("total_amount"))),
         Status = r.GetString(r.GetOrdinal("status")),
         Note = r.IsDBNull(r.GetOrdinal("note")) ? null : r.GetString(r.GetOrdinal("note")),
-        CreatedAt = DateTime.Parse(r.GetString(r.GetOrdinal("created_at")))
+        CreatedAt = DateTime.Parse(r.GetString(r.GetOrdinal("created_at"))),
+        LocalId = r.IsDBNull(r.GetOrdinal("local_id")) ? string.Empty : r.GetString(r.GetOrdinal("local_id")),
+        SyncStatus = r.IsDBNull(r.GetOrdinal("sync_status")) ? "pending" : r.GetString(r.GetOrdinal("sync_status"))
     };
 }

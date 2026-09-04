@@ -42,6 +42,7 @@ public interface IOrderRepository
     Task<string> GetNextOrderNumberAsync(string terminalId);
     Task AddAsync(Order order); // saves order + items + payments in one transaction
     Task<Order?> GetByIdAsync(string id);
+    Task<Order?> GetByLocalIdAsync(string localId); // idempotency check
     Task<List<Order>> GetByDateRangeAsync(DateTime fromUtc, DateTime toUtc);
 }
 

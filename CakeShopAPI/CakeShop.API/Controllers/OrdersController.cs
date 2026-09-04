@@ -13,13 +13,15 @@ public class OrdersController : ControllerBase
     public OrdersController(OrderService service) => _service = service;
 
     // Records a sale: builds order + line items, deducts stock, saves payment
-    // (cash or card). This is the endpoint the checkout screen calls.
+    // (cash or card). Supports Idempotency-Key header / body key to prevent double-charging.
     [HttpPost("sale")]
-    public async Task<ActionResult<OrderDto>> CreateSale([FromBody] CreateSaleRequest request)
+    public async Task<ActionResult<OrderDto>> CreateSale(
+        [FromBody] CreateSaleRequest request,
+        [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey = null)
     {
         try
         {
-            var order = await _service.CreateSaleAsync(request);
+            var order = await _service.CreateSaleAsync(request, idempotencyKey);
             return Ok(order);
         }
         catch (InvalidOperationException ex)
