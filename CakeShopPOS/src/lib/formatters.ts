@@ -47,3 +47,19 @@ export const generateOrderNumber = (
   const seqPart = seq.toString().padStart(4, '0')
   return `${branchCode}-${terminalId}-${datePart}-${seqPart}`
 }
+
+/**
+ * Formats stock quantities cleanly without float precision bugs
+ * Example: 196.80900000000003, 'kg' -> "196.81 kg"
+ * Example: 12, 'pcs' -> "12 pcs"
+ */
+export const formatStockQty = (qty: number | undefined | null, unit: string = 'pcs'): string => {
+  if (qty === undefined || qty === null || isNaN(qty)) return `0 ${unit}`
+  const num = Number(qty)
+  if (unit === 'pcs' || Number.isInteger(num)) {
+    return `${Math.round(num)} ${unit}`
+  }
+  // For kg or float quantities, round to 2 decimals
+  const rounded = parseFloat(num.toFixed(2))
+  return `${rounded} ${unit}`
+}

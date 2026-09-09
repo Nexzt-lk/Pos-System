@@ -151,26 +151,158 @@ export const ExpensesPage: React.FC = () => {
       {/* Expense Modal */}
       <Modal
         open={isModalOpen}
-        onCancel={() => setIsModalOpen(false)}
+        onCancel={() => {
+          setIsModalOpen(false)
+          form.resetFields()
+        }}
         onOk={() => form.submit()}
-        title="Record Daily Expense"
-        okText="Save Expense"
-        okButtonProps={{ style: { background: 'var(--primary)', borderColor: 'var(--primary)', fontWeight: 700 } }}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 4 }}>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+                color: '#dc2626',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '1px solid #fca5a5'
+              }}
+            >
+              <Receipt size={18} />
+            </div>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>
+                Record Daily Petty Expense
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>
+                දෛනික වියදම් සටහන් කිරීම · Deducted from daily cash balance
+              </div>
+            </div>
+          </div>
+        }
+        okText="Record Expense"
+        okButtonProps={{
+          style: {
+            background: 'var(--primary)',
+            borderColor: 'var(--primary)',
+            fontWeight: 700,
+            height: 38,
+            borderRadius: 8
+          }
+        }}
+        cancelButtonProps={{
+          style: {
+            height: 38,
+            borderRadius: 8,
+            fontWeight: 600
+          }
+        }}
         centered
-        width={440}
+        width={480}
       >
-        <Form form={form} layout="vertical" onFinish={handleAddExpense} style={{ paddingTop: 8 }}>
-          <Form.Item name="category" label="Category" rules={[{ required: true, message: 'Select category' }]}>
-            <Select placeholder="Select expense category">
-              {CATEGORIES.map(c => <Select.Option key={c.value} value={c.value}>{c.label}</Select.Option>)}
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleAddExpense}
+          style={{ paddingTop: 12 }}
+          initialValues={{ category: 'Ingredients' }}
+        >
+          {/* Category Select */}
+          <Form.Item
+            name="category"
+            label={<span style={{ fontWeight: 700, fontSize: 12.5 }}>Expense Category</span>}
+            rules={[{ required: true, message: 'Select category' }]}
+          >
+            <Select size="large" style={{ borderRadius: 8 }}>
+              {CATEGORIES.map((c) => (
+                <Select.Option key={c.value} value={c.value}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: CATEGORY_COLORS[c.value] || '#16a34a'
+                      }}
+                    />
+                    <span style={{ fontWeight: 600 }}>{c.label}</span>
+                  </div>
+                </Select.Option>
+              ))}
             </Select>
           </Form.Item>
-          <Form.Item name="description" label="Description / Item Details" rules={[{ required: true, message: 'Enter description' }]}>
-            <Input placeholder="e.g. 5kg Anchor Butter from wholesale" />
+
+          {/* Description */}
+          <Form.Item
+            name="description"
+            label={<span style={{ fontWeight: 700, fontSize: 12.5 }}>Description / Item Details</span>}
+            rules={[{ required: true, message: 'Enter expense description' }]}
+          >
+            <Input
+              placeholder="e.g. 5kg Anchor Butter from wholesale"
+              size="large"
+              style={{ borderRadius: 8 }}
+            />
           </Form.Item>
-          <Form.Item name="amount" label="Amount (Rs.)" rules={[{ required: true, message: 'Enter amount' }]}>
-            <InputNumber min={1} style={{ width: '100%' }} formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
-          </Form.Item>
+
+          {/* Quick suggestions */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: -6, marginBottom: 14 }}>
+            {['Gas Refill 12.5kg', 'Anchor Butter 5kg', 'Cake Boxes 100pcs', 'Fresh Milk 10L', 'Sugar 50kg'].map((tag) => (
+              <span
+                key={tag}
+                className="form-quick-chip"
+                onClick={() => form.setFieldsValue({ description: tag })}
+              >
+                + {tag}
+              </span>
+            ))}
+          </div>
+
+          {/* Amount Input with Presets */}
+          <div className="form-section" style={{ marginBottom: 4 }}>
+            <div className="form-section-header">
+              <span className="form-section-title">
+                Expense Amount (රුපියල්)
+              </span>
+            </div>
+
+            <Form.Item
+              name="amount"
+              rules={[{ required: true, message: 'Enter expense amount' }]}
+              style={{ marginBottom: 10 }}
+            >
+              <InputNumber
+                min={1}
+                size="large"
+                placeholder="e.g. 2500"
+                style={{
+                  width: '100%',
+                  borderRadius: 8,
+                  fontWeight: 800,
+                  fontSize: 16,
+                  color: 'var(--danger)'
+                }}
+                formatter={(v) => `Rs. ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                parser={(v) => v!.replace(/Rs\.\s?|(,*)/g, '') as any}
+              />
+            </Form.Item>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {[500, 1000, 1500, 2500, 3500, 5000].map((amt) => (
+                <button
+                  type="button"
+                  key={amt}
+                  className="form-quick-chip"
+                  onClick={() => form.setFieldsValue({ amount: amt })}
+                >
+                  Rs. {amt.toLocaleString()}
+                </button>
+              ))}
+            </div>
+          </div>
         </Form>
       </Modal>
     </div>
