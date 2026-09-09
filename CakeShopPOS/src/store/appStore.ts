@@ -36,7 +36,7 @@ export const useAppStore = create<AppState>((set) => ({
   currentShop: DEFAULT_SHOP,
   currentTerminalId: 'T1',
   currentUser: null,
-  apiUrl: 'http://127.0.0.1:5000',
+  apiUrl: 'http://127.0.0.1:5292',
   isOnline: navigator.onLine,
   isApiHealthy: true,
 

@@ -4,6 +4,7 @@ import { useCartStore } from '../../store/cartStore'
 import { useAppStore } from '../../store/appStore'
 import { formatCurrency, generateOrderNumber } from '../../lib/formatters'
 import { PaymentMethod } from '../../types/order'
+import { ordersApi, CreateSaleRequest } from '../../api/ordersApi'
 import { v4 as uuidv4 } from 'uuid'
 
 interface PaymentModalProps {
@@ -102,15 +103,19 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onO
   const handleComplete = async () => {
     if (!currentShop || !isValid) return
     setIsProcessing(true)
-    const orderNo = generateOrderNumber(
+
+    const orderId = uuidv4()
+    const idempotencyKey = uuidv4()
+    const orderNoFallback = generateOrderNumber(
       currentShop.branch_code,
       currentTerminalId,
       Math.floor(Math.random() * 900) + 100
     )
+
     const orderPayload = {
-      id: uuidv4(),
+      id: orderId,
       shop_id: currentShop.id,
-      order_no: orderNo,
+      order_no: orderNoFallback,
       cashier_id: currentUser?.id,
       cashier_name: currentUser?.name || 'Cashier 1',
       subtotal: getSubtotal(),
@@ -120,14 +125,19 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onO
       total_amount: totalAmount,
       status: 'completed',
       created_at: new Date().toISOString(),
-      local_id: uuidv4(),
+      local_id: orderId,
       items: items.map((i) => ({
-        product_id: i.product_id, product_name: i.product_name,
-        unit_price: i.unit_price, cost_price: i.cost_price,
-        quantity: i.quantity, discount: i.discount, subtotal: i.subtotal
+        product_id: i.product_id,
+        product_name: i.product_name,
+        unit_price: i.unit_price,
+        cost_price: i.cost_price,
+        quantity: i.quantity,
+        discount: i.discount,
+        subtotal: i.subtotal
       })),
       payments: [{
-        method: paymentMethod, amount: totalAmount,
+        method: paymentMethod,
+        amount: totalAmount,
         cash_given: paymentMethod === 'CASH' ? numCashTendered : undefined,
         change_given: paymentMethod === 'CASH' ? changeDue : undefined,
         reference_no: referenceNo || undefined
@@ -135,14 +145,41 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onO
     }
 
     try {
+      const saleRequest: CreateSaleRequest = {
+        idempotencyKey,
+        localId: orderId,
+        cashierId: currentUser?.id,
+        terminalId: currentTerminalId || 'T1',
+        items: items.map((i) => ({
+          productId: i.product_id,
+          quantity: i.quantity,
+          discount: i.discount || 0
+        })),
+        discountType: discountType || undefined,
+        discountAmount: getDiscountAmount(),
+        taxAmount: 0,
+        paymentMethod: paymentMethod,
+        cashGiven: paymentMethod === 'CASH' ? numCashTendered : undefined,
+        cardReferenceNo: referenceNo || undefined
+      }
+
+      const backendOrder = await ordersApi.createSale(saleRequest, idempotencyKey)
+      if (backendOrder && backendOrder.orderNo) {
+        orderPayload.order_no = backendOrder.orderNo
+        orderPayload.id = backendOrder.id
+      }
+    } catch (apiErr: any) {
+      console.warn('Backend API sale notice (fallbacking if local DB available):', apiErr)
       if (window.electronAPI) {
-        const res = await window.electronAPI.dbQuery('db:create-order', orderPayload)
-        if (res && res.orderNo) {
-          orderPayload.order_no = res.orderNo
+        try {
+          const res = await window.electronAPI.dbQuery('db:create-order', orderPayload)
+          if (res && res.orderNo) {
+            orderPayload.order_no = res.orderNo
+          }
+        } catch (dbErr) {
+          console.warn('Local electron db save error:', dbErr)
         }
       }
-    } catch (err: any) {
-      console.warn('Local order DB save note:', err)
     } finally {
       clearCart()
       onOrderCompleted(orderPayload)

@@ -31,8 +31,8 @@ export const getDatabase = async (): Promise<POSDatabase> => {
     fs.mkdirSync(projectDbDir, { recursive: true })
   }
 
-  const dbPath = path.join(projectDbDir, 'cakeshop_pos.db')
-  console.log(`[Database] Initializing Project SQLite (WASM) at: ${dbPath}`)
+  const dbPath = path.join(projectDbDir, 'cakeshop_local.db')
+  console.log(`[Database] Initializing Project SQLite at: ${dbPath}`)
 
   let rawDb: any
   if (fs.existsSync(dbPath)) {

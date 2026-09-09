@@ -10,21 +10,20 @@ import {
   AlertTriangle,
   AlertOctagon,
   CheckCircle2,
-  Layers,
   ArrowUpDown,
   RefreshCw,
   Barcode,
-  History,
-  TrendingDown,
   TrendingUp,
-  Tag
+  Tag,
+  DollarSign
 } from 'lucide-react'
-import { Modal, Form, Select, InputNumber, Input, Segmented, message, Popconfirm } from 'antd'
-import { Product, Category } from '../../types/product'
+import { Modal, Form, Select, InputNumber, Input, Segmented, message } from 'antd'
+import { Product, Category, normalizeProduct, normalizeCategory } from '../../types/product'
+import { productsApi } from '../../api/productsApi'
+import { categoriesApi } from '../../api/categoriesApi'
 import { useAppStore } from '../../store/appStore'
 import { formatCurrency, formatStockQty } from '../../lib/formatters'
 import { generateCategoryItemCode } from '../../lib/skuGenerator'
-import { v4 as uuidv4 } from 'uuid'
 
 export const InventoryPage: React.FC = () => {
   const currentShop = useAppStore((state) => state.currentShop)
@@ -39,7 +38,6 @@ export const InventoryPage: React.FC = () => {
   
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [entryMode, setEntryMode] = useState<'EXISTING' | 'NEW'>('EXISTING')
-  const [selectedItemForMovement, setSelectedItemForMovement] = useState<Product | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   
   const [form] = Form.useForm()
@@ -48,29 +46,29 @@ export const InventoryPage: React.FC = () => {
     if (!currentShop) return
     setIsLoading(true)
     try {
-      if (window.electronAPI) {
-        const [prods, cats] = await Promise.all([
-          window.electronAPI.dbQuery('db:get-products', currentShop.id),
-          window.electronAPI.dbQuery('db:get-categories', currentShop.id)
-        ])
-        setProducts(prods || [])
-        setCategories(cats || [])
-      } else {
-        setCategories([
-          { id: 'c1', shop_id: currentShop.id, name: 'Signature Cakes', color: '#ec4899', sort_order: 1, is_active: true },
-          { id: 'c2', shop_id: currentShop.id, name: 'Pastries & Savories', color: '#f59e0b', sort_order: 2, is_active: true },
-          { id: 'c3', shop_id: currentShop.id, name: 'Desserts & Sweets', color: '#8b5cf6', sort_order: 3, is_active: true }
-        ])
-        setProducts([
-          { id: 'p1', shop_id: currentShop.id, category_id: 'c1', name: 'Black Forest Cake 1kg', price: 3800, cost_price: 2200, barcode: 'CK-001', unit: 'pcs', current_stock: 12, track_inventory: true, is_active: true, category_name: 'Signature Cakes', category_color: '#ec4899' },
-          { id: 'p2', shop_id: currentShop.id, category_id: 'c1', name: 'Red Velvet Gateau 1kg', price: 4200, cost_price: 2600, barcode: 'CK-002', unit: 'pcs', current_stock: 3, track_inventory: true, is_active: true, category_name: 'Signature Cakes', category_color: '#ec4899' },
-          { id: 'p3', shop_id: currentShop.id, category_id: 'c2', name: 'Spicy Chicken Pastry', price: 220, cost_price: 110, barcode: 'PS-001', unit: 'pcs', current_stock: 0, track_inventory: true, is_active: true, category_name: 'Pastries & Savories', category_color: '#f59e0b' },
-          { id: 'p4', shop_id: currentShop.id, category_id: 'c2', name: 'Fish Bun', price: 120, cost_price: 60, barcode: 'PS-002', unit: 'pcs', current_stock: 45, track_inventory: true, is_active: true, category_name: 'Pastries & Savories', category_color: '#f59e0b' }
-        ])
-      }
+      const [rawProds, rawCats] = await Promise.all([
+        productsApi.getAll(true).catch(() => []),
+        categoriesApi.getAll().catch(() => [])
+      ])
+
+      const cats = rawCats.map((c) => normalizeCategory(c, currentShop.id))
+      const catMap = new Map(cats.map((c) => [c.id, c]))
+
+      const prods = rawProds.map((p) => {
+        const norm = normalizeProduct(p, currentShop.id)
+        if (norm.category_id && catMap.has(norm.category_id)) {
+          const cat = catMap.get(norm.category_id)!
+          norm.category_name = cat.name
+          norm.category_color = cat.color
+        }
+        return norm
+      })
+
+      setProducts(prods)
+      setCategories(cats)
     } catch (err) {
       console.error('Failed to load inventory:', err)
-      message.error('Failed to load inventory')
+      message.error('Failed to load inventory from server')
     } finally {
       setIsLoading(false)
     }
@@ -82,7 +80,6 @@ export const InventoryPage: React.FC = () => {
 
   const handleOpenMovementModal = (product?: Product) => {
     form.resetFields()
-    setSelectedItemForMovement(product || null)
     if (product) {
       setEntryMode('EXISTING')
       form.setFieldsValue({
@@ -138,81 +135,34 @@ export const InventoryPage: React.FC = () => {
             costPerUnit: values.cost_price ? Number(values.cost_price) : undefined,
             doneBy: currentUser?.id
           })
-        } else {
-          // In-memory demo fallback
-          setProducts((prev) =>
-            prev.map((p) => {
-              if (p.id === values.product_id) {
-                const cur = p.current_stock ?? 0
-                const delta =
-                  values.type === 'IN' || values.type === 'RETURN'
-                    ? Number(values.quantity)
-                    : values.type === 'ADJUST'
-                    ? Number(values.quantity) - cur
-                    : -Number(values.quantity)
-                return { ...p, current_stock: Math.max(0, cur + delta) }
-              }
-              return p
-            })
-          )
         }
-
         message.success('Stock movement recorded successfully!')
       } else {
-        // NEW ITEM MODE
-        const newProductId = uuidv4()
+        // NEW ITEM MODE via Backend API
         const selectedCat = categories.find((c) => c.id === values.new_category_id)
         const itemCode = values.new_barcode ? values.new_barcode.trim() : generateCategoryItemCode(selectedCat, products)
 
-        const productPayload = {
-          id: newProductId,
-          shop_id: currentShop.id,
-          category_id: values.new_category_id || null,
+        await productsApi.create({
+          categoryId: values.new_category_id,
           name: values.new_name.trim(),
           description: values.new_description || '',
           price: Number(values.new_price) || 0,
-          cost_price: Number(values.new_cost_price) || 0,
+          costPrice: Number(values.new_cost_price) || 0,
           barcode: itemCode,
           unit: values.new_unit || 'pcs',
-          track_inventory: 1,
-          is_active: 1
-        }
+          trackInventory: true,
+          initialStock: Number(values.new_quantity) || 0,
+          minStockAlert: 5
+        })
 
-        if (window.electronAPI) {
-          await window.electronAPI.dbQuery('db:upsert-product', productPayload)
-
-          const initQty = Number(values.new_quantity) || 0
-          if (initQty > 0) {
-            await window.electronAPI.dbQuery('db:record-stock-movement', {
-              shopId: currentShop.id,
-              productId: newProductId,
-              type: 'IN',
-              quantity: initQty,
-              note: values.new_note || 'New item initial stock arrival',
-              costPerUnit: Number(values.new_cost_price) || undefined,
-              doneBy: currentUser?.id
-            })
-          }
-        } else {
-          const newDemoProduct: Product = {
-            ...productPayload,
-            track_inventory: true,
-            is_active: true,
-            current_stock: Number(values.new_quantity) || 0,
-            category_name: selectedCat?.name || 'General',
-            category_color: selectedCat?.color || '#ec4899'
-          }
-          setProducts((prev) => [newDemoProduct, ...prev])
-        }
-
-        message.success(`New product "${values.new_name}" (Code: ${itemCode}) registered & stock added!`)
+        message.success(`New item "${values.new_name}" created via Backend API!`)
       }
 
       setIsModalOpen(false)
-      loadData()
+      await loadData()
     } catch (err: any) {
       console.error('Failed to save stock movement:', err)
-      message.error(err.message || 'Failed to record stock movement')
+      message.error(err.message || 'Failed to save movement')
     }
   }
 

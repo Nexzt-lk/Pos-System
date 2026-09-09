@@ -14,7 +14,7 @@ import bcrypt from 'bcryptjs'
 import fs from 'fs'
 
 let mainWindow: BrowserWindow | null = null
-let activeApiPort = 5000
+let activeApiPort = 5292
 
 // Single instance lock
 const gotTheLock = app.requestSingleInstanceLock()
@@ -30,7 +30,7 @@ if (!gotTheLock) {
 }
 
 const createWindow = async () => {
-  activeApiPort = await detectPort(5000)
+  activeApiPort = await detectPort(5292)
   console.log(`[Electron] Active Local API Port: ${activeApiPort}`)
 
   const preloadPath = fs.existsSync(path.join(__dirname, '../preload/preload.js'))

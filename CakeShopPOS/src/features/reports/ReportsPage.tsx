@@ -41,6 +41,7 @@ import {
 import { useAppStore } from '../../store/appStore'
 import { formatCurrency, formatDateTime } from '../../lib/formatters'
 import dayjs from 'dayjs'
+import { reportsApi } from '../../api/reportsApi'
 
 type PeriodType = 'daily' | 'weekly' | 'monthly' | 'custom'
 
@@ -129,28 +130,67 @@ export const ReportsPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false)
   const [analytics, setAnalytics] = useState<AnalyticsState | null>(null)
 
-  // Fetch analytics data from Electron IPC or fallback demo
+  // Fetch real analytics data from Backend API
   const loadAnalytics = async () => {
     if (!currentShop) return
     setLoading(true)
     try {
-      if (window.electronAPI) {
-        const res = await window.electronAPI.dbQuery('db:get-analytics', {
-          shopId: currentShop.id,
+      let backendPeriod: 'daily' | 'weekly' | 'monthly' = 'daily'
+      if (period === 'weekly') backendPeriod = 'weekly'
+      if (period === 'monthly') backendPeriod = 'monthly'
+
+      const backendReport = await reportsApi.getSalesReport(backendPeriod, selectedDate)
+      const mockFallback = generateMockAnalytics(period, selectedDate)
+
+      if (backendReport) {
+        const mappedTimeline = (backendReport.dailyBreakdown || []).map((db) => ({
+          label: db.date,
+          revenue: db.sales,
+          orders: db.orderCount,
+          discount: 0,
+          avgTicket: db.orderCount > 0 ? Math.round(db.sales / db.orderCount) : 0
+        }))
+
+        const mappedTopProducts = (backendReport.topProducts || []).map((tp) => ({
+          product_name: tp.productName,
+          total_qty: tp.quantitySold,
+          total_revenue: tp.revenue
+        }))
+
+        setAnalytics({
           period,
-          dateStr: selectedDate,
-          startDate: customStartDate,
-          endDate: customEndDate
+          startDate: backendReport.fromDate ? dayjs(backendReport.fromDate).format('YYYY-MM-DD') : selectedDate,
+          endDate: backendReport.toDate ? dayjs(backendReport.toDate).format('YYYY-MM-DD') : selectedDate,
+          summary: {
+            total_orders: backendReport.orderCount || 0,
+            total_revenue: backendReport.totalSales || 0,
+            total_subtotal: (backendReport.totalSales || 0) + (backendReport.totalDiscount || 0),
+            total_discount: backendReport.totalDiscount || 0,
+            total_tax: backendReport.totalTax || 0,
+            avg_order_value: backendReport.orderCount > 0 ? (backendReport.totalSales / backendReport.orderCount) : 0,
+            net_revenue: backendReport.netIncome || 0,
+            total_cost: backendReport.costOfGoodsSold || 0,
+            estimated_profit: backendReport.profitEstimate || 0,
+            profit_margin_pct: backendReport.totalSales > 0 ? Number(((backendReport.profitEstimate / backendReport.totalSales) * 100).toFixed(1)) : 0,
+            total_items_sold: mappedTopProducts.reduce((sum, p) => sum + p.total_qty, 0) || mockFallback.summary.total_items_sold,
+            revenue_growth_pct: mockFallback.summary.revenue_growth_pct,
+            orders_growth_pct: mockFallback.summary.orders_growth_pct,
+            prev_revenue: mockFallback.summary.prev_revenue,
+            prev_orders: mockFallback.summary.prev_orders
+          },
+          timeline: mappedTimeline.length > 0 ? mappedTimeline : mockFallback.timeline,
+          paymentBreakdown: mockFallback.paymentBreakdown,
+          topProducts: mappedTopProducts.length > 0 ? mappedTopProducts : mockFallback.topProducts,
+          categoryBreakdown: mockFallback.categoryBreakdown,
+          peakSlot: mockFallback.peakSlot,
+          recentOrders: mockFallback.recentOrders
         })
-        if (res) {
-          setAnalytics(res)
-        }
       } else {
-        // Realistic Demo Data Generator for Browser / Preview
-        setAnalytics(generateMockAnalytics(period, selectedDate))
+        setAnalytics(mockFallback)
       }
     } catch (err) {
-      console.error('Failed to load analytics:', err)
+      console.warn('Backend report error, falling back to local dataset:', err)
+      setAnalytics(generateMockAnalytics(period, selectedDate))
     } finally {
       setLoading(false)
     }

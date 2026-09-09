@@ -6,7 +6,9 @@ import { ReceiptModal } from './ReceiptModal'
 import { DiscountModal } from './DiscountModal'
 import { ProductQuantityModal } from './ProductQuantityModal'
 import { KeyboardShortcutsModal } from './KeyboardShortcutsModal'
-import { Product, Category } from '../../types/product'
+import { Product, Category, normalizeProduct, normalizeCategory } from '../../types/product'
+import { productsApi } from '../../api/productsApi'
+import { categoriesApi } from '../../api/categoriesApi'
 import { useCartStore, CartItem as CartItemType } from '../../store/cartStore'
 import { useAppStore } from '../../store/appStore'
 
@@ -36,32 +38,26 @@ export const POSPage: React.FC = () => {
     if (!currentShop) return
     setIsLoading(true)
     try {
-      if (window.electronAPI) {
-        const [prods, cats] = await Promise.all([
-          window.electronAPI.dbQuery('db:get-products', currentShop.id),
-          window.electronAPI.dbQuery('db:get-categories', currentShop.id)
-        ])
-        setProducts(prods || [])
-        setCategories(cats || [])
-      } else {
-        // Fallback default sample menu for browser preview
-        setCategories([
-          { id: 'c1', shop_id: currentShop.id, name: 'Signature Cakes', color: '#ec4899', sort_order: 1, is_active: true },
-          { id: 'c2', shop_id: currentShop.id, name: 'Pastries & Savories', color: '#f59e0b', sort_order: 2, is_active: true },
-          { id: 'c3', shop_id: currentShop.id, name: 'Desserts & Cupcakes', color: '#8b5cf6', sort_order: 3, is_active: true },
-          { id: 'c4', shop_id: currentShop.id, name: 'Beverages & Coffee', color: '#06b6d4', sort_order: 4, is_active: true }
-        ])
-        setProducts([
-          { id: 'p1', shop_id: currentShop.id, category_id: 'c1', name: 'Black Forest Gateau', price: 3800, barcode: '4790001001', unit: 'kg', current_stock: 12, track_inventory: true, is_active: true, category_name: 'Signature Cakes', image_path: 'products/black_forest.jpg' },
-          { id: 'p2', shop_id: currentShop.id, category_id: 'c1', name: 'Red Velvet Cake', price: 4200, barcode: '4790001002', unit: 'kg', current_stock: 8, track_inventory: true, is_active: true, category_name: 'Signature Cakes', image_path: 'products/red_velvet.jpg' },
-          { id: 'p3', shop_id: currentShop.id, category_id: 'c1', name: 'Ribbon Butter Cake', price: 3300, barcode: '4790001003', unit: 'kg', current_stock: 20, track_inventory: true, is_active: true, category_name: 'Signature Cakes', image_path: 'products/ribbon_butter.jpg' },
-          { id: 'p4', shop_id: currentShop.id, category_id: 'c2', name: 'Spicy Chicken Pastry', price: 220, barcode: '4790001004', unit: 'pcs', current_stock: 35, track_inventory: true, is_active: true, category_name: 'Pastries & Savories', image_path: 'products/spicy_chicken.jpg' },
-          { id: 'p5', shop_id: currentShop.id, category_id: 'c2', name: 'Fish Bun (Seeni Sambol)', price: 150, barcode: '4790001005', unit: 'pcs', current_stock: 40, track_inventory: true, is_active: true, category_name: 'Pastries & Savories', image_path: 'products/fish_bun.jpg' },
-          { id: 'p6', shop_id: currentShop.id, category_id: 'c3', name: 'Choco Fudge Cupcake', price: 280, barcode: '4790001006', unit: 'pcs', current_stock: 25, track_inventory: true, is_active: true, category_name: 'Desserts & Cupcakes', image_path: 'products/choco_fudge_cupcake.jpg' },
-          { id: 'p7', shop_id: currentShop.id, category_id: 'c3', name: 'Vanilla Eclair', price: 260, barcode: '4790001007', unit: 'pcs', current_stock: 30, track_inventory: true, is_active: true, category_name: 'Desserts & Cupcakes', image_path: 'products/vanilla_eclair.jpg' },
-          { id: 'p8', shop_id: currentShop.id, category_id: 'c4', name: 'Iced Caramel Latte', price: 750, barcode: '4790001008', unit: 'pcs', current_stock: 50, track_inventory: false, is_active: true, category_name: 'Beverages & Coffee', image_path: 'products/iced_caramel_latte.jpg' }
-        ])
-      }
+      const [rawProds, rawCats] = await Promise.all([
+        productsApi.getAll(false).catch(() => []),
+        categoriesApi.getAll().catch(() => [])
+      ])
+
+      const cats = rawCats.map((c) => normalizeCategory(c, currentShop.id))
+      const catMap = new Map(cats.map((c) => [c.id, c]))
+
+      const prods = rawProds.map((p) => {
+        const norm = normalizeProduct(p, currentShop.id)
+        if (norm.category_id && catMap.has(norm.category_id)) {
+          const cat = catMap.get(norm.category_id)!
+          norm.category_name = cat.name
+          norm.category_color = cat.color
+        }
+        return norm
+      })
+
+      setProducts(prods)
+      setCategories(cats)
     } catch (err) {
       console.error('Failed to load menu:', err)
     } finally {

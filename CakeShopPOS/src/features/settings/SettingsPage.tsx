@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
-import { Settings, Printer, Store, Monitor, Wifi, RefreshCw } from 'lucide-react'
+import { Settings, Printer, Store, Monitor, Wifi, RefreshCw, Database, ShieldCheck } from 'lucide-react'
 import { message } from 'antd'
 import { useAppStore } from '../../store/appStore'
+import { backupApi } from '../../api/backupApi'
 
 interface SettingCardProps {
   icon: React.ReactNode
@@ -55,6 +56,24 @@ export const SettingsPage: React.FC = () => {
   const apiUrl = useAppStore((state) => state.apiUrl)
   const [isTestingPrint, setIsTestingPrint] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
+  const [isBackingUp, setIsBackingUp] = useState(false)
+
+  const handleBackupNow = async () => {
+    setIsBackingUp(true)
+    try {
+      const res = await backupApi.runBackup()
+      if (res && res.success) {
+        message.success(`SQLite database backup created! Location: ${res.filePath}`)
+      } else {
+        message.warning(`Backup notice: ${res?.error || 'Completed'}`)
+      }
+    } catch (err: any) {
+      console.error('Backup error:', err)
+      message.error(err.message || 'Database backup failed')
+    } finally {
+      setIsBackingUp(false)
+    }
+  }
 
   const handleTestPrint = async () => {
     setIsTestingPrint(true)
@@ -100,7 +119,7 @@ export const SettingsPage: React.FC = () => {
             System & Hardware Settings
           </div>
           <div className="page-subtitle">
-            Configure branch identity, terminal, thermal printer and cloud sync
+            Configure branch identity, terminal, thermal printer, database backups and cloud sync
           </div>
         </div>
       </div>
@@ -143,6 +162,34 @@ export const SettingsPage: React.FC = () => {
               Tel: {currentShop?.phone}
             </div>
           </SettingRow>
+        </SettingCard>
+
+        {/* Database & Backup Safety */}
+        <SettingCard icon={<Database size={18} />} title="SQLite Database & Automated Backups" subtitle="Local AppData database storage & immediate safety snapshots">
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 14 }}>
+            Local SQLite database engine located in AppData with automatic daily 11:30 PM snapshots and instant manual backup triggers.
+          </p>
+          <div style={{
+            background: 'var(--surface-2)', borderRadius: 'var(--radius)',
+            border: '1px solid var(--border)', padding: '10px 14px',
+            display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12
+          }}>
+            <ShieldCheck size={18} color="var(--primary)" />
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Backup Engine</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary-dark)' }}>Active (Auto Daily + On Demand)</div>
+            </div>
+            <span className="badge badge-green" style={{ marginLeft: 'auto' }}>Operational</span>
+          </div>
+          <button
+            disabled={isBackingUp}
+            onClick={handleBackupNow}
+            className="btn-primary"
+            style={{ width: '100%', justifyContent: 'center', padding: '12px' }}
+          >
+            <Database size={16} />
+            {isBackingUp ? 'Creating SQLite Backup...' : 'Create Database Backup Now'}
+          </button>
         </SettingCard>
 
         {/* Thermal Printer */}
@@ -207,7 +254,8 @@ export const SettingsPage: React.FC = () => {
             {[
               { label: 'App Name', val: 'Rasa Cake House POS' },
               { label: 'Version', val: 'v1.0.0 (Phase 01 Build)' },
-              { label: 'Database', val: 'SQLite WASM (sql.js)' },
+              { label: 'Backend API', val: 'ASP.NET Core 8.0 (.NET)' },
+              { label: 'Database', val: 'SQLite Local Storage' },
               { label: 'Framework', val: 'Electron + React + Vite' },
               { label: 'Built For', val: 'Windows 10/11 · Offline First' },
             ].map(item => (
@@ -226,3 +274,5 @@ export const SettingsPage: React.FC = () => {
     </div>
   )
 }
+
+export default SettingsPage

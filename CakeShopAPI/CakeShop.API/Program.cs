@@ -7,14 +7,27 @@ using CakeShop.Infrastructure.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // ------------------------------------------------------------
-// Local SQLite database location — stored in the user's AppData
-// folder so it survives app updates and isn't tied to the install path.
+// Local SQLite database location — stored in dedicated database/cakeshop_local.db
 // ------------------------------------------------------------
-var appDataFolder = Path.Combine(
-    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-    "CakeShopAPI");
-Directory.CreateDirectory(appDataFolder);
-var dbPath = Path.Combine(appDataFolder, "cakeshop_local.db");
+var configuredDbPath = builder.Configuration["Database:SqlitePath"];
+string dbPath;
+
+if (!string.IsNullOrWhiteSpace(configuredDbPath))
+{
+    dbPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, configuredDbPath));
+}
+else
+{
+    var projectDbDir = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "database");
+    if (!Directory.Exists(projectDbDir))
+    {
+        projectDbDir = Path.Combine(AppContext.BaseDirectory, "database");
+    }
+    Directory.CreateDirectory(projectDbDir);
+    dbPath = Path.GetFullPath(Path.Combine(projectDbDir, "cakeshop_local.db"));
+}
+
+Console.WriteLine($"[Database] SQLite Database Location: {dbPath}");
 
 // Schema file is copied to the output directory on build (see .csproj).
 var schemaFilePath = Path.Combine(AppContext.BaseDirectory, "database", "local_schema_sqlite.sql");

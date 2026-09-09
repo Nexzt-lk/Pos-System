@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
-import { Receipt, Plus, AlertCircle } from 'lucide-react'
-import { Modal, Form, Input, InputNumber, Select, message } from 'antd'
+import React, { useState, useEffect } from 'react'
+import { Receipt, Plus, AlertCircle, Trash2, RefreshCw } from 'lucide-react'
+import { Modal, Form, Input, InputNumber, Select, message, Popconfirm } from 'antd'
 import { useAppStore } from '../../store/appStore'
 import { formatCurrency } from '../../lib/formatters'
+import { expensesApi, ExpenseDto } from '../../api/expensesApi'
 import dayjs from 'dayjs'
 
 const CATEGORIES = [
@@ -15,33 +16,67 @@ const CATEGORIES = [
 ]
 
 const CATEGORY_COLORS: Record<string, string> = {
-  Ingredients: '#16a34a', Utilities: '#3b82f6', Packaging: '#8b5cf6',
-  'Staff Meals': '#f59e0b', Maintenance: '#ef4444', Other: '#6b7280'
+  Ingredients: '#16a34a',
+  Utilities: '#3b82f6',
+  Packaging: '#8b5cf6',
+  'Staff Meals': '#f59e0b',
+  Maintenance: '#ef4444',
+  Other: '#6b7280'
 }
 
 export const ExpensesPage: React.FC = () => {
   const currentShop = useAppStore((state) => state.currentShop)
-  const [expenses, setExpenses] = useState<any[]>([
-    { id: '1', category: 'Ingredients', description: 'Fresh Strawberries from Nuwara Eliya (2kg)', amount: 2400, expense_date: dayjs().format('YYYY-MM-DD') },
-    { id: '2', category: 'Utilities', description: 'Gas Cylinder Refill (Litro 12.5kg)', amount: 3680, expense_date: dayjs().format('YYYY-MM-DD') }
-  ])
+  const [expenses, setExpenses] = useState<ExpenseDto[]>([])
+  const [isLoading, setIsLoading] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [form] = Form.useForm()
 
-  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0)
-
-  const handleAddExpense = (values: any) => {
-    const newExpense = {
-      id: Date.now().toString(),
-      category: values.category,
-      description: values.description,
-      amount: values.amount,
-      expense_date: dayjs().format('YYYY-MM-DD')
+  const loadExpenses = async () => {
+    setIsLoading(true)
+    try {
+      const data = await expensesApi.getAll()
+      setExpenses(data || [])
+    } catch (err) {
+      console.error('Failed to load expenses:', err)
+      message.error('Failed to load expenses from server')
+    } finally {
+      setIsLoading(false)
     }
-    setExpenses([newExpense, ...expenses])
-    message.success('Expense recorded!')
-    setIsModalOpen(false)
-    form.resetFields()
+  }
+
+  useEffect(() => {
+    loadExpenses()
+  }, [])
+
+  const totalExpenses = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
+
+  const handleAddExpense = async (values: any) => {
+    try {
+      await expensesApi.create({
+        category: values.category,
+        description: values.description,
+        amount: Number(values.amount),
+        expenseDate: dayjs().format('YYYY-MM-DD')
+      })
+      message.success('Expense recorded via Backend API!')
+      setIsModalOpen(false)
+      form.resetFields()
+      await loadExpenses()
+    } catch (err: any) {
+      console.error('Failed to record expense:', err)
+      message.error(err.message || 'Failed to record expense')
+    }
+  }
+
+  const handleDeleteExpense = async (id: string) => {
+    try {
+      await expensesApi.delete(id)
+      message.success('Expense entry removed')
+      await loadExpenses()
+    } catch (err: any) {
+      console.error('Failed to delete expense:', err)
+      message.error(err.message || 'Failed to delete expense')
+    }
   }
 
   return (
@@ -57,15 +92,20 @@ export const ExpensesPage: React.FC = () => {
             Track daily operating costs and ingredients · {currentShop?.name}
           </div>
         </div>
-        <button className="btn-primary" onClick={() => setIsModalOpen(true)}>
-          <Plus size={15} /> Record Expense
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn-secondary" onClick={loadExpenses} disabled={isLoading}>
+            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} /> Refresh
+          </button>
+          <button className="btn-primary" onClick={() => setIsModalOpen(true)}>
+            <Plus size={15} /> Record Expense
+          </button>
+        </div>
       </div>
 
       {/* KPI Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, flexShrink: 0 }}>
         <div className="kpi-card" style={{ borderLeft: '4px solid var(--danger)' }}>
-          <div className="kpi-label">Total Expenses Today</div>
+          <div className="kpi-label">Total Expenses Recorded</div>
           <div className="kpi-value" style={{ color: 'var(--danger)' }}>{formatCurrency(totalExpenses)}</div>
         </div>
         <div className="kpi-card">
@@ -75,7 +115,7 @@ export const ExpensesPage: React.FC = () => {
         <div className="kpi-card">
           <div className="kpi-label">Largest Expense</div>
           <div className="kpi-value amber">
-            {formatCurrency(Math.max(...expenses.map(e => e.amount), 0))}
+            {formatCurrency(expenses.length > 0 ? Math.max(...expenses.map(e => Number(e.amount) || 0)) : 0)}
           </div>
         </div>
       </div>
@@ -85,10 +125,11 @@ export const ExpensesPage: React.FC = () => {
         <table>
           <thead>
             <tr>
-              <th>Category</th>
+              <th style={{ width: 140 }}>Category</th>
               <th>Description</th>
-              <th>Date</th>
-              <th style={{ textAlign: 'right' }}>Amount</th>
+              <th style={{ width: 120 }}>Date</th>
+              <th style={{ textAlign: 'right', width: 140 }}>Amount</th>
+              <th style={{ width: 60, textAlign: 'center' }}>Action</th>
             </tr>
           </thead>
         </table>
@@ -97,9 +138,9 @@ export const ExpensesPage: React.FC = () => {
             <tbody>
               {expenses.length === 0 ? (
                 <tr>
-                  <td colSpan={4} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={5} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
                     <AlertCircle size={32} style={{ margin: '0 auto 8px', opacity: 0.4, display: 'block' }} />
-                    No expenses recorded today
+                    No expenses recorded in database
                   </td>
                 </tr>
               ) : (
@@ -108,25 +149,48 @@ export const ExpensesPage: React.FC = () => {
                     style={{ borderBottom: '1px solid var(--border-light)' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-bg)')}
                     onMouseLeave={e => (e.currentTarget.style.background = '')}>
-                    <td style={{ padding: '11px 16px' }}>
+                    <td style={{ padding: '11px 16px', width: 140 }}>
                       <span className="badge"
                         style={{
-                          backgroundColor: `${CATEGORY_COLORS[exp.category] || '#475569'}18`,
-                          color: CATEGORY_COLORS[exp.category] || '#475569',
-                          border: `1px solid ${CATEGORY_COLORS[exp.category] || '#e2e8f0'}40`,
+                          backgroundColor: `${CATEGORY_COLORS[exp.category || 'Other'] || '#475569'}18`,
+                          color: CATEGORY_COLORS[exp.category || 'Other'] || '#475569',
+                          border: `1px solid ${CATEGORY_COLORS[exp.category || 'Other'] || '#e2e8f0'}40`,
                           fontWeight: 700
                         }}>
-                        {exp.category}
+                        {exp.category || 'General'}
                       </span>
                     </td>
                     <td style={{ padding: '11px 16px', color: 'var(--text-primary)', fontWeight: 500 }}>
                       {exp.description}
                     </td>
-                    <td style={{ padding: '11px 16px', color: 'var(--text-muted)', fontSize: 11, fontWeight: 600 }}>
-                      {exp.expense_date}
+                    <td style={{ padding: '11px 16px', color: 'var(--text-muted)', fontSize: 11, fontWeight: 600, width: 120 }}>
+                      {exp.expenseDate}
                     </td>
-                    <td style={{ padding: '11px 16px', textAlign: 'right', fontWeight: 900, color: 'var(--danger)', fontSize: 14 }}>
+                    <td style={{ padding: '11px 16px', textAlign: 'right', fontWeight: 900, color: 'var(--danger)', fontSize: 14, width: 140 }}>
                       {formatCurrency(exp.amount)}
+                    </td>
+                    <td style={{ padding: '11px 16px', textAlign: 'center', width: 60 }}>
+                      <Popconfirm
+                        title="Delete this expense record?"
+                        onConfirm={() => handleDeleteExpense(exp.id)}
+                        okText="Yes"
+                        cancelText="No"
+                      >
+                        <button
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--text-muted)',
+                            cursor: 'pointer',
+                            padding: 4,
+                            borderRadius: 6
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </Popconfirm>
                     </td>
                   </tr>
                 ))
@@ -136,11 +200,12 @@ export const ExpensesPage: React.FC = () => {
               <tfoot>
                 <tr style={{ background: 'var(--surface-2)', borderTop: '2px solid var(--border)' }}>
                   <td colSpan={3} style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--text-secondary)', fontSize: 12 }}>
-                    TOTAL TODAY
+                    TOTAL EXPENSES
                   </td>
                   <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 900, fontSize: 16, color: 'var(--danger)' }}>
                     {formatCurrency(totalExpenses)}
                   </td>
+                  <td></td>
                 </tr>
               </tfoot>
             )}
@@ -178,7 +243,7 @@ export const ExpensesPage: React.FC = () => {
                 Record Daily Petty Expense
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>
-                දෛනික වියදම් සටහන් කිරීම · Deducted from daily cash balance
+                දෛනික වියදම් සටහන් කිරීම · Saved directly to SQLite backend
               </div>
             </div>
           </div>
@@ -308,3 +373,5 @@ export const ExpensesPage: React.FC = () => {
     </div>
   )
 }
+
+export default ExpensesPage

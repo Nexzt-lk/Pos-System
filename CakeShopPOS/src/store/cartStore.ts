@@ -65,7 +65,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       } else {
         const calculatedSubtotal = Math.round((qty * product.price) * 100) / 100
         const newItem: CartItem = {
-          shop_id: product.shop_id,
+          shop_id: product.shop_id || 'default',
           product_id: product.id,
           product_name: product.name,
           unit_price: product.price,
