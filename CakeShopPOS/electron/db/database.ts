@@ -35,20 +35,42 @@ export const getDatabase = async (): Promise<POSDatabase> => {
   console.log(`[Database] Initializing Project SQLite at: ${dbPath}`)
 
   let rawDb: any
+  let lastMtime = 0
+
+  const reloadFromDiskIfNeeded = () => {
+    try {
+      if (fs.existsSync(dbPath)) {
+        const stats = fs.statSync(dbPath)
+        if (stats.mtimeMs > lastMtime) {
+          const filebuffer = fs.readFileSync(dbPath)
+          rawDb = new SQL.Database(filebuffer)
+          lastMtime = stats.mtimeMs
+        }
+      }
+    } catch (e) {
+      console.warn('[Database] Failed to reload DB from disk:', e)
+    }
+  }
+
   if (fs.existsSync(dbPath)) {
     const filebuffer = fs.readFileSync(dbPath)
     rawDb = new SQL.Database(filebuffer)
+    lastMtime = fs.statSync(dbPath).mtimeMs
   } else {
     rawDb = new SQL.Database()
     rawDb.run(LOCAL_SCHEMA_SQL)
     seedInitialLocalData(rawDb)
     const data = rawDb.export()
     fs.writeFileSync(dbPath, Buffer.from(data))
+    lastMtime = fs.statSync(dbPath).mtimeMs
   }
 
   const saveToDisk = () => {
     const data = rawDb.export()
     fs.writeFileSync(dbPath, Buffer.from(data))
+    try {
+      lastMtime = fs.statSync(dbPath).mtimeMs
+    } catch {}
   }
 
   dbInstance = {
@@ -56,14 +78,17 @@ export const getDatabase = async (): Promise<POSDatabase> => {
     dbPath,
     save: saveToDisk,
     run: (sql: string, params: any[] = []) => {
+      reloadFromDiskIfNeeded()
       rawDb.run(sql, params)
       saveToDisk()
     },
     exec: (sql: string) => {
+      reloadFromDiskIfNeeded()
       rawDb.exec(sql)
       saveToDisk()
     },
     query: <T = any>(sql: string, params: any[] = []): T[] => {
+      reloadFromDiskIfNeeded()
       const stmt = rawDb.prepare(sql)
       stmt.bind(params)
       const results: T[] = []
@@ -74,6 +99,7 @@ export const getDatabase = async (): Promise<POSDatabase> => {
       return results
     },
     queryOne: <T = any>(sql: string, params: any[] = []): T | undefined => {
+      reloadFromDiskIfNeeded()
       const stmt = rawDb.prepare(sql)
       stmt.bind(params)
       let result: T | undefined = undefined
@@ -118,14 +144,18 @@ const seedInitialLocalData = (db: any) => {
       ('u0000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Dilani Silva (Cashier 2)', 'cashier2@rasacakes.lk', '$2a$10$yRmuA99RFei8tgcImTfkTORBn/4JynMUJWdkFi3nz6rn76o8gl3Ge', '$2a$10$acjhZD4hrHLXYJMvawtXn.xvnkqEm3brhSGI30oN82ExnagFJTwFi', 'cashier', 1);
   `)
 
-  // Default categories
+  // Default categories for Cake Shop
   db.run(`
     INSERT OR IGNORE INTO categories (id, shop_id, name, color, icon, sort_order, is_active)
     VALUES 
-      ('c0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Signature Cakes', '#ec4899', 'cake', 1, 1),
-      ('c0000000-0000-0000-0000-000000000002', 'b0000000-0000-0000-0000-000000000001', 'Pastries & Savories', '#f59e0b', 'croissant', 2, 1),
-      ('c0000000-0000-0000-0000-000000000003', 'b0000000-0000-0000-0000-000000000001', 'Desserts & Cupcakes', '#8b5cf6', 'cookie', 3, 1),
-      ('c0000000-0000-0000-0000-000000000004', 'b0000000-0000-0000-0000-000000000001', 'Beverages & Coffee', '#06b6d4', 'coffee', 4, 1);
+      ('c0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Cakes & Gateaux', '#ec4899', 'cake', 1, 1),
+      ('c0000000-0000-0000-0000-000000000002', 'b0000000-0000-0000-0000-000000000001', 'Sweet Items & Desserts', '#a855f7', 'cookie', 2, 1),
+      ('c0000000-0000-0000-0000-000000000003', 'b0000000-0000-0000-0000-000000000001', 'Biscuits & Cookies', '#f59e0b', 'cookie', 3, 1),
+      ('c0000000-0000-0000-0000-000000000004', 'b0000000-0000-0000-0000-000000000001', 'Birthday Deco & Party Items', '#3b82f6', 'party-popper', 4, 1),
+      ('c0000000-0000-0000-0000-000000000005', 'b0000000-0000-0000-0000-000000000001', 'Ice Cream & Frozen Treats', '#06b6d4', 'ice-cream', 5, 1),
+      ('c0000000-0000-0000-0000-000000000006', 'b0000000-0000-0000-0000-000000000001', 'Pastries & Savories', '#e11d48', 'croissant', 6, 1),
+      ('c0000000-0000-0000-0000-000000000007', 'b0000000-0000-0000-0000-000000000001', 'Breads & Buns', '#d97706', 'package', 7, 1),
+      ('c0000000-0000-0000-0000-000000000008', 'b0000000-0000-0000-0000-000000000001', 'Beverages & Coffee', '#10b981', 'coffee', 8, 1);
   `)
 
   // Default products

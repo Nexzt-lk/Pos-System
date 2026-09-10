@@ -30,6 +30,12 @@ public class OrdersController : ControllerBase
         }
     }
 
+    [HttpGet]
+    public async Task<ActionResult<List<OrderDto>>> GetAll([FromQuery] int limit = 100)
+    {
+        return Ok(await _service.GetAllAsync(limit));
+    }
+
     [HttpGet("{id}")]
     public async Task<ActionResult<OrderDto>> GetById(string id)
     {

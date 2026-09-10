@@ -179,11 +179,42 @@ export const ReportsPage: React.FC = () => {
             prev_orders: mockFallback.summary.prev_orders
           },
           timeline: mappedTimeline.length > 0 ? mappedTimeline : mockFallback.timeline,
-          paymentBreakdown: mockFallback.paymentBreakdown,
+          paymentBreakdown: backendReport.paymentBreakdown && backendReport.orderCount > 0 ? [
+            {
+              method: 'CASH',
+              total_amount: backendReport.paymentBreakdown.cashAmount,
+              count: backendReport.paymentBreakdown.cashCount,
+              percent: backendReport.paymentBreakdown.cashPercentage
+            },
+            {
+              method: 'CARD',
+              total_amount: backendReport.paymentBreakdown.cardAmount,
+              count: backendReport.paymentBreakdown.cardCount,
+              percent: backendReport.paymentBreakdown.cardPercentage
+            }
+          ].filter(p => p.count > 0 || p.total_amount > 0) : mockFallback.paymentBreakdown,
           topProducts: mappedTopProducts.length > 0 ? mappedTopProducts : mockFallback.topProducts,
-          categoryBreakdown: mockFallback.categoryBreakdown,
-          peakSlot: mockFallback.peakSlot,
-          recentOrders: mockFallback.recentOrders
+          categoryBreakdown: backendReport.categoryBreakdown && backendReport.categoryBreakdown.length > 0 ? backendReport.categoryBreakdown.map((cb, idx) => ({
+            category_name: cb.categoryName,
+            color: ['#ec4899', '#a855f7', '#f59e0b', '#3b82f6', '#06b6d4', '#e11d48', '#d97706', '#10b981'][idx % 8],
+            total_qty: cb.quantitySold,
+            total_revenue: cb.revenue
+          })) : mockFallback.categoryBreakdown,
+          peakSlot: backendReport.peakSlot && backendReport.orderCount > 0 ? {
+            label: backendReport.peakSlot.timeSlot,
+            orders: backendReport.peakSlot.orderCount,
+            revenue: backendReport.peakSlot.revenue
+          } : mockFallback.peakSlot,
+          recentOrders: backendReport.recentOrders && backendReport.recentOrders.length > 0 ? backendReport.recentOrders.map((o: any) => ({
+            id: o.id,
+            order_no: o.orderNo,
+            created_at: o.createdAt,
+            total_amount: o.totalAmount,
+            discount_amount: o.discountAmount || 0,
+            status: o.status || 'completed',
+            items_count: (o.items || []).reduce((sum: number, i: any) => sum + (Number(i.quantity) || 1), 0),
+            payment_method: o.payments && o.payments.length > 0 ? o.payments[0].method : 'CASH'
+          })) : mockFallback.recentOrders
         })
       } else {
         setAnalytics(mockFallback)

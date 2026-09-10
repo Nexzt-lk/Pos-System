@@ -59,7 +59,9 @@ export const ordersApi = {
     })
   },
 
-  getById: (id: string): Promise<OrderDto> => apiClient.get<OrderDto>(`/orders/${id}`)
+  getById: (id: string): Promise<OrderDto> => apiClient.get<OrderDto>(`/orders/${id}`),
+
+  getAll: (limit: number = 100): Promise<OrderDto[]> => apiClient.get<OrderDto[]>('/orders', { params: { limit } })
 }
 
 export default ordersApi

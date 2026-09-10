@@ -27,7 +27,16 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error) => {
-    const message = error.response?.data?.message || error.message || 'API request failed'
+    const errorData = error.response?.data
+    let message = ''
+    if (typeof errorData === 'string') {
+      message = errorData
+    } else if (errorData && typeof errorData === 'object') {
+      message = errorData.error || errorData.message || errorData.title || JSON.stringify(errorData)
+    }
+    if (!message) {
+      message = error.message || 'API request failed'
+    }
     return Promise.reject(new Error(message))
   }
 )

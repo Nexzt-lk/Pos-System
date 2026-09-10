@@ -44,6 +44,7 @@ public interface IOrderRepository
     Task<Order?> GetByIdAsync(string id);
     Task<Order?> GetByLocalIdAsync(string localId); // idempotency check
     Task<List<Order>> GetByDateRangeAsync(DateTime fromUtc, DateTime toUtc);
+    Task<List<Order>> GetAllAsync(int limit = 100);
 }
 
 public interface IExpenseRepository

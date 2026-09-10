@@ -2,8 +2,8 @@ import { getDatabase } from '../database'
 
 export interface DBProduct {
   id: string
-  shop_id: string
   category_id?: string
+  item_code?: string
   name: string
   description?: string
   price: number
@@ -21,7 +21,7 @@ export interface DBProduct {
 }
 
 export const productRepo = {
-  getByShopId: async (shopId: string): Promise<DBProduct[]> => {
+  getByShopId: async (_shopId?: string): Promise<DBProduct[]> => {
     const db = await getDatabase()
     return db.query<DBProduct>(
       `
@@ -32,15 +32,14 @@ export const productRepo = {
         COALESCE(i.quantity, 0) as current_stock
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
-      LEFT JOIN inventory i ON p.id = i.product_id AND p.shop_id = i.shop_id
-      WHERE p.shop_id = ? AND p.is_active = 1
+      LEFT JOIN inventory i ON p.id = i.product_id
+      WHERE p.is_active = 1
       ORDER BY c.sort_order ASC, p.name ASC
-    `,
-      [shopId]
+    `
     )
   },
 
-  getByBarcode: async (shopId: string, barcode: string): Promise<DBProduct | undefined> => {
+  getByBarcode: async (_shopId: string, barcode: string): Promise<DBProduct | undefined> => {
     const db = await getDatabase()
     return db.queryOne<DBProduct>(
       `
@@ -51,10 +50,10 @@ export const productRepo = {
         COALESCE(i.quantity, 0) as current_stock
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
-      LEFT JOIN inventory i ON p.id = i.product_id AND p.shop_id = i.shop_id
-      WHERE p.shop_id = ? AND p.barcode = ? AND p.is_active = 1
+      LEFT JOIN inventory i ON p.id = i.product_id
+      WHERE (p.barcode = ? OR p.item_code = ?) AND p.is_active = 1
     `,
-      [shopId, barcode]
+      [barcode, barcode]
     )
   },
 
@@ -63,11 +62,12 @@ export const productRepo = {
     db.run(
       `
       INSERT INTO products (
-        id, shop_id, category_id, name, description, price, cost_price,
-        barcode, image_path, unit, track_inventory, is_active, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        id, category_id, item_code, name, description, price, cost_price,
+        barcode, image_path, unit, track_inventory, is_active, updated_at, sync_status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'pending')
       ON CONFLICT(id) DO UPDATE SET
         category_id = excluded.category_id,
+        item_code = excluded.item_code,
         name = excluded.name,
         description = excluded.description,
         price = excluded.price,
@@ -81,18 +81,19 @@ export const productRepo = {
     `,
       [
         product.id,
-        product.shop_id,
-        product.category_id || null,
+        product.category_id || product.categoryId || null,
+        product.item_code || product.itemCode || product.barcode || 'ITEM-001',
         product.name,
         product.description || null,
-        product.price,
-        product.cost_price || null,
+        product.price || 0,
+        product.cost_price || product.costPrice || null,
         product.barcode || null,
-        product.image_path || null,
+        product.image_path || product.imagePath || null,
         product.unit || 'pcs',
         product.track_inventory ? 1 : 0,
-        product.is_active ? 1 : 0
+        product.is_active !== undefined ? (product.is_active ? 1 : 0) : 1
       ]
     )
   }
 }
+

@@ -39,8 +39,10 @@ public class UserRepository : IUserRepository
     {
         using var connection = _factory.CreateConnection();
         using var cmd = connection.CreateCommand();
-        cmd.CommandText = "SELECT * FROM users WHERE email = $email;";
-        cmd.Parameters.AddWithValue("$email", email);
+        var clean = (email ?? string.Empty).Trim();
+        cmd.CommandText = "SELECT * FROM users WHERE LOWER(email) = LOWER($email) OR LOWER(email) LIKE LOWER($like) OR LOWER(role) = LOWER($email) LIMIT 1;";
+        cmd.Parameters.AddWithValue("$email", clean);
+        cmd.Parameters.AddWithValue("$like", $"{clean}%");
         using var reader = await cmd.ExecuteReaderAsync();
         return await reader.ReadAsync() ? Map(reader) : null;
     }

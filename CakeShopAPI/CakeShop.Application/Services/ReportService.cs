@@ -8,11 +8,19 @@ public class ReportService
 {
     private readonly IOrderRepository _orders;
     private readonly IExpenseRepository _expenses;
+    private readonly IProductRepository _products;
+    private readonly ICategoryRepository _categories;
 
-    public ReportService(IOrderRepository orders, IExpenseRepository expenses)
+    public ReportService(
+        IOrderRepository orders,
+        IExpenseRepository expenses,
+        IProductRepository products,
+        ICategoryRepository categories)
     {
         _orders = orders;
         _expenses = expenses;
+        _products = products;
+        _categories = categories;
     }
 
     public async Task<SalesReportDto> GetSalesReportAsync(ReportPeriod period, DateTime? referenceDate = null)
@@ -60,6 +68,115 @@ public class ReportService
             .OrderBy(d => d.Date)
             .ToList();
 
+        // Payment breakdown
+        var allPayments = completedOrders.SelectMany(o => o.Payments).ToList();
+        var cashPayments = allPayments.Where(p => p.Method.Equals("CASH", StringComparison.OrdinalIgnoreCase)).ToList();
+        var cardPayments = allPayments.Where(p => p.Method.Equals("CARD", StringComparison.OrdinalIgnoreCase)).ToList();
+        var totalPaymentsAmt = allPayments.Sum(p => p.Amount);
+
+        var paymentBreakdown = new PaymentBreakdownDto
+        {
+            CashAmount = cashPayments.Sum(p => p.Amount),
+            CashCount = cashPayments.Count,
+            CashPercentage = totalPaymentsAmt > 0 ? Math.Round((cashPayments.Sum(p => p.Amount) / totalPaymentsAmt) * 100, 1) : 0,
+            CardAmount = cardPayments.Sum(p => p.Amount),
+            CardCount = cardPayments.Count,
+            CardPercentage = totalPaymentsAmt > 0 ? Math.Round((cardPayments.Sum(p => p.Amount) / totalPaymentsAmt) * 100, 1) : 0
+        };
+
+        // Category breakdown
+        var categoriesList = await _categories.GetAllAsync();
+        var categoryMap = categoriesList.ToDictionary(c => c.Id, c => c.Name);
+        var productsList = await _products.GetAllAsync(true);
+        var prodCategoryMap = productsList.ToDictionary(p => p.Id, p => p.CategoryId ?? string.Empty);
+
+        var categorySales = new Dictionary<string, (decimal revenue, decimal qty)>();
+        foreach (var order in completedOrders)
+        {
+            foreach (var item in order.Items)
+            {
+                var catId = prodCategoryMap.TryGetValue(item.ProductId, out var cid) ? cid : string.Empty;
+                var catName = !string.IsNullOrEmpty(catId) && categoryMap.TryGetValue(catId, out var cname) ? cname : "Uncategorized";
+                if (!categorySales.ContainsKey(catName)) categorySales[catName] = (0, 0);
+                var cur = categorySales[catName];
+                categorySales[catName] = (cur.revenue + item.Subtotal, cur.qty + item.Quantity);
+            }
+        }
+
+        var totalCatRevenue = categorySales.Values.Sum(v => v.revenue);
+        var categoryBreakdown = categorySales.Select(kvp => new CategorySalesDto
+        {
+            CategoryName = kvp.Key,
+            Revenue = kvp.Value.revenue,
+            QuantitySold = kvp.Value.qty,
+            Percentage = totalCatRevenue > 0 ? Math.Round((kvp.Value.revenue / totalCatRevenue) * 100, 1) : 0
+        }).OrderByDescending(c => c.Revenue).ToList();
+
+        // Peak hour slot
+        var hourlyGroup = completedOrders
+            .GroupBy(o => o.CreatedAt.Hour)
+            .Select(g => new
+            {
+                Hour = g.Key,
+                Count = g.Count(),
+                Revenue = g.Sum(o => o.TotalAmount)
+            })
+            .OrderByDescending(g => g.Revenue)
+            .FirstOrDefault();
+
+        PeakHourDto? peakSlot = null;
+        if (hourlyGroup != null)
+        {
+            var h = hourlyGroup.Hour;
+            var ampm1 = h >= 12 ? "PM" : "AM";
+            var h12 = h % 12 == 0 ? 12 : h % 12;
+            var nextH = (h + 1) % 24;
+            var ampm2 = nextH >= 12 ? "PM" : "AM";
+            var nextH12 = nextH % 12 == 0 ? 12 : nextH % 12;
+
+            peakSlot = new PeakHourDto
+            {
+                TimeSlot = $"{h12:D2}:00 {ampm1} - {nextH12:D2}:00 {ampm2}",
+                OrderCount = hourlyGroup.Count,
+                Revenue = hourlyGroup.Revenue
+            };
+        }
+
+        // Recent orders
+        var recentOrders = completedOrders
+            .OrderByDescending(o => o.CreatedAt)
+            .Take(50)
+            .Select(o => new OrderDto
+            {
+                Id = o.Id,
+                LocalId = o.LocalId,
+                OrderNo = o.OrderNo,
+                CashierId = o.CashierId,
+                Subtotal = o.Subtotal,
+                DiscountAmount = o.DiscountAmount,
+                TaxAmount = o.TaxAmount,
+                TotalAmount = o.TotalAmount,
+                Status = o.Status,
+                CreatedAt = o.CreatedAt,
+                Items = o.Items.Select(i => new OrderItemDto
+                {
+                    ProductName = i.ProductName,
+                    ItemCode = i.ItemCode,
+                    UnitPrice = i.UnitPrice,
+                    Quantity = i.Quantity,
+                    Discount = i.Discount,
+                    Subtotal = i.Subtotal
+                }).ToList(),
+                Payments = o.Payments.Select(p => new PaymentDto
+                {
+                    Method = p.Method,
+                    Amount = p.Amount,
+                    CashGiven = p.CashGiven,
+                    ChangeGiven = p.ChangeGiven
+                }).ToList()
+            })
+            .ToList();
+
         var netIncome = totalSales - totalDiscount;
 
         return new SalesReportDto
@@ -75,8 +192,12 @@ public class ReportService
             TotalExpenses = totalExpenses,
             CostOfGoodsSold = costOfGoodsSold,
             ProfitEstimate = netIncome - costOfGoodsSold - totalExpenses,
+            PaymentBreakdown = paymentBreakdown,
+            CategoryBreakdown = categoryBreakdown,
+            PeakSlot = peakSlot,
             TopProducts = topProducts,
-            DailyBreakdown = dailyBreakdown
+            DailyBreakdown = dailyBreakdown,
+            RecentOrders = recentOrders
         };
     }
 

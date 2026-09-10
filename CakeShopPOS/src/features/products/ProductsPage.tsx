@@ -11,7 +11,9 @@ import {
   Barcode,
   ArrowUpDown,
   Trash2,
-  Layers
+  Layers,
+  Image as ImageIcon,
+  Sparkles
 } from 'lucide-react'
 import { Modal, Form, Input, InputNumber, Select, Switch, message, Popconfirm, Segmented } from 'antd'
 import { Product, Category, normalizeProduct, normalizeCategory } from '../../types/product'
@@ -20,6 +22,7 @@ import { categoriesApi } from '../../api/categoriesApi'
 import { useAppStore } from '../../store/appStore'
 import { formatCurrency, formatStockQty } from '../../lib/formatters'
 import { generateCategoryItemCode } from '../../lib/skuGenerator'
+import { BAKERY_IMAGE_PRESETS, getAutoMatchedProductImage, getProductImageSrc } from '../../lib/imageHelper'
 
 export const ProductsPage: React.FC = () => {
   const currentShop = useAppStore((state) => state.currentShop)
@@ -32,6 +35,7 @@ export const ProductsPage: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [prodStockWeightMode, setProdStockWeightMode] = useState<'kg' | 'g'>('kg')
   const [isLoading, setIsLoading] = useState(false)
 
   // Live margin preview in Modal
@@ -81,6 +85,9 @@ export const ProductsPage: React.FC = () => {
       setEditingProduct(product)
       setModalSellingPrice(product.price || 0)
       setModalCostPrice(product.cost_price || 0)
+      const isWeight = product.unit?.toLowerCase() === 'kg' || product.unit?.toLowerCase() === 'g'
+      setProdStockWeightMode(product.unit?.toLowerCase() === 'g' ? 'g' : 'kg')
+      
       form.setFieldsValue({
         name: product.name,
         category_id: product.category_id,
@@ -89,12 +96,14 @@ export const ProductsPage: React.FC = () => {
         cost_price: product.cost_price || 0,
         unit: product.unit || 'pcs',
         track_inventory: Boolean(product.track_inventory),
-        description: product.description || ''
+        description: product.description || '',
+        image_path: product.image_path
       })
     } else {
       setEditingProduct(null)
       setModalSellingPrice(0)
       setModalCostPrice(0)
+      setProdStockWeightMode('kg')
       form.resetFields()
 
       const initialCat = categories[0]
@@ -107,7 +116,8 @@ export const ProductsPage: React.FC = () => {
         unit: 'pcs',
         price: 0,
         cost_price: 0,
-        initial_stock: 10
+        initial_stock: 10,
+        image_path: undefined
       })
     }
     setIsModalOpen(true)
@@ -135,6 +145,20 @@ export const ProductsPage: React.FC = () => {
       const selCat = categories.find((c) => c.id === values.category_id)
       const itemCode = values.barcode ? values.barcode.trim() : generateCategoryItemCode(selCat, products)
 
+      const isWeight = values.unit?.toLowerCase() === 'kg' || values.unit?.toLowerCase() === 'g'
+      const isBaseGram = values.unit?.toLowerCase() === 'g'
+      let finalInitialStock = Number(values.initial_stock) || 0
+      if (isWeight) {
+        if (isBaseGram) {
+          finalInitialStock = prodStockWeightMode === 'kg' ? finalInitialStock * 1000 : finalInitialStock
+        } else {
+          finalInitialStock = prodStockWeightMode === 'g' ? Math.round((finalInitialStock / 1000) * 1000) / 1000 : finalInitialStock
+        }
+      }
+
+      // Automatically match image if none was explicitly picked
+      const finalImagePath = values.image_path || getAutoMatchedProductImage(values.name, selCat?.name)
+
       if (editingProduct) {
         await productsApi.update(editingProduct.id, {
           categoryId: values.category_id || undefined,
@@ -145,6 +169,7 @@ export const ProductsPage: React.FC = () => {
           barcode: itemCode,
           unit: values.unit || 'pcs',
           trackInventory: Boolean(values.track_inventory),
+          imagePath: finalImagePath,
           isActive: true
         })
         message.success('Product details updated successfully via Backend API!')
@@ -158,7 +183,8 @@ export const ProductsPage: React.FC = () => {
           barcode: itemCode,
           unit: values.unit || 'pcs',
           trackInventory: Boolean(values.track_inventory),
-          initialStock: Number(values.initial_stock) || 0,
+          initialStock: finalInitialStock,
+          imagePath: finalImagePath,
           minStockAlert: 5
         })
         message.success(`Product "${values.name}" (Code: ${itemCode}) created via Backend API!`)
@@ -751,8 +777,8 @@ export const ProductsPage: React.FC = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                           <div
                             style={{
-                              width: 38,
-                              height: 38,
+                              width: 40,
+                              height: 40,
                               borderRadius: 10,
                               background: `${catColor}15`,
                               border: `1px solid ${catColor}30`,
@@ -762,10 +788,20 @@ export const ProductsPage: React.FC = () => {
                               color: catColor,
                               fontWeight: 800,
                               fontSize: 14,
-                              flexShrink: 0
+                              flexShrink: 0,
+                              overflow: 'hidden',
+                              position: 'relative'
                             }}
                           >
-                            <Cake size={18} />
+                            <img
+                              src={getProductImageSrc(product.image_path, product.name, product.category_name)}
+                              alt={product.name}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none'
+                              }}
+                            />
+                            <Cake size={18} style={{ position: 'absolute', zIndex: 0, opacity: 0.7 }} />
                           </div>
                           <div style={{ minWidth: 0 }}>
                             <div
@@ -1126,13 +1162,29 @@ export const ProductsPage: React.FC = () => {
                 size="large"
                 style={{ borderRadius: 8 }}
                 onChange={handleCategoryChangeInForm}
-              >
-                {categories.map((c) => (
-                  <Select.Option key={c.id} value={c.id}>
-                    {c.name}
-                  </Select.Option>
-                ))}
-              </Select>
+                options={categories.map((c) => ({
+                  value: c.id,
+                  label: (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          background: c.color || '#6366f1',
+                          display: 'inline-block'
+                        }}
+                      />
+                      <span style={{ fontWeight: 600 }}>{c.name}</span>
+                      {(c.code_prefix || c.codePrefix) && (
+                        <span style={{ fontSize: 11, color: '#94a3b8', marginLeft: 'auto', fontFamily: 'monospace' }}>
+                          ({c.code_prefix || c.codePrefix})
+                        </span>
+                      )}
+                    </div>
+                  )
+                }))}
+              />
             </Form.Item>
 
             <Form.Item
@@ -1145,6 +1197,7 @@ export const ProductsPage: React.FC = () => {
               <Select size="large" style={{ borderRadius: 8 }}>
                 <Select.Option value="pcs">pcs (Pieces)</Select.Option>
                 <Select.Option value="kg">kg (Kilograms)</Select.Option>
+                <Select.Option value="g">g (Grams)</Select.Option>
                 <Select.Option value="slice">slice (Portion)</Select.Option>
                 <Select.Option value="box">box (Pack)</Select.Option>
               </Select>
@@ -1193,44 +1246,207 @@ export const ProductsPage: React.FC = () => {
           </div>
 
           {/* Barcode & Auto Code */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'flex-start', marginBottom: 14 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 14 }}>
             <Form.Item
               name="barcode"
               label={<span style={{ fontWeight: 600, fontSize: 12.5, color: '#334155' }}>Barcode / Item Code</span>}
-              style={{ marginBottom: 0 }}
+              style={{ flex: 1, marginBottom: 0 }}
             >
               <Input
                 placeholder="e.g. CK-001, PS-005..."
                 size="large"
-                style={{ borderRadius: 8, fontFamily: 'monospace', fontWeight: 600 }}
+                style={{ borderRadius: 10, fontFamily: 'monospace', fontWeight: 600 }}
                 allowClear
               />
             </Form.Item>
 
-            <div style={{ paddingTop: 28 }}>
-              <button
-                type="button"
-                onClick={handleGenerateBarcode}
-                title="Generate Category Code"
-                style={{
-                  height: 40,
-                  padding: '0 14px',
-                  borderRadius: 8,
-                  border: '1px solid #cbd5e1',
-                  background: '#f8fafc',
-                  color: '#334155',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6
-                }}
-              >
-                <span>Auto Code</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleGenerateBarcode}
+              title="Generate Category Code"
+              style={{
+                height: 40,
+                padding: '0 14px',
+                borderRadius: 10,
+                border: '1.5px solid #e2e8f0',
+                background: '#f8fafc',
+                color: '#334155',
+                fontSize: 12.5,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                flexShrink: 0,
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#f1f5f9'
+                e.currentTarget.style.borderColor = '#cbd5e1'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#f8fafc'
+                e.currentTarget.style.borderColor = '#e2e8f0'
+              }}
+            >
+              <Sparkles size={13} style={{ color: '#db2777' }} />
+              <span>Auto Code</span>
+            </button>
           </div>
+
+          {/* Product Image & Auto-Match Preset Gallery */}
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev, cur) =>
+              prev.name !== cur.name ||
+              prev.category_id !== cur.category_id ||
+              prev.image_path !== cur.image_path
+            }
+          >
+            {({ getFieldValue, setFieldsValue }) => {
+              const currentName = getFieldValue('name') || ''
+              const currentCatId = getFieldValue('category_id')
+              const selectedCat = categories.find((c) => c.id === currentCatId)
+              const customImagePath = getFieldValue('image_path')
+              const autoMatchedImage = getAutoMatchedProductImage(currentName, selectedCat?.name)
+              const activeDisplayImage = customImagePath || autoMatchedImage
+              const isAuto = !customImagePath
+
+              return (
+                <div
+                  style={{
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 10,
+                    padding: 12,
+                    marginBottom: 14
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <ImageIcon size={15} style={{ color: '#db2777' }} />
+                      <span style={{ fontSize: 12.5, fontWeight: 700, color: '#1e293b' }}>
+                        Product Image
+                      </span>
+                    </div>
+                    {isAuto ? (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: '#059669',
+                          background: '#ecfdf5',
+                          padding: '2px 8px',
+                          borderRadius: 99,
+                          border: '1px solid #a7f3d0',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4
+                        }}
+                      >
+                        <Sparkles size={12} /> Auto-Matched
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setFieldsValue({ image_path: undefined })}
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: '#db2777',
+                          background: '#fdf2f8',
+                          padding: '2px 8px',
+                          borderRadius: 99,
+                          border: '1px solid #fbcfe8',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4
+                        }}
+                      >
+                        <RefreshCw size={11} /> Reset to Auto
+                      </button>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    {/* Live Image Preview */}
+                    <div
+                      style={{
+                        width: 58,
+                        height: 58,
+                        borderRadius: 10,
+                        border: '2px solid #e2e8f0',
+                        overflow: 'hidden',
+                        flexShrink: 0,
+                        background: '#ffffff',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                        position: 'relative'
+                      }}
+                    >
+                      <img
+                        src={getProductImageSrc(activeDisplayImage, currentName, selectedCat?.name)}
+                        alt="Preview"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    </div>
+
+                    {/* Quick Preset Selector */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 11, color: '#64748b', marginBottom: 6, fontWeight: 500 }}>
+                        {isAuto
+                          ? `Automatically selected for "${currentName || 'product'}"`
+                          : 'Custom image selected. Choose below to change:'}
+                      </div>
+
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: 6,
+                          overflowX: 'auto',
+                          paddingBottom: 4
+                        }}
+                      >
+                        {BAKERY_IMAGE_PRESETS.map((preset) => {
+                          const isSelected = activeDisplayImage === preset.path
+                          return (
+                            <div
+                              key={preset.id}
+                              onClick={() => setFieldsValue({ image_path: preset.path })}
+                              title={preset.label}
+                              style={{
+                                width: 34,
+                                height: 34,
+                                borderRadius: 7,
+                                overflow: 'hidden',
+                                cursor: 'pointer',
+                                flexShrink: 0,
+                                border: isSelected ? '2px solid #db2777' : '1px solid #cbd5e1',
+                                opacity: isSelected ? 1 : 0.65,
+                                transform: isSelected ? 'scale(1.08)' : 'scale(1)',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              <img
+                                src={preset.path}
+                                alt={preset.label}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Hidden form field */}
+                  <Form.Item name="image_path" noStyle>
+                    <Input type="hidden" />
+                  </Form.Item>
+                </div>
+              )
+            }}
+          </Form.Item>
 
           {/* Inventory Tracking Toggle */}
           <div
@@ -1261,23 +1477,121 @@ export const ProductsPage: React.FC = () => {
           {!editingProduct && (
             <Form.Item
               noStyle
-              shouldUpdate={(prev, cur) => prev.track_inventory !== cur.track_inventory}
+              shouldUpdate={(prev, cur) => prev.track_inventory !== cur.track_inventory || prev.unit !== cur.unit || prev.initial_stock !== cur.initial_stock}
             >
-              {({ getFieldValue }) =>
-                getFieldValue('track_inventory') ? (
+              {({ getFieldValue }) => {
+                if (!getFieldValue('track_inventory')) return null
+                const curUnit = getFieldValue('unit') || 'pcs'
+                const isWeight = curUnit === 'kg' || curUnit === 'g'
+                const currentQty = Number(getFieldValue('initial_stock')) || 0
+
+                return (
                   <div style={{ marginTop: 12 }}>
                     <Form.Item
                       name="initial_stock"
-                      label={<span style={{ fontWeight: 600, fontSize: 12.5, color: '#334155' }}>Initial Stock on Hand</span>}
-                      initialValue={10}
+                      label={
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                          <span style={{ fontWeight: 600, fontSize: 12.5, color: '#334155' }}>Initial Stock on Hand</span>
+                          {isWeight && (
+                            <div style={{ display: 'flex', background: '#f1f5f9', padding: 2, borderRadius: 5 }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (prodStockWeightMode !== 'g') {
+                                    setProdStockWeightMode('g')
+                                    form.setFieldsValue({ initial_stock: Math.round(currentQty * 1000) })
+                                  }
+                                }}
+                                style={{
+                                  padding: '1px 6px',
+                                  borderRadius: 4,
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  background: prodStockWeightMode === 'g' ? '#db2777' : 'transparent',
+                                  color: prodStockWeightMode === 'g' ? '#fff' : '#64748b'
+                                }}
+                              >
+                                g
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (prodStockWeightMode !== 'kg') {
+                                    setProdStockWeightMode('kg')
+                                    form.setFieldsValue({ initial_stock: Math.max(0.1, Math.round((currentQty / 1000) * 100) / 100) })
+                                  }
+                                }}
+                                style={{
+                                  padding: '1px 6px',
+                                  borderRadius: 4,
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  background: prodStockWeightMode === 'kg' ? '#db2777' : 'transparent',
+                                  color: prodStockWeightMode === 'kg' ? '#fff' : '#64748b'
+                                }}
+                              >
+                                kg
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      }
+                      initialValue={isWeight ? (prodStockWeightMode === 'g' ? 500 : 1) : 10}
                       rules={[{ required: true, message: 'Enter initial stock quantity' }]}
-                      style={{ marginBottom: 0 }}
+                      style={{ marginBottom: 6 }}
                     >
-                      <InputNumber min={0} size="large" style={{ width: '100%', borderRadius: 8, fontWeight: 600 }} />
+                      <InputNumber
+                        min={0}
+                        step={isWeight ? (prodStockWeightMode === 'g' ? 50 : 0.25) : 1}
+                        size="large"
+                        style={{ width: '100%', borderRadius: 8, fontWeight: 600 }}
+                      />
                     </Form.Item>
+
+                    {/* Quick Presets */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>Quick Presets:</span>
+                      {isWeight ? (
+                        prodStockWeightMode === 'g' ? (
+                          [250, 500, 1000, 2000, 5000].map((g) => (
+                            <span
+                              key={g}
+                              className="form-quick-chip"
+                              onClick={() => form.setFieldsValue({ initial_stock: g })}
+                            >
+                              {g < 1000 ? `${g}g` : `${g / 1000}kg`}
+                            </span>
+                          ))
+                        ) : (
+                          [0.5, 1, 2, 5, 10].map((k) => (
+                            <span
+                              key={k}
+                              className="form-quick-chip"
+                              onClick={() => form.setFieldsValue({ initial_stock: k })}
+                            >
+                              {k} kg
+                            </span>
+                          ))
+                        )
+                      ) : (
+                        [5, 10, 20, 50, 100].map((q) => (
+                          <span
+                            key={q}
+                            className="form-quick-chip"
+                            onClick={() => form.setFieldsValue({ initial_stock: q })}
+                          >
+                            {q} pcs
+                          </span>
+                        ))
+                      )}
+                    </div>
                   </div>
-                ) : null
-              }
+                )
+              }}
             </Form.Item>
           )}
         </Form>

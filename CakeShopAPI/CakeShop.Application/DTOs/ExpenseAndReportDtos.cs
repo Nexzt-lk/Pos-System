@@ -22,6 +22,32 @@ public class ExpenseDto
 // Report period selector used by the reports endpoints
 public enum ReportPeriod { Daily, Weekly, Monthly }
 
+public class PaymentBreakdownDto
+{
+    public decimal CashAmount { get; set; }
+    public int CashCount { get; set; }
+    public decimal CashPercentage { get; set; }
+    public decimal CardAmount { get; set; }
+    public int CardCount { get; set; }
+    public decimal CardPercentage { get; set; }
+}
+
+public class CategorySalesDto
+{
+    public string CategoryId { get; set; } = string.Empty;
+    public string CategoryName { get; set; } = string.Empty;
+    public decimal QuantitySold { get; set; }
+    public decimal Revenue { get; set; }
+    public decimal Percentage { get; set; }
+}
+
+public class PeakHourDto
+{
+    public string TimeSlot { get; set; } = string.Empty;
+    public int OrderCount { get; set; }
+    public decimal Revenue { get; set; }
+}
+
 public class SalesReportDto
 {
     public ReportPeriod Period { get; set; }
@@ -35,8 +61,12 @@ public class SalesReportDto
     public decimal TotalExpenses { get; set; }
     public decimal ProfitEstimate { get; set; }      // NetIncome - CostOfGoodsSold - TotalExpenses
     public decimal CostOfGoodsSold { get; set; }
+    public PaymentBreakdownDto? PaymentBreakdown { get; set; }
+    public List<CategorySalesDto> CategoryBreakdown { get; set; } = new();
+    public PeakHourDto? PeakSlot { get; set; }
     public List<TopProductDto> TopProducts { get; set; } = new();
     public List<DailyBreakdownDto> DailyBreakdown { get; set; } = new();
+    public List<OrderDto> RecentOrders { get; set; } = new();
 }
 
 public class TopProductDto

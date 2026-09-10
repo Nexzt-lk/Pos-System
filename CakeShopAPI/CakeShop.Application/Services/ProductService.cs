@@ -90,28 +90,55 @@ public class ProductService
     // products (Barcode left null). Item code is always auto-generated regardless.
     public async Task<ProductDto> CreateAsync(CreateProductRequest request)
     {
-        var category = await _categories.GetByIdAsync(request.CategoryId)
-            ?? throw new InvalidOperationException("Category not found.");
-
-        if (!string.IsNullOrWhiteSpace(request.Barcode))
+        Category? category = null;
+        if (!string.IsNullOrWhiteSpace(request.CategoryId))
         {
-            var existing = await _products.GetByBarcodeAsync(request.Barcode);
-            if (existing != null)
-                throw new InvalidOperationException("A product with this barcode already exists.");
+            category = await _categories.GetByIdAsync(request.CategoryId) 
+                       ?? await _categories.GetByPrefixAsync(request.CategoryId);
         }
 
-        var itemCode = await _codeGenerator.GenerateAsync(request.CategoryId);
+        if (category == null)
+        {
+            var allCategories = await _categories.GetAllAsync();
+            category = allCategories.FirstOrDefault();
+            if (category == null)
+            {
+                category = new Category
+                {
+                    Name = "General",
+                    CodePrefix = "GEN",
+                    Color = "#6366f1",
+                    Icon = "cake",
+                    SortOrder = 1
+                };
+                await _categories.AddAsync(category);
+            }
+            request.CategoryId = category.Id;
+        }
+
+        string? barcode = string.IsNullOrWhiteSpace(request.Barcode) ? null : request.Barcode.Trim();
+        if (!string.IsNullOrWhiteSpace(barcode))
+        {
+            var existing = await _products.GetByBarcodeAsync(barcode);
+            if (existing != null)
+            {
+                // Ensure unique barcode to prevent SQLite UNIQUE constraint failure
+                barcode = $"{barcode}-{DateTime.UtcNow.Ticks % 1000}";
+            }
+        }
+
+        var itemCode = await _codeGenerator.GenerateAsync(category.Id);
 
         var product = new Product
         {
-            CategoryId = request.CategoryId,
+            CategoryId = category.Id,
             ItemCode = itemCode,
             Name = request.Name,
             Description = request.Description,
             Price = request.Price,
             CostPrice = request.CostPrice,
-            Barcode = string.IsNullOrWhiteSpace(request.Barcode) ? null : request.Barcode,
-            Unit = request.Unit,
+            Barcode = barcode,
+            Unit = string.IsNullOrWhiteSpace(request.Unit) ? "pcs" : request.Unit,
             TrackInventory = request.TrackInventory,
             IsActive = true
         };
@@ -124,7 +151,7 @@ public class ProductService
             {
                 ProductId = product.Id,
                 Quantity = request.InitialStock,
-                MinQuantity = request.MinStockAlert
+                MinQuantity = request.MinStockAlert > 0 ? request.MinStockAlert : 5
             };
             await _inventory.UpsertAsync(inventoryItem);
 

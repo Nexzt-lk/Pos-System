@@ -9,28 +9,67 @@ var builder = WebApplication.CreateBuilder(args);
 // ------------------------------------------------------------
 // Local SQLite database location — stored in dedicated database/cakeshop_local.db
 // ------------------------------------------------------------
-var configuredDbPath = builder.Configuration["Database:SqlitePath"];
-string dbPath;
+string dbPath = "";
 
-if (!string.IsNullOrWhiteSpace(configuredDbPath))
+// Search upwards from current directory and AppContext.BaseDirectory for the project root containing database/cakeshop_local.db
+var searchDirs = new List<string>();
+
+var cur = new DirectoryInfo(Directory.GetCurrentDirectory());
+while (cur != null)
 {
-    dbPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, configuredDbPath));
+    searchDirs.Add(cur.FullName);
+    cur = cur.Parent;
 }
-else
+
+var baseDir = new DirectoryInfo(AppContext.BaseDirectory);
+while (baseDir != null)
 {
-    var projectDbDir = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "database");
-    if (!Directory.Exists(projectDbDir))
+    searchDirs.Add(baseDir.FullName);
+    baseDir = baseDir.Parent;
+}
+
+foreach (var dir in searchDirs)
+{
+    var candidate = Path.Combine(dir, "database", "cakeshop_local.db");
+    // Ensure we don't pick up a temporary bin\database
+    if (!dir.Contains(@"\bin\") && !dir.EndsWith(@"\bin") && (File.Exists(candidate) || (Directory.Exists(Path.Combine(dir, "CakeShopPOS")) && Directory.Exists(Path.Combine(dir, "database")))))
     {
-        projectDbDir = Path.Combine(AppContext.BaseDirectory, "database");
+        dbPath = Path.GetFullPath(candidate);
+        break;
     }
-    Directory.CreateDirectory(projectDbDir);
-    dbPath = Path.GetFullPath(Path.Combine(projectDbDir, "cakeshop_local.db"));
+}
+
+if (string.IsNullOrEmpty(dbPath))
+{
+    var configuredDbPath = builder.Configuration["Database:SqlitePath"];
+    if (!string.IsNullOrWhiteSpace(configuredDbPath))
+    {
+        dbPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, configuredDbPath));
+    }
+    else
+    {
+        dbPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "database", "cakeshop_local.db"));
+    }
+}
+
+var dbParent = Path.GetDirectoryName(dbPath);
+if (!string.IsNullOrEmpty(dbParent))
+{
+    Directory.CreateDirectory(dbParent);
 }
 
 Console.WriteLine($"[Database] SQLite Database Location: {dbPath}");
 
-// Schema file is copied to the output directory on build (see .csproj).
-var schemaFilePath = Path.Combine(AppContext.BaseDirectory, "database", "local_schema_sqlite.sql");
+// Schema file location
+string schemaFilePath = Path.Combine(AppContext.BaseDirectory, "database", "local_schema_sqlite.sql");
+if (!File.Exists(schemaFilePath))
+{
+    var altSchema = Path.Combine(Path.GetDirectoryName(dbPath)!, "local_schema_sqlite.sql");
+    if (File.Exists(altSchema))
+    {
+        schemaFilePath = altSchema;
+    }
+}
 
 // ------------------------------------------------------------
 // Dependency injection — wiring Infrastructure implementations
@@ -59,7 +98,7 @@ builder.Services.AddScoped<ExpenseService>();
 builder.Services.AddScoped<ReportService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ShopService>();
-
+builder.Services.AddScoped<InventoryService>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

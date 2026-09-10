@@ -63,3 +63,26 @@ export const formatStockQty = (qty: number | undefined | null, unit: string = 'p
   const rounded = parseFloat(num.toFixed(2))
   return `${rounded} ${unit}`
 }
+
+/**
+ * Formats order/cart item quantity nicely, showing grams or kg intuitively
+ * Examples:
+ * 0.25, 'kg' -> "250g"
+ * 0.5, 'kg' -> "500g"
+ * 1.5, 'kg' -> "1.5 kg"
+ * 250, 'g' -> "250g"
+ * 2, 'pcs' -> "2 pcs"
+ */
+export const formatQuantityWithUnit = (qty: number, unit?: string): string => {
+  const u = unit?.toLowerCase() || 'pcs'
+  if (u === 'kg') {
+    if (qty < 1) {
+      return `${Math.round(qty * 1000)}g`
+    }
+    return `${parseFloat(qty.toFixed(3))} kg`
+  }
+  if (u === 'g') {
+    return `${Math.round(qty)}g`
+  }
+  return `${qty} ${unit || 'pcs'}`
+}

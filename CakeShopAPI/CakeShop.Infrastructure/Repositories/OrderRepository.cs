@@ -171,6 +171,26 @@ public class OrderRepository : IOrderRepository
         return orders;
     }
 
+    public async Task<List<Order>> GetAllAsync(int limit = 100)
+    {
+        using var connection = _factory.CreateConnection();
+        var orders = new List<Order>();
+
+        using (var cmd = connection.CreateCommand())
+        {
+            cmd.CommandText = "SELECT * FROM orders ORDER BY created_at DESC LIMIT $limit;";
+            cmd.Parameters.AddWithValue("$limit", limit);
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+                orders.Add(MapOrder(reader));
+        }
+
+        foreach (var order in orders)
+            await AttachItemsAndPayments(connection, order);
+
+        return orders;
+    }
+
     private static async Task AttachItemsAndPayments(SqliteConnection connection, Order order)
     {
         using (var cmd = connection.CreateCommand())

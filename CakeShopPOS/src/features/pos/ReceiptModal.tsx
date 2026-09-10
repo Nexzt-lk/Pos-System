@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react'
 import { X, Printer, Receipt, CheckCircle2 } from 'lucide-react'
-import { formatCurrency, formatDateTime } from '../../lib/formatters'
+import { formatCurrency, formatDateTime, formatQuantityWithUnit } from '../../lib/formatters'
 import { useAppStore } from '../../store/appStore'
 
 interface ReceiptModalProps {
@@ -22,8 +22,10 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, ord
         cashierName: orderData.cashier_name,
         dateTime: formatDateTime(orderData.created_at),
         items: orderData.items.map((i: any) => ({
-          name: i.product_name, quantity: i.quantity,
-          unitPrice: i.unit_price, subtotal: i.subtotal
+          name: i.product_name,
+          quantity: formatQuantityWithUnit(i.quantity, i.unit),
+          unitPrice: i.unit_price,
+          subtotal: i.subtotal
         })),
         subtotal: orderData.subtotal,
         discountAmount: orderData.discount_amount,
@@ -110,7 +112,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, ord
               </div>
               {orderData.items?.map((item: any, idx: number) => (
                 <div key={idx} className="receipt-row" style={{ marginBottom: 4, color: '#1e293b', fontSize: 12 }}>
-                  <span>{item.quantity} × {item.product_name}</span>
+                  <span>{formatQuantityWithUnit(item.quantity, item.unit)} × {item.product_name}</span>
                   <span style={{ fontWeight: 700 }}>{formatCurrency(item.subtotal)}</span>
                 </div>
               ))}

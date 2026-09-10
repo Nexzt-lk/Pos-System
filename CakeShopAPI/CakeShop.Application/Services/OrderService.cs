@@ -151,6 +151,12 @@ public class OrderService
         return order == null ? null : MapToDto(order);
     }
 
+    public async Task<List<OrderDto>> GetAllAsync(int limit = 100)
+    {
+        var orders = await _orders.GetAllAsync(limit);
+        return orders.Select(MapToDto).ToList();
+    }
+
     private static OrderDto MapToDto(Order order) => new()
     {
         Id = order.Id,

@@ -19,10 +19,10 @@ public class StockMovementRepository : IStockMovementRepository
         cmd.CommandText = @"
             INSERT INTO stock_movements
                 (id, product_id, type, quantity, quantity_before, quantity_after,
-                 reference_id, note, cost_per_unit, done_by, created_at, local_id, sync_status)
+                 reference_id, note, cost_per_unit, created_at, sync_status)
             VALUES
                 ($id, $pid, $type, $qty, $before, $after,
-                 $ref, $note, $cost, $by, $created, $localId, 'pending');";
+                 $ref, $note, $cost, $created, 'pending');";
         cmd.Parameters.AddWithValue("$id", movement.Id);
         cmd.Parameters.AddWithValue("$pid", movement.ProductId);
         cmd.Parameters.AddWithValue("$type", movement.Type.ToString().ToUpperInvariant());
@@ -32,9 +32,7 @@ public class StockMovementRepository : IStockMovementRepository
         cmd.Parameters.AddWithValue("$ref", (object?)movement.ReferenceId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$note", (object?)movement.Note ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$cost", (object?)movement.CostPerUnit ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("$by", (object?)movement.DoneBy ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$created", movement.CreatedAt.ToString("o"));
-        cmd.Parameters.AddWithValue("$localId", movement.LocalId);
         await cmd.ExecuteNonQueryAsync();
     }
 

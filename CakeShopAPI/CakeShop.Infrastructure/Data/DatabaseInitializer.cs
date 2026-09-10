@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 
 namespace CakeShop.Infrastructure.Data;
 
@@ -23,35 +24,92 @@ public class DatabaseInitializer
         command.CommandText = schemaSql;
         command.ExecuteNonQuery();
 
+        SeedDefaultShopIfEmpty(connection);
+        SeedDefaultUsersIfEmpty(connection);
         SeedDefaultCategoriesIfEmpty(connection);
     }
 
-    // Seeds the three categories mentioned in requirements so the app isn't
-    // empty on first run. Safe to remove/edit — shop can add more via the API.
-    private static void SeedDefaultCategoriesIfEmpty(Microsoft.Data.Sqlite.SqliteConnection connection)
+    private static void SeedDefaultShopIfEmpty(SqliteConnection connection)
     {
         using var checkCmd = connection.CreateCommand();
-        checkCmd.CommandText = "SELECT COUNT(*) FROM categories;";
+        checkCmd.CommandText = "SELECT COUNT(*) FROM shops;";
         var count = Convert.ToInt32(checkCmd.ExecuteScalar());
         if (count > 0) return;
 
-        var defaults = new (string Name, string Prefix)[]
+        using var insertCmd = connection.CreateCommand();
+        insertCmd.CommandText = @"
+            INSERT INTO shops (id, name, branch_code, address, phone, currency)
+            VALUES ('b0000000-0000-0000-0000-000000000001', 'Rasa Cake House - Kandy Branch', 'B1', 'No. 45, Peradeniya Road, Kandy', '+94 81 223 4567', 'LKR');";
+        insertCmd.ExecuteNonQuery();
+    }
+
+    private static void SeedDefaultUsersIfEmpty(SqliteConnection connection)
+    {
+        using var checkCmd = connection.CreateCommand();
+        checkCmd.CommandText = "SELECT COUNT(*) FROM users;";
+        var count = Convert.ToInt32(checkCmd.ExecuteScalar());
+        if (count > 0) return;
+
+        var defaultUsers = new (string Id, string Name, string Email, string Role, string Pin, string Password)[]
         {
-            ("Birthday Items", "BDY"),
-            ("Yogurt", "YOG"),
-            ("Sweet Items", "SWT")
+            ("u0000000-0000-0000-0000-000000000001", "Nimal Perera (Owner)", "owner@rasacakes.lk", "owner", "123456", "owner123"),
+            ("u0000000-0000-0000-0000-000000000002", "Sunil Jayasinghe (Manager)", "manager@rasacakes.lk", "manager", "123456", "manager123"),
+            ("u0000000-0000-0000-0000-000000000003", "Kasun Bandara (Cashier 1)", "cashier1@rasacakes.lk", "cashier", "123456", "cashier123"),
+            ("u0000000-0000-0000-0000-000000000004", "Dilani Silva (Cashier 2)", "cashier2@rasacakes.lk", "cashier", "123456", "cashier123")
         };
 
-        foreach (var (name, prefix) in defaults)
+        foreach (var u in defaultUsers)
         {
             using var insertCmd = connection.CreateCommand();
             insertCmd.CommandText = @"
-                INSERT INTO categories (id, name, code_prefix)
-                VALUES ($id, $name, $prefix);";
-            insertCmd.Parameters.AddWithValue("$id", Guid.NewGuid().ToString());
-            insertCmd.Parameters.AddWithValue("$name", name);
-            insertCmd.Parameters.AddWithValue("$prefix", prefix);
+                INSERT INTO users (id, shop_id, name, email, pin_hash, password_hash, role, is_active)
+                VALUES ($id, 'b0000000-0000-0000-0000-000000000001', $name, $email, $pin, $pass, $role, 1);";
+            insertCmd.Parameters.AddWithValue("$id", u.Id);
+            insertCmd.Parameters.AddWithValue("$name", u.Name);
+            insertCmd.Parameters.AddWithValue("$email", u.Email);
+            insertCmd.Parameters.AddWithValue("$pin", u.Pin);
+            insertCmd.Parameters.AddWithValue("$pass", u.Password);
+            insertCmd.Parameters.AddWithValue("$role", u.Role);
             insertCmd.ExecuteNonQuery();
+        }
+    }
+
+    private static void SeedDefaultCategoriesIfEmpty(SqliteConnection connection)
+    {
+        var categories = new (string Name, string Prefix, string Color, string Icon, int SortOrder)[]
+        {
+            ("Cakes & Gateaux", "CAK", "#ec4899", "cake", 1),
+            ("Sweet Items & Desserts", "SWT", "#a855f7", "cookie", 2),
+            ("Biscuits & Cookies", "BIS", "#f59e0b", "cookie", 3),
+            ("Birthday Deco & Party Items", "BDY", "#3b82f6", "party-popper", 4),
+            ("Ice Cream & Frozen Treats", "ICE", "#06b6d4", "ice-cream", 5),
+            ("Pastries & Savories", "PAS", "#e11d48", "croissant", 6),
+            ("Breads & Buns", "BRD", "#d97706", "package", 7),
+            ("Beverages & Coffee", "BEV", "#10b981", "coffee", 8)
+        };
+
+        foreach (var (name, prefix, color, icon, sort) in categories)
+        {
+            using var checkCmd = connection.CreateCommand();
+            checkCmd.CommandText = "SELECT COUNT(*) FROM categories WHERE code_prefix = $prefix OR name = $name;";
+            checkCmd.Parameters.AddWithValue("$prefix", prefix);
+            checkCmd.Parameters.AddWithValue("$name", name);
+            var exists = Convert.ToInt32(checkCmd.ExecuteScalar()) > 0;
+
+            if (!exists)
+            {
+                using var insertCmd = connection.CreateCommand();
+                insertCmd.CommandText = @"
+                    INSERT INTO categories (id, name, code_prefix, color, icon, sort_order)
+                    VALUES ($id, $name, $prefix, $color, $icon, $sort);";
+                insertCmd.Parameters.AddWithValue("$id", Guid.NewGuid().ToString());
+                insertCmd.Parameters.AddWithValue("$name", name);
+                insertCmd.Parameters.AddWithValue("$prefix", prefix);
+                insertCmd.Parameters.AddWithValue("$color", color);
+                insertCmd.Parameters.AddWithValue("$icon", icon);
+                insertCmd.Parameters.AddWithValue("$sort", sort);
+                insertCmd.ExecuteNonQuery();
+            }
         }
     }
 }

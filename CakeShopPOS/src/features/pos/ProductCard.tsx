@@ -21,7 +21,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
   const isOutOfStock = product.track_inventory && (product.current_stock ?? 0) <= 0
   const isLow = product.track_inventory && !isOutOfStock && (product.current_stock ?? 0) <= 5
 
-  const imgSrc = getProductImageSrc(product.image_path)
+  const imgSrc = getProductImageSrc(product.image_path, product.name, product.category_name)
 
   return (
     <div

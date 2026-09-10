@@ -21,9 +21,11 @@ import { Modal, Form, Select, InputNumber, Input, Segmented, message } from 'ant
 import { Product, Category, normalizeProduct, normalizeCategory } from '../../types/product'
 import { productsApi } from '../../api/productsApi'
 import { categoriesApi } from '../../api/categoriesApi'
+import { inventoryApi } from '../../api/inventoryApi'
 import { useAppStore } from '../../store/appStore'
 import { formatCurrency, formatStockQty } from '../../lib/formatters'
 import { generateCategoryItemCode } from '../../lib/skuGenerator'
+import { getAutoMatchedProductImage, getProductImageSrc } from '../../lib/imageHelper'
 
 export const InventoryPage: React.FC = () => {
   const currentShop = useAppStore((state) => state.currentShop)
@@ -38,6 +40,8 @@ export const InventoryPage: React.FC = () => {
   
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [entryMode, setEntryMode] = useState<'EXISTING' | 'NEW'>('EXISTING')
+  const [movementWeightMode, setMovementWeightMode] = useState<'kg' | 'g'>('kg')
+  const [newProductWeightMode, setNewProductWeightMode] = useState<'kg' | 'g'>('kg')
   const [isLoading, setIsLoading] = useState(false)
   
   const [form] = Form.useForm()
@@ -82,23 +86,50 @@ export const InventoryPage: React.FC = () => {
     form.resetFields()
     if (product) {
       setEntryMode('EXISTING')
+      const isWeight = product.unit?.toLowerCase() === 'kg' || product.unit?.toLowerCase() === 'g'
+      const isBaseGram = product.unit?.toLowerCase() === 'g'
+      
+      const defaultMode = isBaseGram ? 'g' : 'kg'
+      setMovementWeightMode(defaultMode)
+      
       form.setFieldsValue({
         product_id: product.id,
         type: 'IN',
-        quantity: 1,
+        quantity: isBaseGram ? 500 : 1,
         note: '',
-        cost_price: product.cost_price || undefined
+        price: product.price,
+        cost_price: product.cost_price || 0
       })
     } else {
       setEntryMode('EXISTING')
+      const firstTracked = products.find(p => p.track_inventory)
+      const isWeight = firstTracked?.unit?.toLowerCase() === 'kg' || firstTracked?.unit?.toLowerCase() === 'g'
+      const isBaseGram = firstTracked?.unit?.toLowerCase() === 'g'
+      setMovementWeightMode(isBaseGram ? 'g' : 'kg')
+      
       form.setFieldsValue({
-        product_id: products.find(p => p.track_inventory)?.id || undefined,
+        product_id: firstTracked?.id || undefined,
         type: 'IN',
-        quantity: 1,
-        note: ''
+        quantity: isBaseGram ? 500 : 1,
+        note: '',
+        price: firstTracked?.price || 0,
+        cost_price: firstTracked?.cost_price || 0
       })
     }
     setIsModalOpen(true)
+  }
+
+  const handleProductSelectInMovementModal = (productId: string) => {
+    const selectedProd = products.find((p) => p.id === productId)
+    if (selectedProd) {
+      const isWeight = selectedProd.unit?.toLowerCase() === 'kg' || selectedProd.unit?.toLowerCase() === 'g'
+      const isBaseGram = selectedProd.unit?.toLowerCase() === 'g'
+      setMovementWeightMode(isBaseGram ? 'g' : 'kg')
+      form.setFieldsValue({
+        price: selectedProd.price,
+        cost_price: selectedProd.cost_price || 0
+      })
+    }
   }
 
   const handleCategorySelectForNewItem = (categoryId: string) => {
@@ -125,22 +156,66 @@ export const InventoryPage: React.FC = () => {
           return
         }
 
-        if (window.electronAPI) {
-          await window.electronAPI.dbQuery('db:record-stock-movement', {
-            shopId: currentShop.id,
-            productId: values.product_id,
-            type: values.type,
-            quantity: Number(values.quantity),
-            note: values.note || '',
-            costPerUnit: values.cost_price ? Number(values.cost_price) : undefined,
-            doneBy: currentUser?.id
-          })
+        const selectedProd = tracked.find((p) => p.id === values.product_id)
+        const isWeight = selectedProd?.unit?.toLowerCase() === 'kg' || selectedProd?.unit?.toLowerCase() === 'g'
+        const isBaseGram = selectedProd?.unit?.toLowerCase() === 'g'
+        
+        let finalQty = Number(values.quantity)
+        if (isWeight) {
+          if (isBaseGram) {
+            finalQty = movementWeightMode === 'kg' ? finalQty * 1000 : finalQty
+          } else {
+            // Base unit is kg
+            finalQty = movementWeightMode === 'g' ? Math.round((finalQty / 1000) * 1000) / 1000 : finalQty
+          }
         }
-        message.success('Stock movement recorded successfully!')
+
+        await inventoryApi.recordMovement({
+          productId: values.product_id,
+          type: values.type,
+          quantity: finalQty,
+          note: values.note || '',
+          costPerUnit: values.cost_price !== undefined ? Number(values.cost_price) : undefined,
+          doneBy: currentUser?.id
+        }, currentShop.id)
+
+        // Check if selling price or cost price was edited, and update product catalog
+        const newSellingPrice = Number(values.price)
+        const newCostPrice = Number(values.cost_price) || 0
+        const priceChanged = !isNaN(newSellingPrice) && newSellingPrice > 0 && newSellingPrice !== selectedProd.price
+        const costChanged = !isNaN(newCostPrice) && newCostPrice !== (selectedProd.cost_price || 0)
+
+        if (priceChanged || costChanged) {
+          await productsApi.update(selectedProd.id, {
+            categoryId: selectedProd.category_id,
+            name: selectedProd.name,
+            description: selectedProd.description,
+            price: priceChanged ? newSellingPrice : selectedProd.price,
+            costPrice: costChanged ? newCostPrice : (selectedProd.cost_price || 0),
+            barcode: selectedProd.barcode,
+            unit: selectedProd.unit,
+            trackInventory: Boolean(selectedProd.track_inventory),
+            isActive: true
+          })
+          message.success(`Stock recorded & prices updated for "${selectedProd.name}"!`)
+        } else {
+          message.success('Stock movement recorded successfully!')
+        }
       } else {
         // NEW ITEM MODE via Backend API
         const selectedCat = categories.find((c) => c.id === values.new_category_id)
         const itemCode = values.new_barcode ? values.new_barcode.trim() : generateCategoryItemCode(selectedCat, products)
+        const isNewWeight = values.new_unit?.toLowerCase() === 'kg' || values.new_unit?.toLowerCase() === 'g'
+        const isNewBaseGram = values.new_unit?.toLowerCase() === 'g'
+
+        let finalNewStock = Number(values.new_quantity) || 0
+        if (isNewWeight) {
+          if (isNewBaseGram) {
+            finalNewStock = newProductWeightMode === 'kg' ? finalNewStock * 1000 : finalNewStock
+          } else {
+            finalNewStock = newProductWeightMode === 'g' ? Math.round((finalNewStock / 1000) * 1000) / 1000 : finalNewStock
+          }
+        }
 
         await productsApi.create({
           categoryId: values.new_category_id,
@@ -151,7 +226,8 @@ export const InventoryPage: React.FC = () => {
           barcode: itemCode,
           unit: values.new_unit || 'pcs',
           trackInventory: true,
-          initialStock: Number(values.new_quantity) || 0,
+          initialStock: finalNewStock,
+          imagePath: getAutoMatchedProductImage(values.new_name, selectedCat?.name),
           minStockAlert: 5
         })
 
@@ -719,8 +795,8 @@ export const InventoryPage: React.FC = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                           <div
                             style={{
-                              width: 38,
-                              height: 38,
+                              width: 40,
+                              height: 40,
                               borderRadius: 10,
                               background: `${catColor}15`,
                               border: `1px solid ${catColor}30`,
@@ -730,10 +806,20 @@ export const InventoryPage: React.FC = () => {
                               color: catColor,
                               fontWeight: 800,
                               fontSize: 14,
-                              flexShrink: 0
+                              flexShrink: 0,
+                              overflow: 'hidden',
+                              position: 'relative'
                             }}
                           >
-                            <Package size={18} />
+                            <img
+                              src={getProductImageSrc(product.image_path, product.name, product.category_name)}
+                              alt={product.name}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none'
+                              }}
+                            />
+                            <Package size={18} style={{ position: 'absolute', zIndex: 0, opacity: 0.7 }} />
                           </div>
                           <div style={{ minWidth: 0 }}>
                             <div
@@ -1062,6 +1148,7 @@ export const InventoryPage: React.FC = () => {
                     showSearch
                     size="large"
                     style={{ borderRadius: 8 }}
+                    onChange={handleProductSelectInMovementModal}
                     optionFilterProp="children"
                     filterOption={(input, option) =>
                       (option?.label ?? '').toString().toLowerCase().includes(input.toLowerCase())
@@ -1075,96 +1162,301 @@ export const InventoryPage: React.FC = () => {
               </div>
 
               {/* Movement Details */}
-              <div className="form-section">
-                <div className="form-section-header">
-                  <span className="form-section-title">
-                    <TrendingUp size={14} style={{ color: 'var(--primary)' }} />
-                    2. Movement Type & Quantity
-                  </span>
-                </div>
+              <Form.Item noStyle shouldUpdate={(prev, cur) => prev.product_id !== cur.product_id || prev.type !== cur.type || prev.quantity !== cur.quantity}>
+                {({ getFieldValue }) => {
+                  const pId = getFieldValue('product_id')
+                  const selectedProd = tracked.find((p) => p.id === pId)
+                  const isWeight = selectedProd?.unit?.toLowerCase() === 'kg' || selectedProd?.unit?.toLowerCase() === 'g'
+                  const isBaseGram = selectedProd?.unit?.toLowerCase() === 'g'
+                  const currentQty = Number(getFieldValue('quantity')) || 0
+                  const mType = getFieldValue('type') || 'IN'
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 12, marginBottom: 10 }}>
-                  <Form.Item
-                    name="type"
-                    label={<span style={{ fontWeight: 700, fontSize: 12.5 }}>Action Type</span>}
-                    initialValue="IN"
-                    rules={[{ required: true }]}
-                    style={{ marginBottom: 0 }}
-                  >
-                    <Select size="large" style={{ borderRadius: 8 }}>
-                      <Select.Option value="IN">
-                        <span style={{ color: 'var(--primary-dark)', fontWeight: 700 }}>+ Stock In / Received</span>
-                      </Select.Option>
-                      <Select.Option value="DAMAGE">
-                        <span style={{ color: 'var(--danger)', fontWeight: 700 }}>- Damage / Wastage</span>
-                      </Select.Option>
-                      <Select.Option value="RETURN">
-                        <span style={{ color: 'var(--info)', fontWeight: 700 }}>+ Customer Return</span>
-                      </Select.Option>
-                      <Select.Option value="ADJUST">
-                        <span style={{ color: 'var(--warning)', fontWeight: 700 }}>~ Count Adjustment</span>
-                      </Select.Option>
-                    </Select>
-                  </Form.Item>
+                  // Calculate normalized change in product base unit
+                  let normalizedChange = currentQty
+                  if (isWeight) {
+                    if (isBaseGram) {
+                      normalizedChange = movementWeightMode === 'kg' ? currentQty * 1000 : currentQty
+                    } else {
+                      // Base unit is kg
+                      normalizedChange = movementWeightMode === 'g' ? currentQty / 1000 : currentQty
+                    }
+                  }
 
-                  <Form.Item
-                    name="quantity"
-                    label={<span style={{ fontWeight: 700, fontSize: 12.5 }}>Quantity</span>}
-                    rules={[{ required: true, message: 'Enter quantity' }]}
-                    initialValue={1}
-                    style={{ marginBottom: 0 }}
-                  >
-                    <InputNumber min={0.01} step={1} size="large" style={{ width: '100%', borderRadius: 8, fontWeight: 700 }} />
-                  </Form.Item>
-                </div>
+                  const currentStock = selectedProd?.current_stock ?? 0
+                  let projectedStock = currentStock
+                  if (mType === 'IN' || mType === 'RETURN') {
+                    projectedStock = currentStock + normalizedChange
+                  } else if (mType === 'DAMAGE') {
+                    projectedStock = Math.max(0, currentStock - normalizedChange)
+                  } else if (mType === 'ADJUST') {
+                    projectedStock = normalizedChange
+                  }
 
-                {/* Quick Multiplier Chips */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>Quick Qty:</span>
-                  {[1, 5, 10, 20, 50, 100].map((q) => (
-                    <span
-                      key={q}
-                      className="form-quick-chip"
-                      onClick={() => form.setFieldsValue({ quantity: q })}
-                    >
-                      {q}
-                    </span>
-                  ))}
-                </div>
-              </div>
+                  return (
+                    <div className="form-section">
+                      <div className="form-section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span className="form-section-title">
+                          <TrendingUp size={14} style={{ color: 'var(--primary)' }} />
+                          2. Movement Type & Quantity
+                        </span>
+                        {isWeight && (
+                          <div style={{ display: 'flex', background: '#f1f5f9', padding: 2, borderRadius: 6 }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (movementWeightMode !== 'g') {
+                                  setMovementWeightMode('g')
+                                  form.setFieldsValue({ quantity: Math.round(currentQty * 1000) })
+                                }
+                              }}
+                              style={{
+                                padding: '2px 8px',
+                                borderRadius: 5,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                border: 'none',
+                                cursor: 'pointer',
+                                background: movementWeightMode === 'g' ? '#db2777' : 'transparent',
+                                color: movementWeightMode === 'g' ? '#fff' : '#64748b'
+                              }}
+                            >
+                              Grams (g)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (movementWeightMode !== 'kg') {
+                                  setMovementWeightMode('kg')
+                                  form.setFieldsValue({ quantity: Math.max(0.05, Math.round((currentQty / 1000) * 100) / 100) })
+                                }
+                              }}
+                              style={{
+                                padding: '2px 8px',
+                                borderRadius: 5,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                border: 'none',
+                                cursor: 'pointer',
+                                background: movementWeightMode === 'kg' ? '#db2777' : 'transparent',
+                                color: movementWeightMode === 'kg' ? '#fff' : '#64748b'
+                              }}
+                            >
+                              Kilograms (kg)
+                            </button>
+                          </div>
+                        )}
+                      </div>
 
-              {/* Cost & Note */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 12, marginBottom: 10 }}>
+                        <Form.Item
+                          name="type"
+                          label={<span style={{ fontWeight: 700, fontSize: 12.5 }}>Action Type</span>}
+                          initialValue="IN"
+                          rules={[{ required: true }]}
+                          style={{ marginBottom: 0 }}
+                        >
+                          <Select size="large" style={{ borderRadius: 8 }}>
+                            <Select.Option value="IN">
+                              <span style={{ color: 'var(--primary-dark)', fontWeight: 700 }}>+ Stock In / Received</span>
+                            </Select.Option>
+                            <Select.Option value="DAMAGE">
+                              <span style={{ color: 'var(--danger)', fontWeight: 700 }}>- Damage / Wastage</span>
+                            </Select.Option>
+                            <Select.Option value="RETURN">
+                              <span style={{ color: 'var(--info)', fontWeight: 700 }}>+ Customer Return</span>
+                            </Select.Option>
+                            <Select.Option value="ADJUST">
+                              <span style={{ color: 'var(--warning)', fontWeight: 700 }}>~ Count Adjustment</span>
+                            </Select.Option>
+                          </Select>
+                        </Form.Item>
+
+                        <Form.Item
+                          name="quantity"
+                          label={
+                            <span style={{ fontWeight: 700, fontSize: 12.5 }}>
+                              Quantity {isWeight ? `(${movementWeightMode})` : `(${selectedProd?.unit || 'pcs'})`}
+                            </span>
+                          }
+                          rules={[{ required: true, message: 'Enter quantity' }]}
+                          initialValue={1}
+                          style={{ marginBottom: 0 }}
+                        >
+                          <InputNumber
+                            min={isWeight && movementWeightMode === 'g' ? 1 : 0.01}
+                            step={isWeight && movementWeightMode === 'g' ? 50 : isWeight ? 0.25 : 1}
+                            size="large"
+                            style={{ width: '100%', borderRadius: 8, fontWeight: 700 }}
+                          />
+                        </Form.Item>
+                      </div>
+
+                      {/* Quick Multiplier / Weight Chips */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>Quick Add:</span>
+                        {isWeight ? (
+                          movementWeightMode === 'g' ? (
+                            [100, 250, 500, 750, 1000, 1500, 2000, 5000].map((g) => (
+                              <span
+                                key={g}
+                                className="form-quick-chip"
+                                onClick={() => form.setFieldsValue({ quantity: g })}
+                              >
+                                {g < 1000 ? `${g}g` : `${g / 1000}kg (${g}g)`}
+                              </span>
+                            ))
+                          ) : (
+                            [0.25, 0.5, 0.75, 1, 1.5, 2, 5, 10].map((k) => (
+                              <span
+                                key={k}
+                                className="form-quick-chip"
+                                onClick={() => form.setFieldsValue({ quantity: k })}
+                              >
+                                {k} kg
+                              </span>
+                            ))
+                          )
+                        ) : (
+                          [1, 5, 10, 20, 50, 100].map((q) => (
+                            <span
+                              key={q}
+                              className="form-quick-chip"
+                              onClick={() => form.setFieldsValue({ quantity: q })}
+                            >
+                              {q} pcs
+                            </span>
+                          ))
+                        )}
+                      </div>
+
+                      {/* Live Calculation / Stock Preview */}
+                      {selectedProd && currentQty > 0 && (
+                        <div style={{
+                          marginTop: 10,
+                          padding: '8px 12px',
+                          borderRadius: 8,
+                          background: '#f8fafc',
+                          border: '1px solid #e2e8f0',
+                          fontSize: 12,
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}>
+                          <span style={{ color: '#64748b', fontWeight: 600 }}>
+                            Current Stock: <strong>{formatStockQty(currentStock, selectedProd.unit)}</strong>
+                          </span>
+                          <span style={{ color: '#16a34a', fontWeight: 700 }}>
+                            Result Stock: <strong>{formatStockQty(projectedStock, selectedProd.unit)}</strong>
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )
+                }}
+              </Form.Item>
+
+              {/* Product Pricing & Cost Update */}
               <div className="form-section" style={{ marginBottom: 0 }}>
                 <div className="form-section-header">
                   <span className="form-section-title">
                     <DollarSign size={14} style={{ color: 'var(--primary)' }} />
-                    3. Cost & Reference (Optional)
+                    3. Pricing & Reference (විකුණුම් / පිරිවැය මිල)
                   </span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 12 }}>
-                  <Form.Item
-                    name="cost_price"
-                    label={<span style={{ fontWeight: 600, fontSize: 12 }}>Cost Price (Rs.)</span>}
-                    style={{ marginBottom: 0 }}
-                  >
-                    <InputNumber
-                      min={0}
-                      placeholder="e.g. 2500"
-                      size="large"
-                      style={{ width: '100%', borderRadius: 8 }}
-                      formatter={(v) => `Rs. ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                      parser={(v) => v!.replace(/Rs\.\s?|(,*)/g, '') as any}
-                    />
-                  </Form.Item>
+                <Form.Item
+                  noStyle
+                  shouldUpdate={(prev, cur) => prev.price !== cur.price || prev.cost_price !== cur.cost_price}
+                >
+                  {({ getFieldValue }) => {
+                    const sellP = Number(getFieldValue('price')) || 0
+                    const costP = Number(getFieldValue('cost_price')) || 0
+                    const profit = sellP - costP
+                    const margin = sellP > 0 && costP > 0 ? Math.round((profit / sellP) * 100) : null
 
-                  <Form.Item
-                    name="note"
-                    label={<span style={{ fontWeight: 600, fontSize: 12 }}>Batch Ref / Note</span>}
-                    style={{ marginBottom: 0 }}
-                  >
-                    <Input placeholder="e.g. Morning bake batch" size="large" style={{ borderRadius: 8 }} />
-                  </Form.Item>
+                    return (
+                      <>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                          <Form.Item
+                            name="price"
+                            label={
+                              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                                <span style={{ fontWeight: 700, fontSize: 12.5, color: '#334155' }}>Selling Price (විකුණුම් මිල)</span>
+                                {margin !== null && (
+                                  <span style={{ fontSize: 11, fontWeight: 700, color: margin >= 0 ? '#16a34a' : '#dc2626' }}>
+                                    Margin: {margin}%
+                                  </span>
+                                )}
+                              </div>
+                            }
+                            rules={[{ required: true, message: 'Enter selling price' }]}
+                            style={{ marginBottom: 0 }}
+                          >
+                            <InputNumber
+                              min={0}
+                              step={10}
+                              placeholder="e.g. 3500"
+                              size="large"
+                              style={{ width: '100%', borderRadius: 8, fontWeight: 700, color: 'var(--primary-dark)' }}
+                              formatter={(v) => `Rs. ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                              parser={(v) => v!.replace(/Rs\.\s?|(,*)/g, '') as any}
+                            />
+                          </Form.Item>
+
+                          <Form.Item
+                            name="cost_price"
+                            label={<span style={{ fontWeight: 700, fontSize: 12.5, color: '#334155' }}>Cost Price (පිරිවැය මිල)</span>}
+                            style={{ marginBottom: 0 }}
+                          >
+                            <InputNumber
+                              min={0}
+                              step={10}
+                              placeholder="e.g. 2100"
+                              size="large"
+                              style={{ width: '100%', borderRadius: 8 }}
+                              formatter={(v) => `Rs. ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                              parser={(v) => v!.replace(/Rs\.\s?|(,*)/g, '') as any}
+                            />
+                          </Form.Item>
+                        </div>
+
+                        {sellP > 0 && costP > 0 && (
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              background: '#f0fdf4',
+                              border: '1px solid #bbf7d0',
+                              borderRadius: 8,
+                              padding: '6px 12px',
+                              marginBottom: 12,
+                              fontSize: 12
+                            }}
+                          >
+                            <span style={{ color: '#166534', fontWeight: 600 }}>
+                              Estimated Profit: <strong>{formatCurrency(profit)}</strong>
+                            </span>
+                            <span style={{ color: '#15803d', fontWeight: 700 }}>
+                              Profit Margin: {margin}%
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )
+                  }}
+                </Form.Item>
+
+                <Form.Item
+                  name="note"
+                  label={<span style={{ fontWeight: 600, fontSize: 12, color: '#475569' }}>Batch Reference / Note</span>}
+                  style={{ marginBottom: 6 }}
+                >
+                  <Input placeholder="e.g. Morning bake batch, supplier invoice..." size="large" style={{ borderRadius: 8 }} />
+                </Form.Item>
+
+                <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>
+                  💡 Tip: ඔබට අවශ්‍ය නම් මෙතනින් Selling Price හෝ Cost Price වෙනස් කළ හැක. එය ස්වයංක්‍රීයව Product Catalog එකෙහි Update වේ.
                 </div>
               </div>
             </>
@@ -1218,9 +1510,17 @@ export const InventoryPage: React.FC = () => {
                     initialValue="pcs"
                     style={{ marginBottom: 0 }}
                   >
-                    <Select size="large" style={{ borderRadius: 8 }}>
+                    <Select
+                      size="large"
+                      style={{ borderRadius: 8 }}
+                      onChange={(val) => {
+                        if (val === 'g') setNewProductWeightMode('g')
+                        else if (val === 'kg') setNewProductWeightMode('kg')
+                      }}
+                    >
                       <Select.Option value="pcs">pcs (Pieces)</Select.Option>
                       <Select.Option value="kg">kg (Kilograms)</Select.Option>
+                      <Select.Option value="g">g (Grams)</Select.Option>
                       <Select.Option value="slice">slice (Portion)</Select.Option>
                       <Select.Option value="box">box (Pack)</Select.Option>
                     </Select>
@@ -1326,25 +1626,131 @@ export const InventoryPage: React.FC = () => {
                   </Form.Item>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 12 }}>
-                  <Form.Item
-                    name="new_quantity"
-                    label={<span style={{ fontWeight: 700, fontSize: 12.5 }}>Initial Stock Received</span>}
-                    rules={[{ required: true, message: 'Enter initial stock quantity' }]}
-                    initialValue={10}
-                    style={{ marginBottom: 0 }}
-                  >
-                    <InputNumber min={0} step={1} size="large" style={{ width: '100%', borderRadius: 8, fontWeight: 700 }} />
-                  </Form.Item>
+                <Form.Item noStyle shouldUpdate={(prev, cur) => prev.new_unit !== cur.new_unit || prev.new_quantity !== cur.new_quantity}>
+                  {({ getFieldValue }) => {
+                    const chosenUnit = getFieldValue('new_unit') || 'pcs'
+                    const isNewWeight = chosenUnit === 'kg' || chosenUnit === 'g'
+                    const isNewBaseGram = chosenUnit === 'g'
+                    const currentQty = Number(getFieldValue('new_quantity')) || 0
 
-                  <Form.Item
-                    name="new_note"
-                    label={<span style={{ fontWeight: 600, fontSize: 12 }}>Note / Supplier Info</span>}
-                    style={{ marginBottom: 0 }}
-                  >
-                    <Input placeholder="e.g. Initial supplier batch" size="large" style={{ borderRadius: 8 }} />
-                  </Form.Item>
-                </div>
+                    return (
+                      <div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 12 }}>
+                          <Form.Item
+                            name="new_quantity"
+                            label={
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                <span style={{ fontWeight: 700, fontSize: 12.5 }}>Initial Stock</span>
+                                {isNewWeight && (
+                                  <div style={{ display: 'flex', background: '#f1f5f9', padding: 2, borderRadius: 5 }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (newProductWeightMode !== 'g') {
+                                          setNewProductWeightMode('g')
+                                          form.setFieldsValue({ new_quantity: Math.round(currentQty * 1000) })
+                                        }
+                                      }}
+                                      style={{
+                                        padding: '1px 6px',
+                                        borderRadius: 4,
+                                        fontSize: 10,
+                                        fontWeight: 700,
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        background: newProductWeightMode === 'g' ? '#db2777' : 'transparent',
+                                        color: newProductWeightMode === 'g' ? '#fff' : '#64748b'
+                                      }}
+                                    >
+                                      g
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (newProductWeightMode !== 'kg') {
+                                          setNewProductWeightMode('kg')
+                                          form.setFieldsValue({ new_quantity: Math.max(0.1, Math.round((currentQty / 1000) * 100) / 100) })
+                                        }
+                                      }}
+                                      style={{
+                                        padding: '1px 6px',
+                                        borderRadius: 4,
+                                        fontSize: 10,
+                                        fontWeight: 700,
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        background: newProductWeightMode === 'kg' ? '#db2777' : 'transparent',
+                                        color: newProductWeightMode === 'kg' ? '#fff' : '#64748b'
+                                      }}
+                                    >
+                                      kg
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            }
+                            rules={[{ required: true, message: 'Enter initial stock quantity' }]}
+                            initialValue={isNewWeight ? (newProductWeightMode === 'g' ? 500 : 1) : 10}
+                            style={{ marginBottom: 0 }}
+                          >
+                            <InputNumber
+                              min={0}
+                              step={isNewWeight ? (newProductWeightMode === 'g' ? 50 : 0.25) : 1}
+                              size="large"
+                              style={{ width: '100%', borderRadius: 8, fontWeight: 700 }}
+                            />
+                          </Form.Item>
+
+                          <Form.Item
+                            name="new_note"
+                            label={<span style={{ fontWeight: 600, fontSize: 12 }}>Note / Supplier Info</span>}
+                            style={{ marginBottom: 0 }}
+                          >
+                            <Input placeholder="e.g. Initial supplier batch" size="large" style={{ borderRadius: 8 }} />
+                          </Form.Item>
+                        </div>
+
+                        {/* Quick Chips for New Product */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>Presets:</span>
+                          {isNewWeight ? (
+                            newProductWeightMode === 'g' ? (
+                              [250, 500, 1000, 2000, 5000].map((g) => (
+                                <span
+                                  key={g}
+                                  className="form-quick-chip"
+                                  onClick={() => form.setFieldsValue({ new_quantity: g })}
+                                >
+                                  {g < 1000 ? `${g}g` : `${g / 1000}kg`}
+                                </span>
+                              ))
+                            ) : (
+                              [0.5, 1, 2, 5, 10].map((k) => (
+                                <span
+                                  key={k}
+                                  className="form-quick-chip"
+                                  onClick={() => form.setFieldsValue({ new_quantity: k })}
+                                >
+                                  {k} kg
+                                </span>
+                              ))
+                            )
+                          ) : (
+                            [5, 10, 20, 50, 100].map((q) => (
+                              <span
+                                key={q}
+                                className="form-quick-chip"
+                                onClick={() => form.setFieldsValue({ new_quantity: q })}
+                              >
+                                {q} pcs
+                              </span>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )
+                  }}
+                </Form.Item>
               </div>
             </>
           )}
