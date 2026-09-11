@@ -89,7 +89,9 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IShopRepository, ShopRepository>();
 builder.Services.AddScoped<IItemCodeGenerator, ItemCodeGenerator>();
 builder.Services.AddScoped<IBackupService, BackupService>();
+builder.Services.AddScoped<ISyncService, SupabaseSyncService>();
 builder.Services.AddHostedService<ScheduledBackupService>();
+builder.Services.AddHostedService<ScheduledSyncService>();
 
 builder.Services.AddScoped<ProductService>();
 builder.Services.AddScoped<CategoryService>();

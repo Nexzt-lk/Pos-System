@@ -85,7 +85,21 @@ export const inventoryRepo = {
       INSERT INTO sync_queue (table_name, operation, record_id, payload, status, created_at)
       VALUES ('stock_movements', 'INSERT', ?, ?, 'pending', datetime('now'))
     `,
-      [localId, JSON.stringify({ ...movement, local_id: localId })]
+      [
+        localId,
+        JSON.stringify({
+          shop_id: movement.shopId || 'b0000000-0000-0000-0000-000000000001',
+          product_id: movement.productId,
+          type: movement.type,
+          quantity: movement.quantity,
+          quantity_before: qtyBefore,
+          quantity_after: qtyAfter,
+          note: movement.note || null,
+          cost_per_unit: movement.costPerUnit || null,
+          done_by: movement.doneBy || null,
+          local_id: localId
+        })
+      ]
     )
 
     db.save()

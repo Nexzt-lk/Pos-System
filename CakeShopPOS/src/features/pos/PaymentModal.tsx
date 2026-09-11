@@ -145,6 +145,20 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onO
     }
 
     try {
+      // 1. Direct local SQLite database insert & inventory decrement (Offline-First POS)
+      if (window.electronAPI?.dbQuery) {
+        try {
+          const res = await window.electronAPI.dbQuery('db:create-order', orderPayload)
+          if (res && res.orderNo) {
+            orderPayload.order_no = res.orderNo
+          }
+          window.electronAPI.triggerSync?.()
+        } catch (dbErr) {
+          console.warn('Local electron db save error:', dbErr)
+        }
+      }
+
+      // 2. Also notify Backend API if connected
       const saleRequest: CreateSaleRequest = {
         idempotencyKey,
         localId: orderId,
@@ -163,24 +177,17 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onO
         cardReferenceNo: referenceNo || undefined
       }
 
-      const backendOrder = await ordersApi.createSale(saleRequest, idempotencyKey)
-      if (backendOrder && backendOrder.orderNo) {
-        orderPayload.order_no = backendOrder.orderNo
-        orderPayload.id = backendOrder.id
-      }
-    } catch (apiErr: any) {
-      console.warn('Backend API sale notice (fallbacking if local DB available):', apiErr)
-      if (window.electronAPI) {
-        try {
-          const res = await window.electronAPI.dbQuery('db:create-order', orderPayload)
-          if (res && res.orderNo) {
-            orderPayload.order_no = res.orderNo
-          }
-        } catch (dbErr) {
-          console.warn('Local electron db save error:', dbErr)
+      try {
+        const backendOrder = await ordersApi.createSale(saleRequest, idempotencyKey)
+        if (backendOrder && backendOrder.orderNo) {
+          orderPayload.order_no = backendOrder.orderNo
+          orderPayload.id = backendOrder.id
         }
+      } catch (apiErr) {
+        console.warn('Backend API sale notification skipped (Offline mode):', apiErr)
       }
     } finally {
+      window.dispatchEvent(new CustomEvent('pos:order-completed', { detail: orderPayload }))
       clearCart()
       onOrderCompleted(orderPayload)
       onClose()

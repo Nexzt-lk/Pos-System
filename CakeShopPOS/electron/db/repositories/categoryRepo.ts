@@ -60,6 +60,17 @@ export const categoryRepo = {
         category.is_active !== undefined ? (category.is_active ? 1 : 0) : 1
       ]
     )
+
+    // Enqueue in sync_queue for automatic cloud sync
+    db.run(
+      `
+      INSERT INTO sync_queue (table_name, operation, record_id, payload, status, created_at)
+      VALUES ('categories', 'UPSERT', ?, ?, 'pending', datetime('now'))
+    `,
+      [category.id, JSON.stringify(category)]
+    )
+
+    db.save()
   }
 }
 

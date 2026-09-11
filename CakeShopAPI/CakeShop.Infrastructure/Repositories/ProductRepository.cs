@@ -58,46 +58,128 @@ public class ProductRepository : IProductRepository
     public async Task AddAsync(Product product)
     {
         using var connection = _factory.CreateConnection();
-        using var cmd = connection.CreateCommand();
-        cmd.CommandText = @"
-            INSERT INTO products
-                (id, category_id, item_code, name, description, price, cost_price,
-                 barcode, image_path, unit, track_inventory, is_active,
-                 created_at, updated_at, sync_status)
-            VALUES
-                ($id, $catId, $code, $name, $desc, $price, $cost,
-                 $barcode, $img, $unit, $track, 1,
-                 $created, $updated, 'pending');";
-        BindProductParams(cmd, product);
-        cmd.Parameters.AddWithValue("$created", product.CreatedAt.ToString("o"));
-        cmd.Parameters.AddWithValue("$updated", product.UpdatedAt.ToString("o"));
-        await cmd.ExecuteNonQueryAsync();
+        using var transaction = connection.BeginTransaction();
+
+        using (var cmd = connection.CreateCommand())
+        {
+            cmd.Transaction = transaction;
+            cmd.CommandText = @"
+                INSERT INTO products
+                    (id, category_id, item_code, name, description, price, cost_price,
+                     barcode, image_path, unit, track_inventory, is_active,
+                     created_at, updated_at, sync_status)
+                VALUES
+                    ($id, $catId, $code, $name, $desc, $price, $cost,
+                     $barcode, $img, $unit, $track, 1,
+                     $created, $updated, 'pending');";
+            BindProductParams(cmd, product);
+            cmd.Parameters.AddWithValue("$created", product.CreatedAt.ToString("o"));
+            cmd.Parameters.AddWithValue("$updated", product.UpdatedAt.ToString("o"));
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        using (var qCmd = connection.CreateCommand())
+        {
+            qCmd.Transaction = transaction;
+            qCmd.CommandText = @"
+                INSERT INTO sync_queue (table_name, operation, record_id, payload, status, created_at)
+                VALUES ('products', 'INSERT', $recId, $payload, 'pending', datetime('now'));";
+            qCmd.Parameters.AddWithValue("$recId", product.Id);
+            qCmd.Parameters.AddWithValue("$payload", System.Text.Json.JsonSerializer.Serialize(new
+            {
+                id = product.Id,
+                category_id = product.CategoryId,
+                item_code = product.ItemCode,
+                name = product.Name,
+                description = product.Description,
+                price = product.Price,
+                cost_price = product.CostPrice,
+                barcode = product.Barcode,
+                image_path = product.ImagePath,
+                unit = product.Unit,
+                track_inventory = product.TrackInventory,
+                is_active = product.IsActive
+            }));
+            await qCmd.ExecuteNonQueryAsync();
+        }
+
+        transaction.Commit();
     }
 
     public async Task UpdateAsync(Product product)
     {
         using var connection = _factory.CreateConnection();
-        using var cmd = connection.CreateCommand();
-        cmd.CommandText = @"
-            UPDATE products SET
-                category_id = $catId, name = $name, description = $desc,
-                price = $price, cost_price = $cost, barcode = $barcode,
-                unit = $unit, track_inventory = $track, is_active = $active,
-                updated_at = $updated, sync_status = 'pending'
-            WHERE id = $id;";
-        BindProductParams(cmd, product);
-        cmd.Parameters.AddWithValue("$active", product.IsActive ? 1 : 0);
-        cmd.Parameters.AddWithValue("$updated", product.UpdatedAt.ToString("o"));
-        await cmd.ExecuteNonQueryAsync();
+        using var transaction = connection.BeginTransaction();
+
+        using (var cmd = connection.CreateCommand())
+        {
+            cmd.Transaction = transaction;
+            cmd.CommandText = @"
+                UPDATE products SET
+                    category_id = $catId, name = $name, description = $desc,
+                    price = $price, cost_price = $cost, barcode = $barcode,
+                    unit = $unit, track_inventory = $track, is_active = $active,
+                    updated_at = $updated, sync_status = 'pending'
+                WHERE id = $id;";
+            BindProductParams(cmd, product);
+            cmd.Parameters.AddWithValue("$active", product.IsActive ? 1 : 0);
+            cmd.Parameters.AddWithValue("$updated", product.UpdatedAt.ToString("o"));
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        using (var qCmd = connection.CreateCommand())
+        {
+            qCmd.Transaction = transaction;
+            qCmd.CommandText = @"
+                INSERT INTO sync_queue (table_name, operation, record_id, payload, status, created_at)
+                VALUES ('products', 'UPDATE', $recId, $payload, 'pending', datetime('now'));";
+            qCmd.Parameters.AddWithValue("$recId", product.Id);
+            qCmd.Parameters.AddWithValue("$payload", System.Text.Json.JsonSerializer.Serialize(new
+            {
+                id = product.Id,
+                category_id = product.CategoryId,
+                item_code = product.ItemCode,
+                name = product.Name,
+                description = product.Description,
+                price = product.Price,
+                cost_price = product.CostPrice,
+                barcode = product.Barcode,
+                image_path = product.ImagePath,
+                unit = product.Unit,
+                track_inventory = product.TrackInventory,
+                is_active = product.IsActive
+            }));
+            await qCmd.ExecuteNonQueryAsync();
+        }
+
+        transaction.Commit();
     }
 
     public async Task DeleteAsync(string id)
     {
         using var connection = _factory.CreateConnection();
-        using var cmd = connection.CreateCommand();
-        cmd.CommandText = "UPDATE products SET is_active = 0, sync_status = 'pending' WHERE id = $id;";
-        cmd.Parameters.AddWithValue("$id", id);
-        await cmd.ExecuteNonQueryAsync();
+        using var transaction = connection.BeginTransaction();
+
+        using (var cmd = connection.CreateCommand())
+        {
+            cmd.Transaction = transaction;
+            cmd.CommandText = "UPDATE products SET is_active = 0, sync_status = 'pending' WHERE id = $id;";
+            cmd.Parameters.AddWithValue("$id", id);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        using (var qCmd = connection.CreateCommand())
+        {
+            qCmd.Transaction = transaction;
+            qCmd.CommandText = @"
+                INSERT INTO sync_queue (table_name, operation, record_id, payload, status, created_at)
+                VALUES ('products', 'DELETE', $recId, $payload, 'pending', datetime('now'));";
+            qCmd.Parameters.AddWithValue("$recId", id);
+            qCmd.Parameters.AddWithValue("$payload", System.Text.Json.JsonSerializer.Serialize(new { id, is_active = false }));
+            await qCmd.ExecuteNonQueryAsync();
+        }
+
+        transaction.Commit();
     }
 
     private static void BindProductParams(SqliteCommand cmd, Product p)

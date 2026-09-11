@@ -181,7 +181,7 @@ function setupIpcHandlers() {
   ipcMain.handle('image:save', (_, sourcePath) => imageService.saveProductImage(sourcePath))
 
   ipcMain.handle('sync:pending-count', async () => await syncRepo.getPendingCount())
-  ipcMain.handle('sync:trigger', () => syncService.processSyncQueue(`http://127.0.0.1:${activeApiPort}`))
+  ipcMain.handle('sync:trigger', () => syncService.processSyncQueue())
   ipcMain.handle('app:get-api-url', () => `http://127.0.0.1:${activeApiPort}`)
   ipcMain.handle('app:get-version', () => app.getVersion())
 }

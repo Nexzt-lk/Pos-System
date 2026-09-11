@@ -3,21 +3,18 @@ import { v4 as uuidv4 } from 'uuid'
 import dayjs from 'dayjs'
 
 export const orderRepo = {
-  getNextOrderNumber: async (shopId: string, branchCode: string, terminalId: string): Promise<string> => {
+  getNextOrderNumber: async (_shopId: string, branchCode: string, terminalId: string): Promise<string> => {
     const db = await getDatabase()
-    const todayPrefix = `${branchCode}-${terminalId}-${dayjs().format('YYYYMMDD')}-%`
+    const prefix = `${terminalId || branchCode || 'T1'}-${dayjs().format('YYYYMMDD')}-%`
 
     const row = db.queryOne<{ count: number }>(
-      `
-      SELECT count(*) as count FROM orders 
-      WHERE shop_id = ? AND order_no LIKE ?
-    `,
-      [shopId, todayPrefix]
+      `SELECT count(*) as count FROM orders WHERE order_no LIKE ?`,
+      [prefix]
     )
 
     const seq = (row?.count || 0) + 1
     const seqPadded = seq.toString().padStart(4, '0')
-    return `${branchCode}-${terminalId}-${dayjs().format('YYYYMMDD')}-${seqPadded}`
+    return `${terminalId || branchCode || 'T1'}-${dayjs().format('YYYYMMDD')}-${seqPadded}`
   },
 
   createOrderTransaction: async (orderData: any): Promise<{ success: boolean; orderId: string; orderNo: string }> => {
@@ -25,21 +22,21 @@ export const orderRepo = {
     const orderId = orderData.id || uuidv4()
     const localId = orderData.local_id || uuidv4()
     const createdAt = orderData.created_at || new Date().toISOString()
+    const terminalId = orderData.terminal_id || 'T1'
 
     // 1. Insert Order
     db.run(
       `
       INSERT INTO orders (
-        id, shop_id, order_no, cashier_id, subtotal, discount_type,
+        id, order_no, terminal_id, subtotal, discount_type,
         discount_amount, tax_amount, total_amount, status, note,
-        created_at, time_drift_flag, local_id, sync_status
+        cashier_id, cashier_name, created_at, local_id, sync_status
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
     `,
       [
         orderId,
-        orderData.shop_id,
         orderData.order_no,
-        orderData.cashier_id || null,
+        terminalId,
         orderData.subtotal,
         orderData.discount_type || null,
         orderData.discount_amount || 0,
@@ -47,28 +44,29 @@ export const orderRepo = {
         orderData.total_amount,
         orderData.status || 'completed',
         orderData.note || null,
+        orderData.cashier_id || null,
+        orderData.cashier_name || null,
         createdAt,
-        orderData.time_drift_flag ? 1 : 0,
         localId
       ]
     )
 
     // 2. Insert Order Items & Decrement Stock
-    for (const item of orderData.items) {
+    for (const item of orderData.items || []) {
       const itemId = uuidv4()
       db.run(
         `
         INSERT INTO order_items (
-          id, shop_id, order_id, product_id, product_name,
+          id, order_id, product_id, product_name, item_code,
           unit_price, cost_price, quantity, discount, subtotal
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
         [
           itemId,
-          orderData.shop_id,
           orderId,
           item.product_id,
           item.product_name,
+          item.item_code || null,
           item.unit_price,
           item.cost_price || null,
           item.quantity,
@@ -79,29 +77,28 @@ export const orderRepo = {
 
       // Decrement inventory
       const currentInv = db.queryOne<{ quantity: number }>(
-        `SELECT quantity FROM inventory WHERE shop_id = ? AND product_id = ?`,
-        [orderData.shop_id, item.product_id]
+        `SELECT quantity FROM inventory WHERE product_id = ?`,
+        [item.product_id]
       )
 
       const qtyBefore = currentInv?.quantity || 0
       const qtyAfter = qtyBefore - item.quantity
 
       db.run(
-        `UPDATE inventory SET quantity = quantity - ?, updated_at = datetime('now') WHERE shop_id = ? AND product_id = ?`,
-        [item.quantity, orderData.shop_id, item.product_id]
+        `UPDATE inventory SET quantity = quantity - ?, updated_at = datetime('now') WHERE product_id = ?`,
+        [item.quantity, item.product_id]
       )
 
       db.run(
         `
         INSERT INTO stock_movements (
-          id, shop_id, product_id, type, quantity, quantity_before,
-          quantity_after, reference_id, note, cost_per_unit, done_by,
-          created_at, local_id, sync_status
-        ) VALUES (?, ?, ?, 'SALE', ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+          id, product_id, type, quantity, quantity_before,
+          quantity_after, reference_id, note, cost_per_unit,
+          created_at, sync_status
+        ) VALUES (?, ?, 'SALE', ?, ?, ?, ?, ?, ?, ?, 'pending')
       `,
         [
           uuidv4(),
-          orderData.shop_id,
           item.product_id,
           item.quantity,
           qtyBefore,
@@ -109,9 +106,7 @@ export const orderRepo = {
           orderId,
           `Sale #${orderData.order_no}`,
           item.cost_price || null,
-          orderData.cashier_id || null,
-          createdAt,
-          uuidv4()
+          createdAt
         ]
       )
     }
@@ -121,13 +116,12 @@ export const orderRepo = {
       db.run(
         `
         INSERT INTO payments (
-          id, shop_id, order_id, method, amount,
+          id, order_id, method, amount,
           cash_given, change_given, reference_no, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
         [
           uuidv4(),
-          orderData.shop_id,
           orderId,
           payment.method,
           payment.amount,
@@ -152,7 +146,7 @@ export const orderRepo = {
     return { success: true, orderId, orderNo: orderData.order_no }
   },
 
-  getDailySummary: async (shopId: string, dateStr?: string) => {
+  getDailySummary: async (_shopId?: string, dateStr?: string) => {
     const db = await getDatabase()
     const targetDate = dateStr || dayjs().format('YYYY-MM-DD')
 
@@ -164,9 +158,9 @@ export const orderRepo = {
         COALESCE(sum(discount_amount), 0) as total_discount,
         COALESCE(avg(total_amount), 0) as avg_order_value
       FROM orders
-      WHERE shop_id = ? AND date(created_at) = ? AND status = 'completed'
+      WHERE substr(created_at, 1, 10) = ? AND (LOWER(status) = 'completed' OR status IS NULL OR status = '')
     `,
-      [shopId, targetDate]
+      [targetDate]
     )
 
     const paymentBreakdown = db.query(
@@ -174,24 +168,23 @@ export const orderRepo = {
       SELECT p.method, COALESCE(sum(p.amount), 0) as total_amount
       FROM payments p
       JOIN orders o ON p.order_id = o.id
-      WHERE o.shop_id = ? AND date(o.created_at) = ? AND o.status = 'completed'
+      WHERE substr(o.created_at, 1, 10) = ? AND (LOWER(o.status) = 'completed' OR o.status IS NULL OR o.status = '')
       GROUP BY p.method
     `,
-      [shopId, targetDate]
+      [targetDate]
     )
 
     return { summary, paymentBreakdown }
   },
 
   getAnalytics: async (params: {
-    shopId: string
-    period: 'daily' | 'weekly' | 'monthly' | 'custom'
+    shopId?: string
+    period?: 'daily' | 'weekly' | 'monthly' | 'custom'
     dateStr?: string
     startDate?: string
     endDate?: string
   }) => {
     const db = await getDatabase()
-    const shopId = params.shopId
     const period = params.period || 'daily'
 
     let startDateStr = ''
@@ -246,12 +239,11 @@ export const orderRepo = {
         COALESCE(sum(tax_amount), 0) as total_tax,
         COALESCE(avg(total_amount), 0) as avg_order_value
       FROM orders
-      WHERE shop_id = ? 
-        AND date(created_at) >= ? 
-        AND date(created_at) <= ? 
-        AND status = 'completed'
+      WHERE substr(created_at, 1, 10) >= ? 
+        AND substr(created_at, 1, 10) <= ? 
+        AND (LOWER(status) = 'completed' OR status IS NULL OR status = '')
     `,
-      [shopId, startDateStr, endDateStr]
+      [startDateStr, endDateStr]
     )
 
     // Previous Period Summary for growth calculation
@@ -264,12 +256,11 @@ export const orderRepo = {
         count(*) as total_orders,
         COALESCE(sum(total_amount), 0) as total_revenue
       FROM orders
-      WHERE shop_id = ? 
-        AND date(created_at) >= ? 
-        AND date(created_at) <= ? 
-        AND status = 'completed'
+      WHERE substr(created_at, 1, 10) >= ? 
+        AND substr(created_at, 1, 10) <= ? 
+        AND (LOWER(status) = 'completed' OR status IS NULL OR status = '')
     `,
-      [shopId, prevStartDateStr, prevEndDateStr]
+      [prevStartDateStr, prevEndDateStr]
     )
 
     // Items Cost and Items Count in Current Period
@@ -283,19 +274,18 @@ export const orderRepo = {
         COALESCE(sum(oi.quantity * COALESCE(oi.cost_price, 0)), 0) as total_cost
       FROM order_items oi
       JOIN orders o ON oi.order_id = o.id
-      WHERE o.shop_id = ? 
-        AND date(o.created_at) >= ? 
-        AND date(o.created_at) <= ? 
-        AND o.status = 'completed'
+      WHERE substr(o.created_at, 1, 10) >= ? 
+        AND substr(o.created_at, 1, 10) <= ? 
+        AND (LOWER(o.status) = 'completed' OR o.status IS NULL OR o.status = '')
     `,
-      [shopId, startDateStr, endDateStr]
+      [startDateStr, endDateStr]
     )
 
     const totalRevenue = summaryRow?.total_revenue || 0
     const totalOrders = summaryRow?.total_orders || 0
     const totalDiscount = summaryRow?.total_discount || 0
     const totalCost = itemsStats?.total_cost || 0
-    const netRevenue = totalRevenue // In POS, total_amount is already net of discount
+    const netRevenue = totalRevenue
     const estimatedProfit = Math.max(0, netRevenue - totalCost)
     const profitMargin = totalRevenue > 0 ? ((estimatedProfit / totalRevenue) * 100) : 0
 
@@ -329,25 +319,27 @@ export const orderRepo = {
       }>(
         `
         SELECT 
-          strftime('%H', created_at) as hour_str,
+          COALESCE(strftime('%H', created_at), substr(created_at, 12, 2)) as hour_str,
           count(*) as orders_count,
           COALESCE(sum(total_amount), 0) as revenue,
           COALESCE(sum(discount_amount), 0) as discount
         FROM orders
-        WHERE shop_id = ? 
-          AND date(created_at) = ? 
-          AND status = 'completed'
-        GROUP BY strftime('%H', created_at)
+        WHERE substr(created_at, 1, 10) = ? 
+          AND (LOWER(status) = 'completed' OR status IS NULL OR status = '')
+        GROUP BY COALESCE(strftime('%H', created_at), substr(created_at, 12, 2))
       `,
-        [shopId, startDateStr]
+        [startDateStr]
       )
 
       const hourMap: Record<string, { orders: number; revenue: number; discount: number }> = {}
       for (const h of hourlyData) {
-        hourMap[h.hour_str] = {
-          orders: h.orders_count,
-          revenue: h.revenue,
-          discount: h.discount
+        if (h.hour_str) {
+          const padded = h.hour_str.padStart(2, '0')
+          hourMap[padded] = {
+            orders: h.orders_count,
+            revenue: h.revenue,
+            discount: h.discount
+          }
         }
       }
 
@@ -375,27 +367,28 @@ export const orderRepo = {
       }>(
         `
         SELECT 
-          date(created_at) as day_date,
+          substr(created_at, 1, 10) as day_date,
           count(*) as orders_count,
           COALESCE(sum(total_amount), 0) as revenue,
           COALESCE(sum(discount_amount), 0) as discount
         FROM orders
-        WHERE shop_id = ? 
-          AND date(created_at) >= ? 
-          AND date(created_at) <= ? 
-          AND status = 'completed'
-        GROUP BY date(created_at)
-        ORDER BY date(created_at) ASC
+        WHERE substr(created_at, 1, 10) >= ? 
+          AND substr(created_at, 1, 10) <= ? 
+          AND (LOWER(status) = 'completed' OR status IS NULL OR status = '')
+        GROUP BY substr(created_at, 1, 10)
+        ORDER BY substr(created_at, 1, 10) ASC
       `,
-        [shopId, startDateStr, endDateStr]
+        [startDateStr, endDateStr]
       )
 
       const dailyMap: Record<string, { orders: number; revenue: number; discount: number }> = {}
       for (const d of dailyData) {
-        dailyMap[d.day_date] = {
-          orders: d.orders_count,
-          revenue: d.revenue,
-          discount: d.discount
+        if (d.day_date) {
+          dailyMap[d.day_date] = {
+            orders: d.orders_count,
+            revenue: d.revenue,
+            discount: d.discount
+          }
         }
       }
 
@@ -437,19 +430,18 @@ export const orderRepo = {
     }>(
       `
       SELECT 
-        p.method, 
+        UPPER(COALESCE(p.method, 'CASH')) as method, 
         COALESCE(sum(p.amount), 0) as total_amount,
         count(p.id) as payment_count
       FROM payments p
       JOIN orders o ON p.order_id = o.id
-      WHERE o.shop_id = ? 
-        AND date(o.created_at) >= ? 
-        AND date(o.created_at) <= ? 
-        AND o.status = 'completed'
-      GROUP BY p.method
+      WHERE substr(o.created_at, 1, 10) >= ? 
+        AND substr(o.created_at, 1, 10) <= ? 
+        AND (LOWER(o.status) = 'completed' OR o.status IS NULL OR o.status = '')
+      GROUP BY UPPER(COALESCE(p.method, 'CASH'))
       ORDER BY total_amount DESC
     `,
-      [shopId, startDateStr, endDateStr]
+      [startDateStr, endDateStr]
     )
 
     const paymentBreakdown = paymentRows.map((p) => ({
@@ -467,20 +459,20 @@ export const orderRepo = {
     }>(
       `
       SELECT 
-        oi.product_name,
+        COALESCE(oi.product_name, p.name, 'Unknown Item') as product_name,
         COALESCE(sum(oi.quantity), 0) as total_qty,
         COALESCE(sum(oi.subtotal), 0) as total_revenue
       FROM order_items oi
       JOIN orders o ON oi.order_id = o.id
-      WHERE o.shop_id = ? 
-        AND date(o.created_at) >= ? 
-        AND date(o.created_at) <= ? 
-        AND o.status = 'completed'
-      GROUP BY oi.product_name
+      LEFT JOIN products p ON oi.product_id = p.id
+      WHERE substr(o.created_at, 1, 10) >= ? 
+        AND substr(o.created_at, 1, 10) <= ? 
+        AND (LOWER(o.status) = 'completed' OR o.status IS NULL OR o.status = '')
+      GROUP BY COALESCE(oi.product_name, p.name, 'Unknown Item')
       ORDER BY total_revenue DESC
       LIMIT 8
     `,
-      [shopId, startDateStr, endDateStr]
+      [startDateStr, endDateStr]
     )
 
     // 5. Category Distribution
@@ -492,28 +484,28 @@ export const orderRepo = {
     }>(
       `
       SELECT 
-        COALESCE(c.name, 'Uncategorized') as category_name,
-        COALESCE(c.color, '#6366f1') as color,
+        COALESCE(c.name, 'General') as category_name,
+        COALESCE(c.color, '#16a34a') as color,
         COALESCE(sum(oi.quantity), 0) as total_qty,
         COALESCE(sum(oi.subtotal), 0) as total_revenue
       FROM order_items oi
       JOIN orders o ON oi.order_id = o.id
       LEFT JOIN products p ON oi.product_id = p.id
       LEFT JOIN categories c ON p.category_id = c.id
-      WHERE o.shop_id = ? 
-        AND date(o.created_at) >= ? 
-        AND date(o.created_at) <= ? 
-        AND o.status = 'completed'
-      GROUP BY COALESCE(c.name, 'Uncategorized')
+      WHERE substr(o.created_at, 1, 10) >= ? 
+        AND substr(o.created_at, 1, 10) <= ? 
+        AND (LOWER(o.status) = 'completed' OR o.status IS NULL OR o.status = '')
+      GROUP BY COALESCE(c.name, 'General')
       ORDER BY total_revenue DESC
     `,
-      [shopId, startDateStr, endDateStr]
+      [startDateStr, endDateStr]
     )
 
     // 6. Peak Hour / Day
     let peakSlot: { label: string; revenue: number; orders: number } | null = null
-    if (timeline.length > 0) {
-      peakSlot = [...timeline].sort((a, b) => b.revenue - a.revenue)[0]
+    const positiveTimeline = timeline.filter(t => t.revenue > 0 || t.orders > 0)
+    if (positiveTimeline.length > 0) {
+      peakSlot = [...positiveTimeline].sort((a, b) => b.revenue - a.revenue)[0]
     }
 
     // 7. Recent Transactions / Orders in this range
@@ -533,19 +525,18 @@ export const orderRepo = {
         o.order_no,
         o.created_at,
         o.total_amount,
-        o.discount_amount,
+        COALESCE(o.discount_amount, 0) as discount_amount,
         o.status,
-        (SELECT count(*) FROM order_items WHERE order_id = o.id) as items_count,
-        COALESCE((SELECT method FROM payments WHERE order_id = o.id LIMIT 1), 'CASH') as payment_method
+        COALESCE((SELECT sum(quantity) FROM order_items WHERE order_id = o.id), 1) as items_count,
+        COALESCE((SELECT UPPER(method) FROM payments WHERE order_id = o.id LIMIT 1), 'CASH') as payment_method
       FROM orders o
-      WHERE o.shop_id = ? 
-        AND date(o.created_at) >= ? 
-        AND date(o.created_at) <= ? 
-        AND o.status = 'completed'
+      WHERE substr(o.created_at, 1, 10) >= ? 
+        AND substr(o.created_at, 1, 10) <= ? 
+        AND (LOWER(o.status) = 'completed' OR o.status IS NULL OR o.status = '')
       ORDER BY o.created_at DESC
       LIMIT 25
     `,
-      [shopId, startDateStr, endDateStr]
+      [startDateStr, endDateStr]
     )
 
     return {
@@ -578,3 +569,4 @@ export const orderRepo = {
     }
   }
 }
+

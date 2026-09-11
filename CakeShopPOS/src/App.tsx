@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { ConfigProvider, theme } from 'antd'
 import { Layout } from './components/Layout'
 import { LoginPage } from './features/auth/LoginPage'
@@ -15,6 +15,20 @@ import { ShieldAlert } from 'lucide-react'
 export const App: React.FC = () => {
   const currentUser = useAppStore((s) => s.currentUser)
   const [activeTab, setActiveTab] = useState<string>('pos')
+
+  // Continuous background cloud auto-sync timer
+  useEffect(() => {
+    const runAutoSync = () => {
+      if (typeof window !== 'undefined' && (window as any).electronAPI?.triggerSync) {
+        (window as any).electronAPI.triggerSync().catch(() => {})
+      }
+    }
+
+    // Run on startup
+    runAutoSync()
+    const timer = setInterval(runAutoSync, 10000)
+    return () => clearInterval(timer)
+  }, [])
 
   if (!currentUser) return <LoginPage />
 

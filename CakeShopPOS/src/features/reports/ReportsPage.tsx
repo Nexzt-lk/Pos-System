@@ -130,23 +130,41 @@ export const ReportsPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false)
   const [analytics, setAnalytics] = useState<AnalyticsState | null>(null)
 
-  // Fetch real analytics data from Backend API
+  // Fetch real analytics data from Local Electron DB or Backend API
   const loadAnalytics = async () => {
     if (!currentShop) return
     setLoading(true)
     try {
+      // 1. First priority: Direct Local SQLite Query via Electron IPC (Offline-first & 100% Real-Time)
+      if (window.electronAPI?.dbQuery) {
+        const localReport = await window.electronAPI.dbQuery('db:get-analytics', {
+          shopId: currentShop.id,
+          period,
+          dateStr: selectedDate,
+          startDate: period === 'custom' ? customStartDate : undefined,
+          endDate: period === 'custom' ? customEndDate : undefined
+        })
+
+        if (localReport) {
+          setAnalytics(localReport)
+          setLoading(false)
+          return
+        }
+      }
+
+      // 2. Fallback to Backend REST API (if in Web Browser mode)
       let backendPeriod: 'daily' | 'weekly' | 'monthly' = 'daily'
       if (period === 'weekly') backendPeriod = 'weekly'
       if (period === 'monthly') backendPeriod = 'monthly'
 
       const backendReport = await reportsApi.getSalesReport(backendPeriod, selectedDate)
-      const mockFallback = generateMockAnalytics(period, selectedDate)
 
       if (backendReport) {
         const mappedTimeline = (backendReport.dailyBreakdown || []).map((db) => ({
           label: db.date,
-          revenue: db.sales,
-          orders: db.orderCount,
+          date: db.date,
+          revenue: db.sales || 0,
+          orders: db.orderCount || 0,
           discount: 0,
           avgTicket: db.orderCount > 0 ? Math.round(db.sales / db.orderCount) : 0
         }))
@@ -155,6 +173,39 @@ export const ReportsPage: React.FC = () => {
           product_name: tp.productName,
           total_qty: tp.quantitySold,
           total_revenue: tp.revenue
+        }))
+
+        const mappedPayments = backendReport.paymentBreakdown ? [
+          {
+            method: 'CASH',
+            total_amount: backendReport.paymentBreakdown.cashAmount || 0,
+            count: backendReport.paymentBreakdown.cashCount || 0,
+            percent: backendReport.paymentBreakdown.cashPercentage || 0
+          },
+          {
+            method: 'CARD',
+            total_amount: backendReport.paymentBreakdown.cardAmount || 0,
+            count: backendReport.paymentBreakdown.cardCount || 0,
+            percent: backendReport.paymentBreakdown.cardPercentage || 0
+          }
+        ].filter(p => p.count > 0 || p.total_amount > 0) : []
+
+        const mappedCategories = (backendReport.categoryBreakdown || []).map((cb, idx) => ({
+          category_name: cb.categoryName,
+          color: ['#16a34a', '#2563eb', '#8b5cf6', '#ec4899', '#f59e0b', '#06b6d4', '#e11d48', '#10b981'][idx % 8],
+          total_qty: cb.quantitySold,
+          total_revenue: cb.revenue
+        }))
+
+        const mappedRecentOrders = (backendReport.recentOrders || []).map((o: any) => ({
+          id: o.id,
+          order_no: o.orderNo,
+          created_at: o.createdAt,
+          total_amount: o.totalAmount,
+          discount_amount: o.discountAmount || 0,
+          status: o.status || 'completed',
+          items_count: (o.items || []).reduce((sum: number, i: any) => sum + (Number(i.quantity) || 1), 0),
+          payment_method: o.payments && o.payments.length > 0 ? o.payments[0].method : 'CASH'
         }))
 
         setAnalytics({
@@ -168,60 +219,33 @@ export const ReportsPage: React.FC = () => {
             total_discount: backendReport.totalDiscount || 0,
             total_tax: backendReport.totalTax || 0,
             avg_order_value: backendReport.orderCount > 0 ? (backendReport.totalSales / backendReport.orderCount) : 0,
-            net_revenue: backendReport.netIncome || 0,
+            net_revenue: backendReport.netIncome || backendReport.totalSales || 0,
             total_cost: backendReport.costOfGoodsSold || 0,
-            estimated_profit: backendReport.profitEstimate || 0,
-            profit_margin_pct: backendReport.totalSales > 0 ? Number(((backendReport.profitEstimate / backendReport.totalSales) * 100).toFixed(1)) : 0,
-            total_items_sold: mappedTopProducts.reduce((sum, p) => sum + p.total_qty, 0) || mockFallback.summary.total_items_sold,
-            revenue_growth_pct: mockFallback.summary.revenue_growth_pct,
-            orders_growth_pct: mockFallback.summary.orders_growth_pct,
-            prev_revenue: mockFallback.summary.prev_revenue,
-            prev_orders: mockFallback.summary.prev_orders
+            estimated_profit: backendReport.profitEstimate || (backendReport.totalSales - (backendReport.costOfGoodsSold || 0)),
+            profit_margin_pct: backendReport.totalSales > 0 ? Number((((backendReport.profitEstimate || 0) / backendReport.totalSales) * 100).toFixed(1)) : 0,
+            total_items_sold: mappedTopProducts.reduce((sum, p) => sum + p.total_qty, 0),
+            revenue_growth_pct: 0,
+            orders_growth_pct: 0,
+            prev_revenue: 0,
+            prev_orders: 0
           },
-          timeline: mappedTimeline.length > 0 ? mappedTimeline : mockFallback.timeline,
-          paymentBreakdown: backendReport.paymentBreakdown && backendReport.orderCount > 0 ? [
-            {
-              method: 'CASH',
-              total_amount: backendReport.paymentBreakdown.cashAmount,
-              count: backendReport.paymentBreakdown.cashCount,
-              percent: backendReport.paymentBreakdown.cashPercentage
-            },
-            {
-              method: 'CARD',
-              total_amount: backendReport.paymentBreakdown.cardAmount,
-              count: backendReport.paymentBreakdown.cardCount,
-              percent: backendReport.paymentBreakdown.cardPercentage
-            }
-          ].filter(p => p.count > 0 || p.total_amount > 0) : mockFallback.paymentBreakdown,
-          topProducts: mappedTopProducts.length > 0 ? mappedTopProducts : mockFallback.topProducts,
-          categoryBreakdown: backendReport.categoryBreakdown && backendReport.categoryBreakdown.length > 0 ? backendReport.categoryBreakdown.map((cb, idx) => ({
-            category_name: cb.categoryName,
-            color: ['#ec4899', '#a855f7', '#f59e0b', '#3b82f6', '#06b6d4', '#e11d48', '#d97706', '#10b981'][idx % 8],
-            total_qty: cb.quantitySold,
-            total_revenue: cb.revenue
-          })) : mockFallback.categoryBreakdown,
-          peakSlot: backendReport.peakSlot && backendReport.orderCount > 0 ? {
+          timeline: mappedTimeline.length > 0 ? mappedTimeline : generateEmptyTimeline(period, selectedDate, customStartDate, customEndDate),
+          paymentBreakdown: mappedPayments,
+          topProducts: mappedTopProducts,
+          categoryBreakdown: mappedCategories,
+          peakSlot: backendReport.peakSlot ? {
             label: backendReport.peakSlot.timeSlot,
             orders: backendReport.peakSlot.orderCount,
             revenue: backendReport.peakSlot.revenue
-          } : mockFallback.peakSlot,
-          recentOrders: backendReport.recentOrders && backendReport.recentOrders.length > 0 ? backendReport.recentOrders.map((o: any) => ({
-            id: o.id,
-            order_no: o.orderNo,
-            created_at: o.createdAt,
-            total_amount: o.totalAmount,
-            discount_amount: o.discountAmount || 0,
-            status: o.status || 'completed',
-            items_count: (o.items || []).reduce((sum: number, i: any) => sum + (Number(i.quantity) || 1), 0),
-            payment_method: o.payments && o.payments.length > 0 ? o.payments[0].method : 'CASH'
-          })) : mockFallback.recentOrders
+          } : null,
+          recentOrders: mappedRecentOrders
         })
       } else {
-        setAnalytics(mockFallback)
+        setAnalytics(generateEmptyAnalytics(period, selectedDate, customStartDate, customEndDate))
       }
     } catch (err) {
-      console.warn('Backend report error, falling back to local dataset:', err)
-      setAnalytics(generateMockAnalytics(period, selectedDate))
+      console.warn('Analytics load error:', err)
+      setAnalytics(generateEmptyAnalytics(period, selectedDate, customStartDate, customEndDate))
     } finally {
       setLoading(false)
     }
@@ -229,6 +253,23 @@ export const ReportsPage: React.FC = () => {
 
   useEffect(() => {
     loadAnalytics()
+
+    // Real-time listeners: reload when new orders are created in POS or window regains focus
+    const handleOrderEvent = () => {
+      loadAnalytics()
+    }
+    window.addEventListener('pos:order-completed', handleOrderEvent)
+    window.addEventListener('focus', handleOrderEvent)
+
+    const intervalId = setInterval(() => {
+      loadAnalytics()
+    }, 15000)
+
+    return () => {
+      window.removeEventListener('pos:order-completed', handleOrderEvent)
+      window.removeEventListener('focus', handleOrderEvent)
+      clearInterval(intervalId)
+    }
   }, [currentShop?.id, period, selectedDate, customStartDate, customEndDate])
 
   // Date Navigation Handlers
@@ -1618,137 +1659,108 @@ export const ReportsPage: React.FC = () => {
   )
 }
 
-// Fallback Mock Generator for Web Browser / Preview
-function generateMockAnalytics(period: PeriodType, dateStr: string): AnalyticsState {
+// Clean Real Empty Analytics State Generator (No Mock/Dummy Numbers)
+function generateEmptyTimeline(
+  period: PeriodType,
+  dateStr: string,
+  customStart?: string,
+  customEnd?: string
+): AnalyticsState['timeline'] {
   const d = dayjs(dateStr)
-
   const timeline: AnalyticsState['timeline'] = []
-  let totalRevenue = 0
-  let totalOrders = 0
-  let totalDiscount = 0
 
   if (period === 'daily') {
     for (let hr = 6; hr <= 22; hr++) {
       const hrStr = hr.toString().padStart(2, '0') + ':00'
-      const isPeak = hr >= 16 && hr <= 19
-      const isMorningPeak = hr >= 8 && hr <= 10
-      const orders = isPeak ? Math.floor(Math.random() * 8 + 6) : isMorningPeak ? Math.floor(Math.random() * 5 + 3) : Math.floor(Math.random() * 3)
-      const rev = orders * (Math.floor(Math.random() * 1200 + 1500))
-      const disc = orders > 2 ? Math.floor(Math.random() * 400) : 0
-
       timeline.push({
         label: hrStr,
         hour: hrStr,
-        revenue: rev,
-        orders,
-        discount: disc,
-        avgTicket: orders > 0 ? Math.round(rev / orders) : 0
+        revenue: 0,
+        orders: 0,
+        discount: 0,
+        avgTicket: 0
       })
-
-      totalRevenue += rev
-      totalOrders += orders
-      totalDiscount += disc
     }
   } else if (period === 'weekly') {
     for (let i = 6; i >= 0; i--) {
       const dayDate = d.subtract(i, 'day')
-      const isWeekend = dayDate.day() === 0 || dayDate.day() === 6
-      const orders = isWeekend ? Math.floor(Math.random() * 20 + 25) : Math.floor(Math.random() * 15 + 12)
-      const rev = orders * (Math.floor(Math.random() * 1400 + 1800))
-      const disc = Math.floor(Math.random() * 1200 + 300)
-
       timeline.push({
         label: dayDate.format('ddd (DD)'),
         date: dayDate.format('YYYY-MM-DD'),
-        revenue: rev,
-        orders,
-        discount: disc,
-        avgTicket: Math.round(rev / orders)
+        revenue: 0,
+        orders: 0,
+        discount: 0,
+        avgTicket: 0
       })
-
-      totalRevenue += rev
-      totalOrders += orders
-      totalDiscount += disc
     }
-  } else {
-    // Monthly / Custom
-    const daysCount = period === 'monthly' ? d.daysInMonth() : 30
+  } else if (period === 'monthly') {
+    const daysCount = d.daysInMonth()
     for (let i = 1; i <= daysCount; i++) {
-      const dayDate = period === 'monthly' ? d.date(i) : d.subtract(30 - i, 'day')
-      const isWeekend = dayDate.day() === 0 || dayDate.day() === 6
-      const orders = isWeekend ? Math.floor(Math.random() * 18 + 20) : Math.floor(Math.random() * 12 + 8)
-      const rev = orders * (Math.floor(Math.random() * 1300 + 1600))
-      const disc = Math.floor(Math.random() * 800)
-
+      const dayDate = d.date(i)
       timeline.push({
         label: dayDate.format('DD MMM'),
         date: dayDate.format('YYYY-MM-DD'),
-        revenue: rev,
-        orders,
-        discount: disc,
-        avgTicket: Math.round(rev / orders)
+        revenue: 0,
+        orders: 0,
+        discount: 0,
+        avgTicket: 0
       })
+    }
+  } else {
+    // Custom date range
+    let curr = customStart ? dayjs(customStart) : d.subtract(29, 'day')
+    const end = customEnd ? dayjs(customEnd) : d
 
-      totalRevenue += rev
-      totalOrders += orders
-      totalDiscount += disc
+    while (curr.isBefore(end) || curr.isSame(end, 'day')) {
+      timeline.push({
+        label: curr.format('MM-DD'),
+        date: curr.format('YYYY-MM-DD'),
+        revenue: 0,
+        orders: 0,
+        discount: 0,
+        avgTicket: 0
+      })
+      curr = curr.add(1, 'day')
     }
   }
 
-  const avgOrderVal = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0
-  const totalCost = Math.round(totalRevenue * 0.58)
-  const estimatedProfit = totalRevenue - totalCost
+  return timeline
+}
 
-  const cashAmount = Math.round(totalRevenue * 0.62)
-  const cardAmount = Math.round(totalRevenue * 0.28)
-  const transferAmount = totalRevenue - cashAmount - cardAmount
+function generateEmptyAnalytics(
+  period: PeriodType,
+  dateStr: string,
+  customStart?: string,
+  customEnd?: string
+): AnalyticsState {
+  const timeline = generateEmptyTimeline(period, dateStr, customStart, customEnd)
 
   return {
     period,
-    startDate: dateStr,
-    endDate: dateStr,
+    startDate: period === 'custom' && customStart ? customStart : dateStr,
+    endDate: period === 'custom' && customEnd ? customEnd : dateStr,
     summary: {
-      total_orders: totalOrders,
-      total_revenue: totalRevenue,
-      total_subtotal: totalRevenue + totalDiscount,
-      total_discount: totalDiscount,
+      total_orders: 0,
+      total_revenue: 0,
+      total_subtotal: 0,
+      total_discount: 0,
       total_tax: 0,
-      avg_order_value: avgOrderVal,
-      net_revenue: totalRevenue,
-      total_cost: totalCost,
-      estimated_profit: estimatedProfit,
-      profit_margin_pct: 42.0,
-      total_items_sold: Math.round(totalOrders * 2.4),
-      revenue_growth_pct: 14.8,
-      orders_growth_pct: 9.2,
-      prev_revenue: Math.round(totalRevenue * 0.87),
-      prev_orders: Math.round(totalOrders * 0.91)
+      avg_order_value: 0,
+      net_revenue: 0,
+      total_cost: 0,
+      estimated_profit: 0,
+      profit_margin_pct: 0,
+      total_items_sold: 0,
+      revenue_growth_pct: 0,
+      orders_growth_pct: 0,
+      prev_revenue: 0,
+      prev_orders: 0
     },
     timeline,
-    paymentBreakdown: [
-      { method: 'CASH', total_amount: cashAmount, count: Math.round(totalOrders * 0.65), percent: 62.0 },
-      { method: 'CARD', total_amount: cardAmount, count: Math.round(totalOrders * 0.25), percent: 28.0 },
-      { method: 'TRANSFER', total_amount: transferAmount, count: Math.round(totalOrders * 0.1), percent: 10.0 }
-    ],
-    topProducts: [
-      { product_name: 'Black Forest Cake 1kg', total_qty: 18, total_revenue: 68400 },
-      { product_name: 'Red Velvet Gateau 1kg', total_qty: 12, total_revenue: 50400 },
-      { product_name: 'Ribbon Butter Cake 500g', total_qty: 24, total_revenue: 39600 },
-      { product_name: 'Spicy Chicken Pastry', total_qty: 65, total_revenue: 14300 },
-      { product_name: 'Choco Fudge Cupcake', total_qty: 42, total_revenue: 11760 }
-    ],
-    categoryBreakdown: [
-      { category_name: 'Signature Cakes', color: '#ec4899', total_qty: 54, total_revenue: Math.round(totalRevenue * 0.65) },
-      { category_name: 'Pastries & Savories', color: '#f59e0b', total_qty: 110, total_revenue: Math.round(totalRevenue * 0.2) },
-      { category_name: 'Desserts & Cupcakes', color: '#8b5cf6', total_qty: 48, total_revenue: Math.round(totalRevenue * 0.1) },
-      { category_name: 'Beverages & Coffee', color: '#06b6d4', total_qty: 22, total_revenue: Math.round(totalRevenue * 0.05) }
-    ],
-    peakSlot: timeline.length > 0 ? [...timeline].sort((a, b) => b.revenue - a.revenue)[0] : null,
-    recentOrders: [
-      { id: '1', order_no: 'B1-T1-20260820-0012', created_at: dayjs().subtract(15, 'minute').toISOString(), total_amount: 4200, discount_amount: 0, status: 'completed', items_count: 1, payment_method: 'CARD' },
-      { id: '2', order_no: 'B1-T1-20260820-0011', created_at: dayjs().subtract(45, 'minute').toISOString(), total_amount: 1870, discount_amount: 100, status: 'completed', items_count: 3, payment_method: 'CASH' },
-      { id: '3', order_no: 'B1-T1-20260820-0010', created_at: dayjs().subtract(75, 'minute').toISOString(), total_amount: 7600, discount_amount: 400, status: 'completed', items_count: 2, payment_method: 'TRANSFER' },
-      { id: '4', order_no: 'B1-T1-20260820-0009', created_at: dayjs().subtract(110, 'minute').toISOString(), total_amount: 1650, discount_amount: 0, status: 'completed', items_count: 1, payment_method: 'CASH' }
-    ]
+    paymentBreakdown: [],
+    topProducts: [],
+    categoryBreakdown: [],
+    peakSlot: null,
+    recentOrders: []
   }
 }

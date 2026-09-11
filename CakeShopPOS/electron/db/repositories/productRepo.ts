@@ -94,6 +94,17 @@ export const productRepo = {
         product.is_active !== undefined ? (product.is_active ? 1 : 0) : 1
       ]
     )
+
+    // Enqueue in sync_queue for automatic cloud sync
+    db.run(
+      `
+      INSERT INTO sync_queue (table_name, operation, record_id, payload, status, created_at)
+      VALUES ('products', 'UPSERT', ?, ?, 'pending', datetime('now'))
+    `,
+      [product.id, JSON.stringify(product)]
+    )
+
+    db.save()
   }
 }
 

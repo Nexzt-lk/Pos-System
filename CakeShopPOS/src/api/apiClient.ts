@@ -41,6 +41,12 @@ axiosInstance.interceptors.response.use(
   }
 )
 
+const triggerAutoSync = () => {
+  if (typeof window !== 'undefined' && (window as any).electronAPI?.triggerSync) {
+    (window as any).electronAPI.triggerSync().catch(() => {})
+  }
+}
+
 // Typed API client wrapper extracting response.data
 export const apiClient = {
   get: async <T>(url: string, config?: AxiosRequestConfig): Promise<T> => {
@@ -49,18 +55,22 @@ export const apiClient = {
   },
   post: async <T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> => {
     const response = await axiosInstance.post<T>(url, data, config)
+    triggerAutoSync()
     return response.data
   },
   put: async <T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> => {
     const response = await axiosInstance.put<T>(url, data, config)
+    triggerAutoSync()
     return response.data
   },
   delete: async <T>(url: string, config?: AxiosRequestConfig): Promise<T> => {
     const response = await axiosInstance.delete<T>(url, config)
+    triggerAutoSync()
     return response.data
   },
   patch: async <T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> => {
     const response = await axiosInstance.patch<T>(url, data, config)
+    triggerAutoSync()
     return response.data
   },
   instance: axiosInstance
