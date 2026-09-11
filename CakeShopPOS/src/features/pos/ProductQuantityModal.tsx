@@ -26,25 +26,21 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
   const [hasModalImgError, setHasModalImgError] = useState(false)
   const modalImgSrc = getProductImageSrc(product.image_path, product.name)
 
-  // Mode for weight items: 'g' (grams) or 'kg' (kilograms). Default to 'g' for cake shop weight entry
   const [weightInputMode, setWeightInputMode] = useState<'kg' | 'g'>('g')
-  const [inputValue, setInputValue] = useState<string>('500')
+  const [inputValue, setInputValue] = useState<string>('1')
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Auto-focus and initialize input on open
   useEffect(() => {
     if (isOpen && product) {
       setHasModalImgError(false)
       const isWeight = product.unit?.toLowerCase() === 'kg' || product.unit?.toLowerCase() === 'g'
       
       if (isWeight) {
-        // Default to grams (g) mode for cake shops unless qty > 5kg
         if (currentCartQuantity > 0) {
           if (product.unit?.toLowerCase() === 'g') {
             setWeightInputMode('g')
             setInputValue(String(Math.round(currentCartQuantity)))
           } else {
-            // product.unit is kg
             if (currentCartQuantity < 3) {
               setWeightInputMode('g')
               setInputValue(String(Math.round(currentCartQuantity * 1000)))
@@ -54,7 +50,6 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
             }
           }
         } else {
-          // Default new cake weight: 500g
           setWeightInputMode('g')
           setInputValue('500')
         }
@@ -70,29 +65,24 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
     }
   }, [isOpen, product?.id, currentCartQuantity, product?.unit])
 
-  // Normalized quantity in product's base unit (e.g. kg for kg-priced products, g for g-priced products, integer for pcs)
   const normalizedQty = useMemo(() => {
     const raw = parseFloat(inputValue) || 0
     if (raw <= 0) return 0
     if (isWeightBased) {
       if (isBaseUnitGram) {
-        // Base unit is grams
         return weightInputMode === 'kg' ? Math.round(raw * 1000) : Math.round(raw)
       } else {
-        // Base unit is kilograms (kg)
         return weightInputMode === 'g' ? Math.round((raw / 1000) * 1000) / 1000 : Math.round(raw * 1000) / 1000
       }
     }
     return Math.max(1, Math.round(raw))
   }, [inputValue, weightInputMode, isWeightBased, isBaseUnitGram])
 
-  // Calculated subtotal for this line item
   const displaySubtotal = useMemo(() => {
     if (!product || normalizedQty <= 0) return 0
     return Math.round(product.price * normalizedQty * 100) / 100
   }, [product, normalizedQty])
 
-  // Human-readable weight breakdown string for live display
   const weightBreakdownText = useMemo(() => {
     if (!isWeightBased) {
       return `${normalizedQty} ${product.unit || 'pcs'} × ${formatCurrency(product.price)}`
@@ -111,11 +101,9 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
     }
   }, [isWeightBased, isBaseUnitGram, weightInputMode, inputValue, normalizedQty, product])
 
-  // Check inventory limit
   const isStockTracked = product.track_inventory && (product.current_stock ?? 0) > 0
   const isExceedingStock = isStockTracked && normalizedQty > (product.current_stock ?? 0)
 
-  // Handlers for adjustments
   const handleStep = (delta: number) => {
     const current = parseFloat(inputValue) || 0
     let next: number
@@ -159,7 +147,6 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
     }
   }
 
-  // Keyboard Shortcuts (Enter to confirm, Esc to close, Arrow keys / +/- to step, G/K to toggle unit)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -186,21 +173,21 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [inputValue, weightInputMode, product, normalizedQty, isWeightBased])
 
-  // Weight Presets in Grams & Kg
+  // Clean, uncluttered Presets with single-line labels
   const gramPresets = [
     { label: '100g', val: 100, mode: 'g' as const },
-    { label: '200g', val: 200, mode: 'g' as const },
     { label: '250g', val: 250, mode: 'g' as const },
-    { label: '350g', val: 350, mode: 'g' as const },
-    { label: '500g (½ kg)', val: 500, mode: 'g' as const },
-    { label: '750g (¾ kg)', val: 750, mode: 'g' as const },
-    { label: '1000g (1 kg)', val: 1000, mode: 'g' as const },
-    { label: '1500g (1.5 kg)', val: 1500, mode: 'g' as const }
+    { label: '500g', val: 500, mode: 'g' as const },
+    { label: '750g', val: 750, mode: 'g' as const },
+    { label: '1 kg', val: 1000, mode: 'g' as const },
+    { label: '1.5 kg', val: 1500, mode: 'g' as const },
+    { label: '2 kg', val: 2000, mode: 'g' as const },
+    { label: '3 kg', val: 3000, mode: 'g' as const }
   ]
 
   const kgPresets = [
     { label: '0.25 kg', val: 0.25, mode: 'kg' as const },
-    { label: '0.50 kg', val: 0.5, mode: 'kg' as const },
+    { label: '0.5 kg', val: 0.5, mode: 'kg' as const },
     { label: '0.75 kg', val: 0.75, mode: 'kg' as const },
     { label: '1.0 kg', val: 1, mode: 'kg' as const },
     { label: '1.5 kg', val: 1.5, mode: 'kg' as const },
@@ -212,40 +199,59 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
   const countPresets = [1, 2, 3, 4, 5, 6, 8, 10, 12, 15]
 
   return (
-    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
+    <div
+      className="modal-overlay"
+      onClick={onClose}
+      style={{
+        zIndex: 1100,
+        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20
+      }}
+    >
       <div
         className="modal-box"
         style={{
-          maxWidth: 440,
-          borderRadius: 20,
-          boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
-          border: '1px solid rgba(226, 232, 240, 0.9)',
-          overflow: 'hidden'
+          width: '100%',
+          maxWidth: 520,
+          borderRadius: 22,
+          background: '#ffffff',
+          boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(226, 232, 240, 0.9)',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column'
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div
-          className="modal-header"
           style={{
-            padding: '14px 18px',
-            background: 'linear-gradient(135deg, #fdf2f8 0%, #ffffff 100%)',
-            borderBottom: '1.5px solid #fce7f3'
+            padding: '18px 24px',
+            background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
+            borderBottom: '1.5px solid #e2e8f0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 16
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div
               style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
+                width: 54,
+                height: 54,
+                borderRadius: 14,
                 overflow: 'hidden',
-                background: 'linear-gradient(135deg, #fdf2f8 0%, #f1f5f9 100%)',
+                background: '#f1f5f9',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#db2777',
-                border: '1.5px solid #fce7f3',
+                color: '#16a34a',
+                border: '1.5px solid #e2e8f0',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                 flexShrink: 0
               }}
             >
@@ -264,24 +270,26 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
                   }}
                 />
               ) : isWeightBased ? (
-                <Scale size={22} color="#db2777" />
+                <Scale size={26} color="#16a34a" />
               ) : (
-                <Cake size={22} color="#db2777" style={{ opacity: 0.8 }} />
+                <Cake size={26} color="#16a34a" />
               )}
             </div>
+
             <div>
-              <div style={{ fontSize: 15, fontWeight: 900, color: '#0f172a', lineHeight: 1.2 }}>
+              <div style={{ fontSize: 18, fontWeight: 900, color: '#0f172a', lineHeight: 1.25, letterSpacing: '-0.3px' }}>
                 {product.name}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 5, flexWrap: 'wrap' }}>
                 <span
                   style={{
-                    fontSize: 11,
+                    fontSize: 13,
                     fontWeight: 800,
-                    color: '#be185d',
-                    background: '#fce7f3',
-                    padding: '2px 8px',
-                    borderRadius: 6
+                    color: '#059669',
+                    background: '#dcfce7',
+                    border: '1px solid #bbf7d0',
+                    padding: '3px 10px',
+                    borderRadius: 8
                   }}
                 >
                   {formatCurrency(product.price)} / {product.unit || 'pcs'}
@@ -289,9 +297,13 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
                 {isStockTracked && (
                   <span
                     style={{
-                      fontSize: 10.5,
+                      fontSize: 12,
                       fontWeight: 700,
-                      color: isExceedingStock ? '#ef4444' : '#64748b'
+                      color: isExceedingStock ? '#dc2626' : '#475569',
+                      background: isExceedingStock ? '#fef2f2' : '#f1f5f9',
+                      border: isExceedingStock ? '1px solid #fecaca' : '1px solid #e2e8f0',
+                      padding: '3px 10px',
+                      borderRadius: 8
                     }}
                   >
                     Stock: {product.current_stock} {product.unit}
@@ -300,45 +312,64 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
               </div>
             </div>
           </div>
-          <button className="modal-close" onClick={onClose}>
-            <X size={16} />
+
+          <button
+            onClick={onClose}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              border: '1.5px solid #e2e8f0',
+              background: '#ffffff',
+              color: '#64748b',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.15s ease'
+            }}
+            title="Close (Esc)"
+          >
+            <X size={18} />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="modal-body" style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {/* Main Quantity Stepper & Direct Input */}
+        <div style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {/* Main Quantity Stepper & Control Card */}
           <div
             style={{
-              background: '#f8fafc',
-              border: '2px solid #e2e8f0',
-              borderRadius: 16,
-              padding: '12px 14px',
+              background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
+              border: '2px solid #cbd5e1',
+              borderRadius: 18,
+              padding: '16px 20px',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 10
+              flexDirection: 'column',
+              gap: 12,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
             }}
           >
-            {/* Left: Unit Switcher (Grams 'g' / Kilograms 'kg') */}
-            <div>
-              <div style={{ fontSize: 10.5, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                {isWeightBased ? 'Unit (ඒකකය)' : 'Quantity (ගණන)'}
-              </div>
+            {/* Top Row: Unit Selector or Label */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {isWeightBased ? 'Unit (ඒකකය)' : 'Quantity (ප්‍රමාණය)'}
+              </span>
+
               {isWeightBased ? (
-                <div style={{ display: 'flex', background: '#e2e8f0', padding: 2, borderRadius: 8, marginTop: 4 }}>
+                <div style={{ display: 'flex', background: '#e2e8f0', padding: 3, borderRadius: 10 }}>
                   <button
                     type="button"
                     onClick={() => handleToggleWeightMode('g')}
                     style={{
-                      padding: '4px 10px',
-                      borderRadius: 6,
-                      fontSize: 11,
+                      padding: '6px 16px',
+                      borderRadius: 8,
+                      fontSize: 13,
                       fontWeight: 800,
                       border: 'none',
                       cursor: 'pointer',
-                      background: weightInputMode === 'g' ? '#db2777' : 'transparent',
-                      color: weightInputMode === 'g' ? '#fff' : '#475569',
+                      background: weightInputMode === 'g' ? '#16a34a' : 'transparent',
+                      color: weightInputMode === 'g' ? '#ffffff' : '#475569',
+                      boxShadow: weightInputMode === 'g' ? '0 2px 6px rgba(22, 163, 74, 0.25)' : 'none',
                       transition: 'all 0.15s ease'
                     }}
                     title="Enter weight in Grams (Press G)"
@@ -349,40 +380,69 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
                     type="button"
                     onClick={() => handleToggleWeightMode('kg')}
                     style={{
-                      padding: '4px 10px',
-                      borderRadius: 6,
-                      fontSize: 11,
+                      padding: '6px 16px',
+                      borderRadius: 8,
+                      fontSize: 13,
                       fontWeight: 800,
                       border: 'none',
                       cursor: 'pointer',
-                      background: weightInputMode === 'kg' ? '#db2777' : 'transparent',
-                      color: weightInputMode === 'kg' ? '#fff' : '#475569',
+                      background: weightInputMode === 'kg' ? '#16a34a' : 'transparent',
+                      color: weightInputMode === 'kg' ? '#ffffff' : '#475569',
+                      boxShadow: weightInputMode === 'kg' ? '0 2px 6px rgba(22, 163, 74, 0.25)' : 'none',
                       transition: 'all 0.15s ease'
                     }}
                     title="Enter weight in Kilograms (Press K)"
                   >
-                    Kg
+                    Kilograms (kg)
                   </button>
                 </div>
               ) : (
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', marginTop: 2 }}>
+                <span style={{ fontSize: 13, fontWeight: 800, color: '#334155', background: '#e2e8f0', padding: '3px 10px', borderRadius: 6 }}>
                   {product.unit || 'pcs'}
-                </div>
+                </span>
               )}
             </div>
 
-            {/* Middle & Right: Stepper Controls + Editable Value */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Bottom Row: Spacious Stepper Buttons + High-Contrast Input Display */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 4 }}>
+              {/* Big Minus Button */}
               <button
                 type="button"
                 onClick={() => handleStep(isWeightBased ? (weightInputMode === 'g' ? -50 : -0.25) : -1)}
-                style={stepperBtnStyle}
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: 14,
+                  border: '2px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#1e293b',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+                  transition: 'all 0.12s ease'
+                }}
                 title="Decrease (-)"
               >
-                <Minus size={16} />
+                <Minus size={22} strokeWidth={3} />
               </button>
 
-              <div style={{ display: 'flex', alignItems: 'baseline', minWidth: 90, justifyContent: 'center' }}>
+              {/* Large High-Contrast Numerical Box */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: '#ffffff',
+                  border: isExceedingStock ? '2px solid #ef4444' : '2px solid #16a34a',
+                  borderRadius: 14,
+                  padding: '4px 16px',
+                  minWidth: 160,
+                  height: 50,
+                  boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.03)'
+                }}
+              >
                 <input
                   ref={inputRef}
                   type="text"
@@ -394,30 +454,45 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
                     }
                   }}
                   style={{
-                    fontSize: 26,
+                    fontSize: 28,
                     fontWeight: 900,
-                    color: isExceedingStock ? '#ef4444' : '#0f172a',
-                    width: isWeightBased && weightInputMode === 'g' ? '95px' : '85px',
+                    color: isExceedingStock ? '#dc2626' : '#0f172a',
+                    width: '100%',
                     textAlign: 'center',
                     border: 'none',
                     outline: 'none',
                     background: 'transparent',
-                    fontFamily: 'monospace'
+                    fontFamily: 'inherit',
+                    letterSpacing: '-0.5px'
                   }}
                   autoFocus
                 />
-                <span style={{ fontSize: 13, fontWeight: 800, color: '#94a3b8' }}>
+                <span style={{ fontSize: 14, fontWeight: 800, color: '#64748b', marginLeft: 4, userSelect: 'none' }}>
                   {isWeightBased ? weightInputMode : product.unit || 'pcs'}
                 </span>
               </div>
 
+              {/* Big Plus Button */}
               <button
                 type="button"
                 onClick={() => handleStep(isWeightBased ? (weightInputMode === 'g' ? 50 : 0.25) : 1)}
-                style={stepperBtnStyle}
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: 14,
+                  border: '2px solid #16a34a',
+                  background: '#16a34a',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(22, 163, 74, 0.25)',
+                  transition: 'all 0.12s ease'
+                }}
                 title="Increase (+)"
               >
-                <Plus size={16} />
+                <Plus size={22} strokeWidth={3} />
               </button>
             </div>
           </div>
@@ -428,31 +503,41 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 6,
-                padding: '8px 12px',
-                borderRadius: 8,
+                gap: 8,
+                padding: '10px 16px',
+                borderRadius: 12,
                 background: '#fef2f2',
-                border: '1px solid #fecaca',
+                border: '1.5px solid #fecaca',
                 color: '#b91c1c',
-                fontSize: 11,
-                fontWeight: 700
+                fontSize: 12.5,
+                fontWeight: 800
               }}
             >
-              <AlertTriangle size={14} style={{ flexShrink: 0 }} />
+              <AlertTriangle size={17} style={{ flexShrink: 0 }} />
               <span>
-                Quantity exceeds stock ({product.current_stock} {product.unit})
+                Quantity exceeds available stock ({product.current_stock} {product.unit})
               </span>
             </div>
           )}
 
-          {/* Quick Presets (Grams or Count) */}
+          {/* Quick Presets */}
           <div>
-            <div style={{ fontSize: 10, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 6 }}>
-              Quick Presets ({isWeightBased ? (weightInputMode === 'g' ? 'Grams' : 'Kilograms') : 'Quantity'})
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 10
+            }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Quick Presets ({isWeightBased ? (weightInputMode === 'g' ? 'Grams' : 'Kilograms') : 'Quantity'})
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8' }}>
+                Click to pick instantly
+              </span>
             </div>
 
             {isWeightBased ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
                 {(weightInputMode === 'g' ? gramPresets : kgPresets).map((p) => {
                   const isMatch =
                     (p.mode === 'g' && weightInputMode === 'g' && parseFloat(inputValue) === p.val) ||
@@ -463,15 +548,18 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
                       type="button"
                       onClick={() => handleSetPreset(p.val, p.mode)}
                       style={{
-                        padding: '8px 4px',
-                        borderRadius: 8,
-                        border: isMatch ? '2px solid #db2777' : '1px solid #e2e8f0',
-                        background: isMatch ? '#fdf2f8' : '#ffffff',
-                        color: isMatch ? '#db2777' : '#1e293b',
-                        fontSize: 11.5,
+                        padding: '12px 8px',
+                        minHeight: 46,
+                        borderRadius: 12,
+                        border: isMatch ? '2px solid #16a34a' : '1.5px solid #cbd5e1',
+                        background: isMatch ? '#16a34a' : '#ffffff',
+                        color: isMatch ? '#ffffff' : '#1e293b',
+                        fontSize: 14,
                         fontWeight: 800,
                         cursor: 'pointer',
-                        transition: 'all 0.1s ease'
+                        boxShadow: isMatch ? '0 4px 12px rgba(22, 163, 74, 0.25)' : '0 1px 3px rgba(0,0,0,0.03)',
+                        transition: 'all 0.12s ease',
+                        whiteSpace: 'nowrap'
                       }}
                     >
                       {p.label}
@@ -480,7 +568,7 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
                 })}
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
                 {countPresets.map((val) => {
                   const isMatch = parseInt(inputValue, 10) === val
                   return (
@@ -492,15 +580,17 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
                         inputRef.current?.focus()
                       }}
                       style={{
-                        padding: '7px 4px',
-                        borderRadius: 8,
-                        border: isMatch ? '2px solid #db2777' : '1px solid #e2e8f0',
-                        background: isMatch ? '#fdf2f8' : '#ffffff',
-                        color: isMatch ? '#db2777' : '#1e293b',
-                        fontSize: 12.5,
-                        fontWeight: 800,
+                        padding: '12px 8px',
+                        minHeight: 46,
+                        borderRadius: 12,
+                        border: isMatch ? '2px solid #16a34a' : '1.5px solid #cbd5e1',
+                        background: isMatch ? '#16a34a' : '#ffffff',
+                        color: isMatch ? '#ffffff' : '#1e293b',
+                        fontSize: 15,
+                        fontWeight: 900,
                         cursor: 'pointer',
-                        transition: 'all 0.1s ease'
+                        boxShadow: isMatch ? '0 4px 12px rgba(22, 163, 74, 0.25)' : '0 1px 3px rgba(0,0,0,0.03)',
+                        transition: 'all 0.12s ease'
                       }}
                     >
                       {val}
@@ -511,14 +601,11 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
             )}
           </div>
 
-          {/* Quick Increment Chips (+50g / +100g / +250g / +500g / +1000g) */}
-          <div style={{ display: 'flex', gap: 6 }}>
+          {/* Quick Increment Chips */}
+          <div style={{ display: 'flex', gap: 10 }}>
             {isWeightBased ? (
               weightInputMode === 'g' ? (
                 <>
-                  <button type="button" onClick={() => handleStep(50)} style={chipBtnStyle}>
-                    +50g
-                  </button>
                   <button type="button" onClick={() => handleStep(100)} style={chipBtnStyle}>
                     +100g
                   </button>
@@ -529,7 +616,7 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
                     +500g
                   </button>
                   <button type="button" onClick={() => handleStep(1000)} style={chipBtnStyle}>
-                    +1000g
+                    +1000g (1kg)
                   </button>
                 </>
               ) : (
@@ -553,6 +640,9 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
                 <button type="button" onClick={() => handleStep(1)} style={chipBtnStyle}>
                   +1 pcs
                 </button>
+                <button type="button" onClick={() => handleStep(2)} style={chipBtnStyle}>
+                  +2 pcs
+                </button>
                 <button type="button" onClick={() => handleStep(5)} style={chipBtnStyle}>
                   +5 pcs
                 </button>
@@ -563,28 +653,29 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
             )}
           </div>
 
-          {/* 🌟 Live Price & Weight Calculation Banner */}
+          {/* 🌟 Live Total Item Price Banner */}
           <div
             style={{
-              background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-              borderRadius: 12,
-              padding: '11px 14px',
+              background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+              borderRadius: 16,
+              padding: '16px 20px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               color: '#ffffff',
-              boxShadow: '0 4px 12px rgba(15, 23, 42, 0.12)'
+              boxShadow: '0 8px 24px rgba(15, 23, 42, 0.25)',
+              border: '1px solid rgba(255,255,255,0.1)'
             }}
           >
             <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Total Item Price (මුළු ගාණ)
               </div>
-              <div style={{ fontSize: 11.5, fontWeight: 600, color: '#cbd5e1', marginTop: 2 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginTop: 4 }}>
                 {weightBreakdownText}
               </div>
             </div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: '#4ade80' }}>
+            <div style={{ fontSize: 26, fontWeight: 900, color: '#4ade80', letterSpacing: '-0.5px' }}>
               {formatCurrency(displaySubtotal)}
             </div>
           </div>
@@ -592,12 +683,11 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
 
         {/* Modal Footer Actions */}
         <div
-          className="modal-footer"
           style={{
-            padding: '12px 18px',
+            padding: '16px 24px',
             borderTop: '1.5px solid #f1f5f9',
             display: 'flex',
-            gap: 10,
+            gap: 14,
             background: '#ffffff'
           }}
         >
@@ -606,14 +696,15 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
             onClick={onClose}
             style={{
               flex: 1,
-              padding: '10px',
-              borderRadius: 10,
-              border: '1.5px solid #e2e8f0',
+              padding: '14px',
+              borderRadius: 14,
+              border: '2px solid #cbd5e1',
               background: '#ffffff',
-              fontSize: 12.5,
-              fontWeight: 700,
-              color: '#64748b',
-              cursor: 'pointer'
+              fontSize: 14,
+              fontWeight: 800,
+              color: '#475569',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
             }}
           >
             Cancel (Esc)
@@ -623,23 +714,27 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
             type="button"
             onClick={handleConfirm}
             disabled={normalizedQty <= 0}
-            className="pay-btn"
             style={{
               flex: 2,
-              padding: '10px 14px',
-              borderRadius: 10,
-              fontSize: 13,
-              fontWeight: 800,
+              padding: '14px 20px',
+              borderRadius: 14,
+              border: 'none',
+              background: normalizedQty <= 0 ? '#94a3b8' : 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+              color: '#ffffff',
+              fontSize: 15,
+              fontWeight: 900,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 6,
-              cursor: normalizedQty <= 0 ? 'not-allowed' : 'pointer'
+              gap: 8,
+              cursor: normalizedQty <= 0 ? 'not-allowed' : 'pointer',
+              boxShadow: normalizedQty <= 0 ? 'none' : '0 6px 18px rgba(22, 163, 74, 0.35)',
+              transition: 'all 0.15s ease'
             }}
           >
-            <Check size={16} />
+            <Check size={20} strokeWidth={3} />
             <span>
-              {currentCartQuantity > 0 ? 'Update Item' : 'Add to Cart (Enter)'}
+              {currentCartQuantity > 0 ? 'Update Item (Enter)' : 'Add to Cart (Enter)'}
             </span>
           </button>
         </div>
@@ -648,29 +743,19 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
   )
 }
 
-const stepperBtnStyle: React.CSSProperties = {
-  width: 38,
-  height: 38,
-  borderRadius: 10,
-  border: '1.5px solid #e2e8f0',
-  background: '#ffffff',
-  color: '#0f172a',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-}
-
 const chipBtnStyle: React.CSSProperties = {
   flex: 1,
-  padding: '6px 4px',
-  borderRadius: 8,
-  border: '1px solid #e2e8f0',
+  padding: '10px 8px',
+  borderRadius: 12,
+  border: '1.5px solid #cbd5e1',
   background: '#f8fafc',
-  color: '#475569',
-  fontSize: 11.5,
-  fontWeight: 700,
+  color: '#334155',
+  fontSize: 13,
+  fontWeight: 800,
   cursor: 'pointer',
-  textAlign: 'center'
+  textAlign: 'center',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+  transition: 'all 0.12s ease'
 }
+
+
