@@ -39,7 +39,7 @@ export const App: React.FC = () => {
     owner: ['pos', 'products', 'inventory', 'reports', 'expenses', 'settings'],
     admin: ['pos', 'products', 'inventory', 'reports', 'expenses', 'settings'],
     manager: ['pos', 'products', 'inventory', 'reports', 'expenses'],
-    cashier: ['pos', 'inventory']
+    cashier: ['pos', 'products', 'inventory']
   }
 
   const allowedTabs = rolePermissions[userRole] || ['pos']
