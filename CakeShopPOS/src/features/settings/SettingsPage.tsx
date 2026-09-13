@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Settings, Printer, Store, Monitor, Wifi, RefreshCw, Database, ShieldCheck } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Settings, Printer, Store, Monitor, Wifi, RefreshCw, Database, ShieldCheck, CheckCircle2 } from 'lucide-react'
 import { message } from 'antd'
 import { useAppStore } from '../../store/appStore'
 import { backupApi } from '../../api/backupApi'
@@ -57,6 +57,36 @@ export const SettingsPage: React.FC = () => {
   const [isTestingPrint, setIsTestingPrint] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
   const [isBackingUp, setIsBackingUp] = useState(false)
+  const [systemPrinters, setSystemPrinters] = useState<any[]>([])
+  const [selectedPrinter, setSelectedPrinter] = useState<string>(localStorage.getItem('selected_printer') || '')
+
+  useEffect(() => {
+    const loadPrinters = async () => {
+      if (window.electronAPI?.getPrinters) {
+        try {
+          const list = await window.electronAPI.getPrinters()
+          if (Array.isArray(list) && list.length > 0) {
+            setSystemPrinters(list)
+            const saved = localStorage.getItem('selected_printer')
+            if (saved && list.some((p: any) => p.name === saved)) {
+              setSelectedPrinter(saved)
+            } else {
+              const thermal = list.find((p: any) => /xp|pos|thermal|receipt|bixolon|epson/i.test(p.name))
+              const def = list.find((p: any) => p.isDefault)
+              const chosen = thermal?.name || def?.name || list[0]?.name || ''
+              if (chosen) {
+                setSelectedPrinter(chosen)
+                localStorage.setItem('selected_printer', chosen)
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Failed to load printers:', err)
+        }
+      }
+    }
+    loadPrinters()
+  }, [])
 
   const handleBackupNow = async () => {
     setIsBackingUp(true)
@@ -79,8 +109,12 @@ export const SettingsPage: React.FC = () => {
     setIsTestingPrint(true)
     try {
       if (window.electronAPI) {
-        await window.electronAPI.testPrint()
-        message.success('Test receipt sent to thermal printer!')
+        const res = await window.electronAPI.testPrint(selectedPrinter || undefined)
+        if (res && res.success) {
+          message.success(`Test receipt sent to: ${res.printerUsed || selectedPrinter || 'Printer'}! ✅`)
+        } else {
+          message.warning(`Print notice: ${res?.message || 'Check printer connection'}`)
+        }
       } else {
         await new Promise(r => setTimeout(r, 1200))
         message.info('Thermal test print simulated (Browser mode)')
@@ -193,30 +227,82 @@ export const SettingsPage: React.FC = () => {
         </SettingCard>
 
         {/* Thermal Printer */}
-        <SettingCard icon={<Printer size={18} />} title="Thermal Bill Printer (ESC/POS)" subtitle="Direct high-speed USB receipt printing">
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 14 }}>
-            Direct USB thermal printing with auto-cutter and cash drawer kick commands. Supports standard 80mm ESC/POS printers.
+        <SettingCard icon={<Printer size={18} />} title="Thermal Bill Printer (ESC/POS)" subtitle="Direct high-speed receipt printing">
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 12 }}>
+            Connected USB thermal receipt printers (80mm / 58mm). Standard ESC/POS and Windows spool supported.
           </p>
-          <div style={{
-            background: 'var(--surface-2)', borderRadius: 'var(--radius)',
-            border: '1px solid var(--border)', padding: '10px 14px',
-            display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12
-          }}>
-            <Printer size={18} color="var(--primary)" />
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Status</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary-dark)' }}>Ready (USB Auto-detect)</div>
-            </div>
-            <span className="badge badge-green" style={{ marginLeft: 'auto' }}>Connected</span>
+
+          {/* Printer Selection Dropdown */}
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 5 }}>
+              Detected Windows Receipt Printer
+            </label>
+            {systemPrinters.length > 0 ? (
+              <select
+                value={selectedPrinter}
+                onChange={(e) => {
+                  setSelectedPrinter(e.target.value)
+                  localStorage.setItem('selected_printer', e.target.value)
+                }}
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  borderRadius: 'var(--radius)',
+                  border: '1px solid var(--border)',
+                  background: 'var(--surface-2)',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer'
+                }}
+              >
+                {systemPrinters.map((p: any) => (
+                  <option key={p.name} value={p.name}>
+                    {p.name} {p.isDefault ? '⭐ (Default)' : ''}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div style={{
+                padding: '9px 12px', background: 'var(--surface-2)', borderRadius: 'var(--radius)',
+                border: '1px solid var(--border)', fontSize: 12, color: 'var(--text-muted)'
+              }}>
+                Searching for connected printers...
+              </div>
+            )}
           </div>
+
+          <div style={{
+            background: selectedPrinter ? '#ecfdf5' : 'var(--surface-2)',
+            borderRadius: 'var(--radius)',
+            border: `1px solid ${selectedPrinter ? '#a7f3d0' : 'var(--border)'}`,
+            padding: '10px 14px',
+            display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14
+          }}>
+            <Printer size={18} color={selectedPrinter ? '#059669' : 'var(--text-muted)'} />
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: selectedPrinter ? '#065f46' : 'var(--text-muted)', textTransform: 'uppercase' }}>
+                Hardware Status
+              </div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: selectedPrinter ? '#047857' : 'var(--text-secondary)' }}>
+                {selectedPrinter ? `Ready: ${selectedPrinter}` : 'No printer selected'}
+              </div>
+            </div>
+            {selectedPrinter && (
+              <span className="badge badge-green" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <CheckCircle2 size={12} /> Detected
+              </span>
+            )}
+          </div>
+
           <button
-            disabled={isTestingPrint}
+            disabled={isTestingPrint || !selectedPrinter}
             onClick={handleTestPrint}
             className="btn-primary"
             style={{ width: '100%', justifyContent: 'center', padding: '12px' }}
           >
             <Printer size={16} />
-            {isTestingPrint ? 'Sending Command...' : 'Execute Test Print'}
+            {isTestingPrint ? 'Sending Command to Printer...' : `Print Test Receipt (${selectedPrinter || 'Select Printer'})`}
           </button>
         </SettingCard>
 

@@ -11,8 +11,9 @@ export interface ElectronAPI {
   upsertCategory: (category: any) => Promise<void>
   
   // Hardware & Printing
-  printReceipt: (receiptData: any) => Promise<{ success: boolean; message?: string }>
-  testPrint: () => Promise<{ success: boolean; message?: string }>
+  getPrinters: () => Promise<any[]>
+  printReceipt: (receiptData: any, printerName?: string) => Promise<{ success: boolean; message?: string; printerUsed?: string }>
+  testPrint: (printerName?: string) => Promise<{ success: boolean; message?: string; printerUsed?: string }>
   
   // Image Storage (AppData)
   saveProductImage: (sourceFilePath: string) => Promise<{ success: boolean; relativePath?: string; error?: string }>
@@ -34,8 +35,9 @@ const electronAPI: ElectronAPI = {
   upsertProduct: (product) => ipcRenderer.invoke('db:upsert-product', product),
   getCategories: (shopId) => ipcRenderer.invoke('db:get-categories', shopId),
   upsertCategory: (category) => ipcRenderer.invoke('db:upsert-category', category),
-  printReceipt: (receiptData) => ipcRenderer.invoke('printer:print-receipt', receiptData),
-  testPrint: () => ipcRenderer.invoke('printer:test-print'),
+  getPrinters: () => ipcRenderer.invoke('printer:get-printers'),
+  printReceipt: (receiptData, printerName) => ipcRenderer.invoke('printer:print-receipt', { data: receiptData, printerName }),
+  testPrint: (printerName) => ipcRenderer.invoke('printer:test-print', printerName),
   saveProductImage: (sourceFilePath) => ipcRenderer.invoke('image:save', sourceFilePath),
   selectImageDialog: () => ipcRenderer.invoke('image:select-dialog'),
   getPendingSyncCount: () => ipcRenderer.invoke('sync:pending-count'),

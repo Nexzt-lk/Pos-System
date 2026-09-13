@@ -210,8 +210,9 @@ function setupIpcHandlers() {
     }
   })
 
-  ipcMain.handle('printer:print-receipt', (_, data) => printService.printReceipt(data))
-  ipcMain.handle('printer:test-print', () => printService.testPrint())
+  ipcMain.handle('printer:get-printers', async () => await printService.getPrinters(mainWindow || undefined))
+  ipcMain.handle('printer:print-receipt', (_, { data, printerName }: any) => printService.printReceipt(data, printerName))
+  ipcMain.handle('printer:test-print', (_, printerName?: string) => printService.testPrint(printerName))
 
   ipcMain.handle('image:select-dialog', () => imageService.selectImageDialog())
   ipcMain.handle('image:save', (_, sourcePath) => imageService.saveProductImage(sourcePath))

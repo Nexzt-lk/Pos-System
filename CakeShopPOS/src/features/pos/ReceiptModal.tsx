@@ -14,6 +14,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, ord
 
   const handlePrint = async () => {
     if (window.electronAPI && orderData) {
+      const preferredPrinter = localStorage.getItem('selected_printer') || undefined
       await window.electronAPI.printReceipt({
         shopName: currentShop?.name || 'Wasana Cake - Katugastota',
         address: currentShop?.address,
@@ -34,7 +35,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, ord
         paymentMethod: orderData.payments?.[0]?.method || 'CASH',
         cashGiven: orderData.payments?.[0]?.cash_given,
         changeGiven: orderData.payments?.[0]?.change_given
-      })
+      }, preferredPrinter)
     }
   }
 
@@ -107,13 +108,16 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, ord
             {/* Items Table */}
             <div style={{ fontSize: 12, marginBottom: 8 }}>
               <div className="receipt-row" style={{ fontWeight: 800, color: '#0f172a', marginBottom: 6, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                <span>Item & Qty</span>
-                <span>Amount</span>
+                <span>Product / Qty &times; Price</span>
+                <span>Total</span>
               </div>
               {orderData.items?.map((item: any, idx: number) => (
-                <div key={idx} className="receipt-row" style={{ marginBottom: 4, color: '#1e293b', fontSize: 12 }}>
-                  <span>{formatQuantityWithUnit(item.quantity, item.unit)} × {item.product_name}</span>
-                  <span style={{ fontWeight: 700 }}>{formatCurrency(item.subtotal)}</span>
+                <div key={idx} style={{ marginBottom: 6, borderBottom: '1px dotted #e2e8f0', paddingBottom: 4 }}>
+                  <div style={{ fontWeight: 700, color: '#0f172a', fontSize: 12.5 }}>{item.product_name}</div>
+                  <div className="receipt-row" style={{ color: '#475569', fontSize: 11.5, marginTop: 2 }}>
+                    <span>{formatQuantityWithUnit(item.quantity, item.unit)} &times; {formatCurrency(item.unit_price)}</span>
+                    <span style={{ fontWeight: 800, color: '#0f172a' }}>{formatCurrency(item.subtotal)}</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -158,9 +162,20 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, ord
 
             {/* Footer */}
             <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1.5px dashed #cbd5e1', textAlign: 'center', fontSize: 11, color: '#64748b' }}>
-              <p style={{ fontWeight: 700, color: '#0f172a' }}>Thank you for your visit!</p>
+              <p style={{ fontWeight: 700, color: '#0f172a' }}>Thank you for visiting Wasana Cake! 🎂</p>
               <p style={{ fontSize: 10, marginTop: 2 }}>Please come again soon</p>
-              <p style={{ fontSize: 9.5, color: '#94a3b8', marginTop: 6 }}>NEXZT POS • Think Next. Grow Now</p>
+              <div style={{
+                marginTop: 10,
+                paddingTop: 8,
+                borderTop: '1px solid #e2e8f0',
+                fontSize: 12,
+                fontWeight: 900,
+                color: '#0f172a',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase'
+              }}>
+                Software By Nexzt.lk
+              </div>
             </div>
           </div>
         </div>
