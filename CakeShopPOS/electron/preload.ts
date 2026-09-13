@@ -4,6 +4,11 @@ import { contextBridge, ipcRenderer } from 'electron'
 export interface ElectronAPI {
   // Database Operations
   dbQuery: (channel: string, data?: any) => Promise<any>
+  getProducts: (shopId?: string) => Promise<any[]>
+  getProductByBarcode: (params: { shopId?: string; barcode: string }) => Promise<any>
+  upsertProduct: (product: any) => Promise<void>
+  getCategories: (shopId?: string) => Promise<any[]>
+  upsertCategory: (category: any) => Promise<void>
   
   // Hardware & Printing
   printReceipt: (receiptData: any) => Promise<{ success: boolean; message?: string }>
@@ -24,6 +29,11 @@ export interface ElectronAPI {
 
 const electronAPI: ElectronAPI = {
   dbQuery: (channel, data) => ipcRenderer.invoke(channel, data),
+  getProducts: (shopId) => ipcRenderer.invoke('db:get-products', shopId),
+  getProductByBarcode: (params) => ipcRenderer.invoke('db:get-product-by-barcode', params),
+  upsertProduct: (product) => ipcRenderer.invoke('db:upsert-product', product),
+  getCategories: (shopId) => ipcRenderer.invoke('db:get-categories', shopId),
+  upsertCategory: (category) => ipcRenderer.invoke('db:upsert-category', category),
   printReceipt: (receiptData) => ipcRenderer.invoke('printer:print-receipt', receiptData),
   testPrint: () => ipcRenderer.invoke('printer:test-print'),
   saveProductImage: (sourceFilePath) => ipcRenderer.invoke('image:save', sourceFilePath),

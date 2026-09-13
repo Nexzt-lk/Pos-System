@@ -1393,10 +1393,17 @@ export const ProductsPage: React.FC = () => {
 
                     {/* Quick Preset Selector */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 11, color: '#64748b', marginBottom: 6, fontWeight: 500 }}>
-                        {isAuto
-                          ? `Automatically selected for "${currentName || 'product'}"`
-                          : 'Custom image selected. Choose below to change:'}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>
+                          {isAuto
+                            ? `Auto-matched for ${selectedCat?.name || 'Category'}:`
+                            : 'Select an image for this category:'}
+                        </span>
+                        {selectedCat && (
+                          <span style={{ fontSize: 10.5, fontWeight: 700, color: '#16a34a', background: '#f0fdf4', padding: '1px 6px', borderRadius: 6 }}>
+                            {selectedCat.name}
+                          </span>
+                        )}
                       </div>
 
                       <div
@@ -1407,34 +1414,49 @@ export const ProductsPage: React.FC = () => {
                           paddingBottom: 4
                         }}
                       >
-                        {BAKERY_IMAGE_PRESETS.map((preset) => {
-                          const isSelected = activeDisplayImage === preset.path
-                          return (
-                            <div
-                              key={preset.id}
-                              onClick={() => setFieldsValue({ image_path: preset.path })}
-                              title={preset.label}
-                              style={{
-                                width: 34,
-                                height: 34,
-                                borderRadius: 7,
-                                overflow: 'hidden',
-                                cursor: 'pointer',
-                                flexShrink: 0,
-                                border: isSelected ? '2px solid #db2777' : '1px solid #cbd5e1',
-                                opacity: isSelected ? 1 : 0.65,
-                                transform: isSelected ? 'scale(1.08)' : 'scale(1)',
-                                transition: 'all 0.15s ease'
-                              }}
-                            >
-                              <img
-                                src={preset.path}
-                                alt={preset.label}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                              />
-                            </div>
-                          )
-                        })}
+                        {[...BAKERY_IMAGE_PRESETS]
+                          .sort((a, b) => {
+                            const cName = (selectedCat?.name || '').toLowerCase()
+                            const aMatch = a.categories.some((c) => cName.includes(c.toLowerCase()) || c.toLowerCase().includes(cName))
+                            const bMatch = b.categories.some((c) => cName.includes(c.toLowerCase()) || c.toLowerCase().includes(cName))
+                            if (aMatch && !bMatch) return -1
+                            if (!aMatch && bMatch) return 1
+                            return 0
+                          })
+                          .map((preset) => {
+                            const isSelected = activeDisplayImage === preset.path
+                            const isCategoryMatch = selectedCat && preset.categories.some((c) => (selectedCat.name || '').toLowerCase().includes(c.toLowerCase()))
+                            return (
+                              <div
+                                key={preset.id}
+                                onClick={() => setFieldsValue({ image_path: preset.path })}
+                                title={`${preset.name} (${preset.categories.join(', ')})`}
+                                style={{
+                                  width: 36,
+                                  height: 36,
+                                  borderRadius: 8,
+                                  overflow: 'hidden',
+                                  cursor: 'pointer',
+                                  flexShrink: 0,
+                                  border: isSelected
+                                    ? '2.5px solid #16a34a'
+                                    : isCategoryMatch
+                                    ? '1.5px solid #86efac'
+                                    : '1px solid #cbd5e1',
+                                  opacity: isSelected ? 1 : isCategoryMatch ? 0.9 : 0.6,
+                                  transform: isSelected ? 'scale(1.08)' : 'scale(1)',
+                                  boxShadow: isSelected ? '0 2px 8px rgba(22, 163, 74, 0.35)' : 'none',
+                                  transition: 'all 0.15s ease'
+                                }}
+                              >
+                                <img
+                                  src={preset.path}
+                                  alt={preset.name}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              </div>
+                            )
+                          })}
                       </div>
                     </div>
                   </div>

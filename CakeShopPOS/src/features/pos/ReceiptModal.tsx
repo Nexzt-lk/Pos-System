@@ -15,7 +15,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, ord
   const handlePrint = async () => {
     if (window.electronAPI && orderData) {
       await window.electronAPI.printReceipt({
-        shopName: currentShop?.name || 'Rasa Cake House',
+        shopName: currentShop?.name || 'Wasana Cake - Katugastota',
         address: currentShop?.address,
         phone: currentShop?.phone,
         orderNo: orderData.order_no,
@@ -86,10 +86,10 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, ord
           }}>
             {/* Store Header */}
             <div className="receipt-logo" style={{ fontSize: 18, fontWeight: 900, textAlign: 'center', color: '#0f172a', marginBottom: 4 }}>
-              {currentShop?.name || 'Rasa Cake House & Bakers'}
+              {currentShop?.name || 'Wasana Cake - Katugastota'}
             </div>
             <div style={{ textAlign: 'center', fontSize: 11, color: '#64748b', marginBottom: 12, lineHeight: 1.4 }}>
-              {currentShop?.address || 'No. 45, Peradeniya Road, Kandy'}<br />
+              {currentShop?.address || 'Katugastota, Kandy'}<br />
               Tel: {currentShop?.phone || '+94 81 223 4567'}
             </div>
             

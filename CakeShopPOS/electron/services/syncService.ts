@@ -72,6 +72,112 @@ async function postSupabase(endpoint: string, data: any): Promise<boolean> {
   return res.status >= 200 && res.status < 300
 }
 
+async function pullCloudCatalog(): Promise<void> {
+  try {
+    const { url, key } = getSupabaseConfig()
+    const db = await getDatabase()
+
+    // 1. Fetch Categories from Supabase Cloud
+    const catRes = await axios.get(`${url}/rest/v1/categories?select=*`, {
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`
+      },
+      timeout: 5000
+    })
+
+    if (catRes.data && Array.isArray(catRes.data) && catRes.data.length > 0) {
+      for (const cat of catRes.data) {
+        db.run(
+          `
+          INSERT INTO categories (id, name, code_prefix, color, icon, sort_order, is_active)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name,
+            code_prefix = excluded.code_prefix,
+            color = excluded.color,
+            icon = excluded.icon,
+            sort_order = excluded.sort_order,
+            is_active = excluded.is_active;
+        `,
+          [
+            cat.id,
+            cat.name,
+            cat.code_prefix || 'CAT',
+            cat.color || '#6366f1',
+            cat.icon || 'cake',
+            cat.sort_order ?? 0,
+            cat.is_active !== false ? 1 : 0
+          ]
+        )
+      }
+    }
+
+    // 2. Fetch Products from Supabase Cloud
+    const prodRes = await axios.get(`${url}/rest/v1/products?select=*`, {
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`
+      },
+      timeout: 5000
+    })
+
+    if (prodRes.data && Array.isArray(prodRes.data) && prodRes.data.length > 0) {
+      for (const p of prodRes.data) {
+        db.run(
+          `
+          INSERT INTO products (
+            id, category_id, item_code, name, description, price, cost_price,
+            barcode, image_path, unit, track_inventory, is_active, sync_status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced')
+          ON CONFLICT(id) DO UPDATE SET
+            category_id = excluded.category_id,
+            item_code = excluded.item_code,
+            name = excluded.name,
+            description = excluded.description,
+            price = excluded.price,
+            cost_price = excluded.cost_price,
+            barcode = excluded.barcode,
+            image_path = COALESCE(excluded.image_path, products.image_path),
+            unit = excluded.unit,
+            track_inventory = excluded.track_inventory,
+            is_active = excluded.is_active,
+            sync_status = 'synced';
+        `,
+          [
+            p.id,
+            p.category_id || null,
+            p.item_code || p.barcode || 'ITEM',
+            p.name,
+            p.description || '',
+            Number(p.price) || 0,
+            p.cost_price ? Number(p.cost_price) : null,
+            p.barcode || null,
+            p.image_path || null,
+            p.unit || 'pcs',
+            p.track_inventory ? 1 : 0,
+            p.is_active !== false ? 1 : 0
+          ]
+        )
+
+        db.run(
+          `
+          INSERT OR IGNORE INTO inventory (id, product_id, quantity, min_quantity)
+          VALUES (?, ?, 25.0, 5.0);
+        `,
+          ['inv-' + p.id, p.id]
+        )
+      }
+      db.save()
+      console.log(`[AutoSync] 📥 Synchronized catalog from Supabase Cloud: ${prodRes.data.length} products verified.`)
+    }
+  } catch (_) {
+    // Offline or network unreachable - continue smoothly offline
+  }
+}
+
+let lastCatalogPullTime = 0
+
 export const syncService = {
   startBackgroundSync: (getApiUrl?: () => string, intervalMs = 5000) => {
     if (syncInterval) clearInterval(syncInterval)
@@ -79,8 +185,9 @@ export const syncService = {
     console.log(`[SyncService] Starting High-Frequency Auto Cloud Sync Engine (every ${intervalMs / 1000}s)`)
 
     setTimeout(() => {
+      pullCloudCatalog().catch(() => {})
       syncService.processSyncQueue(getApiUrl?.())
-    }, 1000)
+    }, 1500)
 
     syncInterval = setInterval(async () => {
       await syncService.processSyncQueue(getApiUrl?.())
@@ -94,6 +201,8 @@ export const syncService = {
     }
   },
 
+  pullCatalogNow: () => pullCloudCatalog(),
+
   processSyncQueue: async (apiUrl?: string): Promise<{ success: boolean; count?: number; error?: string }> => {
     if (isSyncInProgress) {
       return { success: true, count: 0 }
@@ -101,6 +210,12 @@ export const syncService = {
 
     isSyncInProgress = true
     try {
+      // Pull catalog periodically (every 5 minutes or if database is new)
+      if (Date.now() - lastCatalogPullTime > 300000) {
+        lastCatalogPullTime = Date.now()
+        await pullCloudCatalog().catch(() => {})
+      }
+
       if (apiUrl) {
         axios.post(`${apiUrl}/api/sync/trigger`, {}, { timeout: 3000 }).catch(() => {})
       }
@@ -300,7 +415,35 @@ export const syncService = {
       }
 
       // =========================================================================
-      // 6. PROCESS SYNC QUEUE TABLE
+      // 6. DIRECT SYNC: Expenses
+      // =========================================================================
+      const pendingExpenses = db.query<any>(
+        `SELECT * FROM expenses WHERE sync_status = 'pending' OR sync_status IS NULL LIMIT 50;`
+      )
+      if (pendingExpenses && pendingExpenses.length > 0) {
+        for (const exp of pendingExpenses) {
+          try {
+            const expRow = {
+              id: toValidUuid(exp.id) || undefined,
+              shop_id: defaultShopId,
+              category: exp.category || 'General',
+              description: exp.description || 'Expense',
+              amount: Number(exp.amount) || 0,
+              expense_date: exp.expense_date || new Date().toISOString().split('T')[0],
+              added_by: exp.added_by || 'Admin',
+              local_id: exp.local_id || exp.id,
+              sync_status: 'synced',
+              created_at: exp.created_at || new Date().toISOString()
+            }
+            await postSupabase('expenses', [expRow])
+            db.run(`UPDATE expenses SET sync_status = 'synced' WHERE id = ?;`, [exp.id])
+            totalSynced++
+          } catch (_) {}
+        }
+      }
+
+      // =========================================================================
+      // 7. PROCESS SYNC QUEUE TABLE
       // =========================================================================
       const pendingQueue = (await syncRepo.getPendingItems(50)) || []
       if (pendingQueue.length > 0) {

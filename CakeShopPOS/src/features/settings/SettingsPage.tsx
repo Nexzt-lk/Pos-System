@@ -252,12 +252,12 @@ export const SettingsPage: React.FC = () => {
         <SettingCard icon={<Monitor size={18} />} title="System Information" subtitle="POS software version and license">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {[
-              { label: 'App Name', val: 'Rasa Cake House POS' },
-              { label: 'Version', val: 'v1.0.0 (Phase 01 Build)' },
-              { label: 'Backend API', val: 'ASP.NET Core 8.0 (.NET)' },
+              { label: 'App Name', val: 'Wasana Cake POS' },
+              { label: 'Version', val: 'v1.0.0 (Production Build)' },
+              { label: 'Backend API', val: 'Cloud Sync & Local Engine' },
               { label: 'Database', val: 'SQLite Local Storage' },
               { label: 'Framework', val: 'Electron + React + Vite' },
-              { label: 'Built For', val: 'Windows 10/11 · Offline First' },
+              { label: 'Built For', val: 'Windows 7/8/10/11 · Offline First' },
             ].map(item => (
               <div key={item.label} style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',

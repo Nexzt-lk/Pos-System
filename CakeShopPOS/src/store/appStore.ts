@@ -23,9 +23,9 @@ interface AppState {
 const DEFAULT_SHOP: Shop = {
   id: 'b0000000-0000-0000-0000-000000000001',
   tenant_id: 'a0000000-0000-0000-0000-000000000001',
-  name: 'Rasa Cake House - Kandy Branch',
+  name: 'Wasana Cake - Katugastota',
   branch_code: 'B1',
-  address: 'No. 45, Peradeniya Road, Kandy',
+  address: 'Katugastota, Kandy',
   phone: '+94 81 223 4567',
   currency: 'LKR',
   is_active: true

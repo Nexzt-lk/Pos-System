@@ -12,12 +12,17 @@ export const setupImageProtocol = () => {
     // Check multiple candidate locations
     const candidatePaths = [
       path.join(app.getPath('userData'), 'images', decodedUrl),
+      path.join(app.getPath('userData'), decodedUrl),
+      path.join(process.resourcesPath || '', 'images', decodedUrl),
+      path.join(process.resourcesPath || '', decodedUrl),
+      path.join(path.dirname(process.execPath || ''), 'resources', 'images', decodedUrl),
+      path.join(path.dirname(process.execPath || ''), 'resources', decodedUrl),
       path.join(process.cwd(), 'public', 'images', decodedUrl),
       path.join(process.cwd(), 'public', decodedUrl),
       path.join(__dirname, '../../public/images', decodedUrl),
       path.join(__dirname, '../../public', decodedUrl),
-      path.join(app.getAppPath(), 'public', 'images', decodedUrl),
-      path.join(app.getAppPath(), 'public', decodedUrl)
+      path.join(app?.getAppPath ? app.getAppPath() : '', 'public', 'images', decodedUrl),
+      path.join(app?.getAppPath ? app.getAppPath() : '', 'public', decodedUrl)
     ]
 
     for (const p of candidatePaths) {

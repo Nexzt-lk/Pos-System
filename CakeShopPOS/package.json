@@ -3,13 +3,13 @@
   "version": "1.0.0",
   "description": "High-Performance Multi-Branch Cake Shop POS System",
   "main": "./out/main/main.js",
-  "author": "Rasa Cake House",
+  "author": "Wasana Cake - Katugastota",
   "scripts": {
     "dev": "electron-vite dev --watch",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "postinstall": "electron-builder install-app-deps",
-    "build:win": "npm run build && electron-builder --win --config"
+    "build:win": "npm run build && electron-builder --win"
   },
   "dependencies": {
     "@ant-design/icons": "^5.3.7",

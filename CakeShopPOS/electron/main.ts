@@ -37,6 +37,12 @@ const createWindow = async () => {
     ? path.join(__dirname, '../preload/preload.js')
     : path.join(__dirname, '../preload/index.js')
 
+  const iconPath = fs.existsSync(path.join(process.resourcesPath || '', 'icon.ico'))
+    ? path.join(process.resourcesPath || '', 'icon.ico')
+    : fs.existsSync(path.join(__dirname, '../../build/icon.ico'))
+    ? path.join(__dirname, '../../build/icon.ico')
+    : path.join(__dirname, '../../build/icon.png')
+
   mainWindow = new BrowserWindow({
     width: 1366,
     height: 768,
@@ -44,7 +50,8 @@ const createWindow = async () => {
     minHeight: 600,
     backgroundColor: '#f8fafc',
     autoHideMenuBar: true,
-    title: 'Rasa Cake House — POS Terminal',
+    title: 'Wasana Cake - Katugastota — POS Terminal',
+    icon: iconPath,
     webPreferences: {
       preload: preloadPath,
       sandbox: false,
@@ -96,6 +103,23 @@ function setupIpcHandlers() {
   ipcMain.handle('db:upsert-product', async (_, product) => await productRepo.upsert(product))
   ipcMain.handle('db:get-categories', async (_, shopId: string) => await categoryRepo.getByShopId(shopId))
   ipcMain.handle('db:upsert-category', async (_, category) => await categoryRepo.upsert(category))
+  ipcMain.handle('db:get-shop-current', async () => {
+    const db = await getDatabase()
+    const shop = db.queryOne<any>('SELECT * FROM shops LIMIT 1;')
+    if (shop) {
+      return {
+        id: shop.id,
+        name: shop.name,
+        branchCode: shop.branch_code,
+        address: shop.address,
+        phone: shop.phone,
+        email: shop.email,
+        currency: shop.currency || 'LKR',
+        receiptFooter: shop.receipt_footer || 'Thank you for visiting Wasana Cake - Katugastota! 🎂'
+      }
+    }
+    return null
+  })
   
   ipcMain.handle('db:get-next-order-no', async (_, { shopId, branchCode, terminalId }) =>
     await orderRepo.getNextOrderNumber(shopId, branchCode, terminalId)
@@ -154,16 +178,28 @@ function setupIpcHandlers() {
     }
   })
 
-  ipcMain.handle('auth:verify-pin', async (_, { pin }: { shopId?: string; pin: string }) => {
+  ipcMain.handle('auth:verify-pin', async (_, { pin, operatorId, email }: { shopId?: string; pin: string; operatorId?: string; email?: string }) => {
     try {
       const db = await getDatabase()
-      const users = db.query<any>(`SELECT * FROM users WHERE is_active = 1`)
+      let query = `SELECT * FROM users WHERE is_active = 1`
+      const params: any[] = []
+      if (operatorId) {
+        query += ` AND id = ?`
+        params.push(operatorId)
+      } else if (email) {
+        query += ` AND (LOWER(email) = ? OR LOWER(role) = ?)`
+        params.push(email.toLowerCase(), email.toLowerCase())
+      }
+      const users = db.query<any>(query, params)
       
       for (const user of users) {
         const pinMatch = user.pin_hash === pin || 
                          (user.pin_hash && user.pin_hash.startsWith('$2') && bcrypt.compareSync(pin, user.pin_hash)) ||
                          pin === '123456'
         if (pinMatch) {
+          try {
+            db.run(`UPDATE users SET last_login = datetime('now') WHERE id = ?`, [user.id])
+          } catch (_) {}
           const { password_hash, pin_hash, ...safeUser } = user
           return { success: true, user: safeUser }
         }

@@ -28,18 +28,27 @@ export const categoriesApi = {
       return await apiClient.get<CategoryDto[]>('/categories')
     } catch (err) {
       console.warn('[CategoriesApi] REST API failed, trying Electron IPC SQLite:', err)
-      if (typeof window !== 'undefined' && (window as any).electronAPI?.getCategories) {
-        const local = await (window as any).electronAPI.getCategories(shopId)
-        return (local || []).map((c: any) => ({
-          id: c.id,
-          name: c.name,
-          codePrefix: c.code_prefix || c.codePrefix,
-          color: c.color || '#6366f1',
-          icon: c.icon || 'cake',
-          sortOrder: c.sort_order ?? c.sortOrder ?? 0,
-          isActive: c.is_active !== undefined ? Boolean(c.is_active) : true,
-          createdAt: c.created_at || c.createdAt
-        }))
+      const api = typeof window !== 'undefined' ? (window as any).electronAPI : undefined
+      if (api) {
+        let local: any[] = []
+        if (api.getCategories) {
+          local = await api.getCategories(shopId)
+        } else if (api.dbQuery) {
+          local = await api.dbQuery('db:get-categories', shopId)
+        }
+
+        if (Array.isArray(local) && local.length > 0) {
+          return local.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            codePrefix: c.code_prefix || c.codePrefix,
+            color: c.color || '#6366f1',
+            icon: c.icon || 'cake',
+            sortOrder: c.sort_order ?? c.sortOrder ?? 0,
+            isActive: c.is_active !== undefined ? Boolean(c.is_active) : true,
+            createdAt: c.created_at || c.createdAt
+          }))
+        }
       }
       return []
     }
@@ -49,9 +58,10 @@ export const categoriesApi = {
     try {
       return await apiClient.post<CategoryDto>('/categories', data)
     } catch (err) {
-      if (typeof window !== 'undefined' && (window as any).electronAPI?.upsertCategory) {
+      const api = typeof window !== 'undefined' ? (window as any).electronAPI : undefined
+      if (api) {
         const id = 'cat-' + Date.now()
-        await (window as any).electronAPI.upsertCategory({
+        const payload = {
           id,
           name: data.name,
           code_prefix: data.codePrefix,
@@ -59,7 +69,12 @@ export const categoriesApi = {
           icon: data.icon || 'cake',
           sort_order: 0,
           is_active: 1
-        })
+        }
+        if (api.upsertCategory) {
+          await api.upsertCategory(payload)
+        } else if (api.dbQuery) {
+          await api.dbQuery('db:upsert-category', payload)
+        }
         return {
           id,
           name: data.name,
@@ -77,8 +92,13 @@ export const categoriesApi = {
     try {
       await apiClient.delete<void>(`/categories/${id}`)
     } catch (err) {
-      if (typeof window !== 'undefined' && (window as any).electronAPI?.upsertCategory) {
-        await (window as any).electronAPI.upsertCategory({ id, is_active: 0 })
+      const api = typeof window !== 'undefined' ? (window as any).electronAPI : undefined
+      if (api) {
+        if (api.upsertCategory) {
+          await api.upsertCategory({ id, is_active: 0 })
+        } else if (api.dbQuery) {
+          await api.dbQuery('db:upsert-category', { id, is_active: 0 })
+        }
         return
       }
       throw err

@@ -114,10 +114,10 @@ export const PINLoginPage: React.FC = () => {
           </div>
         </div>
 
-        <h1 className="pin-title">Rasa Cake House</h1>
+        <h1 className="pin-title">Wasana Cake</h1>
         <p className="pin-subtitle">
           <span className="pin-branch-badge">
-            {currentShop?.name || 'Kandy Branch'} · Terminal {currentTerminalId}
+            {currentShop?.name || 'Katugastota'} · Terminal {currentTerminalId}
           </span>
         </p>
 

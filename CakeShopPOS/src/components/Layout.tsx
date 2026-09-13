@@ -47,7 +47,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
     if (currentShop?.branch_code === 'B1') {
       setShop({ id: 'b0000000-0000-0000-0000-000000000002', tenant_id: 'a0000000-0000-0000-0000-000000000001', name: 'Rasa Cake House - Colombo Branch', branch_code: 'B2', address: 'No. 120, Galle Road, Colombo 03', phone: '+94 11 258 9101', currency: 'LKR', is_active: true })
     } else {
-      setShop({ id: 'b0000000-0000-0000-0000-000000000001', tenant_id: 'a0000000-0000-0000-0000-000000000001', name: 'Rasa Cake House - Kandy Branch', branch_code: 'B1', address: 'No. 45, Peradeniya Road, Kandy', phone: '+94 81 223 4567', currency: 'LKR', is_active: true })
+      setShop({ id: 'b0000000-0000-0000-0000-000000000001', tenant_id: 'a0000000-0000-0000-0000-000000000001', name: 'Wasana Cake - Katugastota', branch_code: 'B1', address: 'Katugastota, Kandy', phone: '+94 81 223 4567', currency: 'LKR', is_active: true })
     }
   }
 

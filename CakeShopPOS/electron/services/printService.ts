@@ -98,8 +98,8 @@ export const printService = {
 
       // Footer
       printer.alignCenter()
-      printer.println(data.footerNote || 'Thank you for your visit!')
-      printer.println('Software by Rasa Cake POS')
+      printer.println(data.footerNote || 'Thank you for visiting Wasana Cake!')
+      printer.println('Software by Wasana Cake POS')
       printer.newLine()
       printer.cut()
 
@@ -119,8 +119,8 @@ export const printService = {
 
   testPrint: async (): Promise<{ success: boolean; message?: string }> => {
     return printService.printReceipt({
-      shopName: 'Rasa Cake House',
-      branchName: 'Kandy Branch - Test Print',
+      shopName: 'Wasana Cake - Katugastota',
+      branchName: 'Katugastota, Kandy — Test Print',
       orderNo: 'B1-T1-TEST-0001',
       dateTime: new Date().toLocaleString(),
       items: [
@@ -134,7 +134,7 @@ export const printService = {
       paymentMethod: 'CASH',
       cashGiven: 5000,
       changeGiven: 760,
-      footerNote: 'TEST PRINT SUCCESSFUL'
+      footerNote: 'TEST PRINT SUCCESSFUL — PRINTER CONNECTED!'
     })
   }
 }
