@@ -13,7 +13,9 @@ import {
   Trash2,
   Layers,
   Image as ImageIcon,
-  Sparkles
+  Sparkles,
+  LayoutGrid,
+  List
 } from 'lucide-react'
 import { Modal, Form, Input, InputNumber, Select, Switch, message, Popconfirm, Segmented } from 'antd'
 import { Product, Category, normalizeProduct, normalizeCategory } from '../../types/product'
@@ -23,6 +25,7 @@ import { useAppStore } from '../../store/appStore'
 import { formatCurrency, formatStockQty } from '../../lib/formatters'
 import { generateCategoryItemCode } from '../../lib/skuGenerator'
 import { BAKERY_IMAGE_PRESETS, getAutoMatchedProductImage, getProductImageSrc } from '../../lib/imageHelper'
+import { ProductCardItem } from './ProductCardItem'
 
 export const ProductsPage: React.FC = () => {
   const currentShop = useAppStore((state) => state.currentShop)
@@ -32,6 +35,7 @@ export const ProductsPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [stockFilter, setStockFilter] = useState<'all' | 'in_stock' | 'low_stock' | 'out_of_stock'>('all')
   const [sortBy, setSortBy] = useState<'name_asc' | 'name_desc' | 'price_asc' | 'price_desc' | 'stock_asc' | 'stock_desc'>('name_asc')
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
@@ -618,6 +622,27 @@ export const ProductsPage: React.FC = () => {
                 ]}
               />
             </div>
+
+            {/* View Mode Toggle: Cards vs Table */}
+            <div style={{ display: 'flex', alignItems: 'center', borderLeft: '1px solid #e2e8f0', paddingLeft: 10 }}>
+              <Segmented
+                value={viewMode}
+                onChange={(val) => setViewMode(val as 'cards' | 'table')}
+                options={[
+                  {
+                    value: 'cards',
+                    icon: <LayoutGrid size={15} style={{ verticalAlign: 'middle', marginRight: 4 }} />,
+                    label: 'Cards'
+                  },
+                  {
+                    value: 'table',
+                    icon: <List size={15} style={{ verticalAlign: 'middle', marginRight: 4 }} />,
+                    label: 'Table'
+                  }
+                ]}
+                style={{ background: '#f1f5f9', fontWeight: 700, fontSize: 12 }}
+              />
+            </div>
           </div>
         </div>
 
@@ -708,16 +733,107 @@ export const ProductsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Products Table ── */}
-      <div
-        className="data-table"
-        style={{
-          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-          borderRadius: 14,
-          border: '1px solid var(--border)',
-          background: '#ffffff'
-        }}
-      >
+      {/* ── Main Catalog View (Cards Grid or Table) ── */}
+      {viewMode === 'cards' ? (
+        <div
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            paddingRight: 2
+          }}
+        >
+          {filteredProducts.length === 0 ? (
+            <div
+              style={{
+                height: '100%',
+                minHeight: 320,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: '#ffffff',
+                borderRadius: 14,
+                border: '1px solid var(--border)',
+                padding: 40,
+                boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+              }}
+            >
+              <div
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 16,
+                  background: '#f1f5f9',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 12px',
+                  color: '#94a3b8'
+                }}
+              >
+                <Package2 size={28} />
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
+                No Products Found
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, maxWidth: 360, margin: '4px auto 16px', textAlign: 'center' }}>
+                {searchQuery
+                  ? `No items matching "${searchQuery}". Try searching with a different term.`
+                  : 'No products found matching the current filters. Click "Add New Product" to create one.'}
+              </div>
+              {searchQuery && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('')
+                    setSelectedCategory('all')
+                    setStockFilter('all')
+                  }}
+                  style={{
+                    padding: '7px 16px',
+                    borderRadius: 8,
+                    border: '1px solid var(--border)',
+                    background: '#ffffff',
+                    color: 'var(--primary)',
+                    fontWeight: 700,
+                    fontSize: 12,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Clear All Filters
+                </button>
+              )}
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                gap: 16,
+                paddingBottom: 24
+              }}
+            >
+              {filteredProducts.map((product) => (
+                <ProductCardItem
+                  key={product.id}
+                  product={product}
+                  onEdit={handleOpenModal}
+                  onDelete={handleDeleteProduct}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* ── Products Table ── */
+        <div
+          className="data-table"
+          style={{
+            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+            borderRadius: 14,
+            border: '1px solid var(--border)',
+            background: '#ffffff'
+          }}
+        >
         <div style={{ overflowX: 'auto', flex: 1, display: 'flex', flexDirection: 'column' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
@@ -794,7 +910,7 @@ export const ProductsPage: React.FC = () => {
                             }}
                           >
                             <img
-                              src={getProductImageSrc(product.image_path, product.name, product.category_name)}
+                              src={getProductImageSrc(product.image_path, product.name, product.category_name) || undefined}
                               alt={product.name}
                               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                               onError={(e) => {
@@ -1076,6 +1192,7 @@ export const ProductsPage: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
 
       {/* ── Add / Edit Product Modal ── */}
       <Modal
@@ -1385,7 +1502,7 @@ export const ProductsPage: React.FC = () => {
                       }}
                     >
                       <img
-                        src={getProductImageSrc(activeDisplayImage, currentName, selectedCat?.name)}
+                        src={getProductImageSrc(activeDisplayImage, currentName, selectedCat?.name) || undefined}
                         alt="Preview"
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />
