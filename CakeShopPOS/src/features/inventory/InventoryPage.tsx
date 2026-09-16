@@ -1,21 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import {
-  Plus,
-  Search,
+
   Package,
   Package2,
-  Sparkles,
-  Boxes,
   PlusCircle,
   AlertTriangle,
   AlertOctagon,
   CheckCircle2,
-  ArrowUpDown,
-  RefreshCw,
-  Barcode,
-  TrendingUp,
-  Tag,
-  DollarSign
+  Barcode
+ 
+ 
 } from 'lucide-react'
 import { Modal, Form, Select, InputNumber, Input, Segmented, message } from 'antd'
 import { Product, Category, normalizeProduct, normalizeCategory } from '../../types/product'
@@ -23,6 +17,7 @@ import { productsApi } from '../../api/productsApi'
 import { categoriesApi } from '../../api/categoriesApi'
 import { inventoryApi } from '../../api/inventoryApi'
 import { RefreshButton } from '../../components/RefreshButton'
+import { InventoryFilters } from './InventoryFilters'
 import { useAppStore } from '../../store/appStore'
 import { formatCurrency, formatStockQty } from '../../lib/formatters'
 import { generateCategoryItemCode } from '../../lib/skuGenerator'
@@ -37,7 +32,7 @@ export const InventoryPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [stockFilter, setStockFilter] = useState<'all' | 'in_stock' | 'low_stock' | 'out_of_stock'>('all')
-  const [sortBy, setSortBy] = useState<'name_asc' | 'name_desc' | 'stock_asc' | 'stock_desc' | 'price_desc'>('stock_asc')
+  const [sortBy, setSortBy] = useState<'name_asc' | 'name_desc' | 'stock_asc' | 'stock_desc' | 'price_desc' | 'price_asc'>('stock_asc')
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [entryMode, setEntryMode] = useState<'EXISTING' | 'NEW'>('EXISTING')
@@ -291,6 +286,7 @@ export const InventoryPage: React.FC = () => {
         if (sortBy === 'stock_asc') return (a.current_stock ?? 0) - (b.current_stock ?? 0)
         if (sortBy === 'stock_desc') return (b.current_stock ?? 0) - (a.current_stock ?? 0)
         if (sortBy === 'price_desc') return b.price - a.price
+        if (sortBy === 'price_asc') return a.price - b.price
         return 0
       })
   }, [tracked, searchQuery, selectedCategory, stockFilter, sortBy])
@@ -357,7 +353,6 @@ export const InventoryPage: React.FC = () => {
               boxShadow: '0 4px 12px rgba(22, 163, 74, 0.25)'
             }}
           >
-            <Plus size={16} strokeWidth={2.5} />
             <span>Record Stock Movement</span>
           </button>
         </div>
@@ -531,183 +526,22 @@ export const InventoryPage: React.FC = () => {
       </div>
 
       {/* ── Search & Filter Controls ── */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 20,
-          background: '#ffffff',
-          padding: '12px 16px',
-          borderRadius: 14,
-          border: '1px solid var(--border)',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-          flexShrink: 0
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          {/* Search Box */}
-          <div
-            className="search-box"
-            style={{
-              width: 340,
-              background: '#f8fafc',
-              border: '1.5px solid #e2e8f0',
-              borderRadius: 10,
-              padding: '7px 12px'
-            }}
-          >
-            <Search size={16} style={{ color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search inventory by product name, code, barcode..."
-              style={{ fontSize: 13 }}
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  cursor: 'pointer',
-                  color: 'var(--text-muted)',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  padding: '2px 4px'
-                }}
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          {/* Stock Filter Pills & Sort Select */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {/* Stock Segmented */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginRight: 4 }}>
-                Status:
-              </span>
-              <Segmented
-                value={stockFilter}
-                onChange={(val) => setStockFilter(val as any)}
-                options={[
-                  { label: 'All', value: 'all' },
-                  { label: `Healthy (${inStockCount})`, value: 'in_stock' },
-                  { label: `Low (${lowStockCount})`, value: 'low_stock' },
-                  { label: `Out (${outOfStockCount})`, value: 'out_of_stock' }
-                ]}
-                style={{ background: '#f1f5f9', fontWeight: 600, fontSize: 12 }}
-              />
-            </div>
-
-            {/* Sort Selector */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <ArrowUpDown size={14} style={{ color: 'var(--text-muted)' }} />
-              <div
-                style={{
-                  background: '#f1f5f9',
-                  borderRadius: 8,
-                  border: '1px solid #e2e8f0',
-                  display: 'flex',
-                  alignItems: 'center'
-                }}
-              >
-                <Select
-                  value={sortBy}
-                  onChange={(val) => setSortBy(val)}
-                  style={{ width: 175 }}
-                  bordered={false}
-                  options={[
-                    { value: 'stock_asc', label: 'Stock (Lowest First)' },
-                    { value: 'stock_desc', label: 'Stock (Highest First)' },
-                    { value: 'name_asc', label: 'Name (A to Z)' },
-                    { value: 'name_desc', label: 'Name (Z to A)' },
-                    { value: 'price_desc', label: 'Price (Highest First)' }
-                  ]}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Category Pills */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto', paddingTop: 4, paddingBottom: 12 }}>
-          <button
-            onClick={() => setSelectedCategory('all')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 14px',
-              borderRadius: 99,
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              border: selectedCategory === 'all' ? '1.5px solid var(--primary)' : '1px solid var(--border)',
-              background: selectedCategory === 'all' ? 'var(--primary)' : '#ffffff',
-              color: selectedCategory === 'all' ? '#ffffff' : 'var(--text-secondary)',
-              transition: 'all 0.15s ease',
-              boxShadow: selectedCategory === 'all' ? '0 2px 6px rgba(22, 163, 74, 0.25)' : 'none'
-            }}
-          >
-            <span>All Categories</span>
-            <span
-              style={{
-                fontSize: 10,
-                padding: '1px 6px',
-                borderRadius: 99,
-                background: selectedCategory === 'all' ? 'rgba(255,255,255,0.25)' : 'var(--surface-2)',
-                color: selectedCategory === 'all' ? '#ffffff' : 'var(--text-muted)'
-              }}
-            >
-              {tracked.length}
-            </span>
-          </button>
-
-          {categories.map((cat) => {
-            const isSelected = selectedCategory === cat.id
-            const count = categoryCounts[cat.id] || 0
-            return (
-              <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '6px 14px',
-                  borderRadius: 99,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  border: isSelected ? '1.5px solid var(--primary)' : '1px solid var(--border)',
-                  background: isSelected ? 'var(--primary)' : '#ffffff',
-                  color: isSelected ? '#ffffff' : 'var(--text-secondary)',
-                  transition: 'all 0.15s ease',
-                  boxShadow: isSelected ? '0 2px 6px rgba(22, 163, 74, 0.25)' : 'none'
-                }}
-              >
-                <span>{cat.name}</span>
-                <span
-                  style={{
-                    fontSize: 10,
-                    padding: '1px 6px',
-                    borderRadius: 99,
-                    background: isSelected ? 'rgba(255,255,255,0.25)' : 'var(--surface-2)',
-                    color: isSelected ? '#ffffff' : 'var(--text-muted)'
-                  }}
-                >
-                  {count}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
+      <InventoryFilters
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        stockFilter={stockFilter}
+        setStockFilter={setStockFilter}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
+        categories={categories}
+        categoryCounts={categoryCounts}
+        trackedCount={tracked.length}
+        inStockCount={inStockCount}
+        lowStockCount={lowStockCount}
+        outOfStockCount={outOfStockCount}
+      />
 
       {/* ── Inventory Table ── */}
       <div
@@ -981,27 +815,12 @@ export const InventoryPage: React.FC = () => {
         onOk={() => form.submit()}
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 4 }}>
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                background: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
-                color: '#15803d',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '1px solid #86efac'
-              }}
-            >
-              {entryMode === 'NEW' ? <Sparkles size={18} /> : <Boxes size={18} />}
-            </div>
             <div>
               <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>
                 {entryMode === 'NEW' ? 'Receive & Register New Cake Item' : 'Record Stock Movement'}
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>
-                {entryMode === 'NEW' ? 'Add new item to catalog and receive initial stock' : 'තොග ලැබීම් / හානිවීම් / ගැලපීම් සටහන් කිරීම'}
+                {entryMode === 'NEW' ? 'Add new item to catalog and receive initial stock' : 'Record stock receipts, damages, and adjustments'}
               </div>
             </div>
           </div>
@@ -1057,8 +876,7 @@ export const InventoryPage: React.FC = () => {
               {
                 label: (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '4px 0', fontWeight: 700 }}>
-                    <Boxes size={14} />
-                    <span>Existing Item (දැනට ඇති Item)</span>
+                    <span>Existing Item</span>
                   </div>
                 ),
                 value: 'EXISTING'
@@ -1066,8 +884,7 @@ export const InventoryPage: React.FC = () => {
               {
                 label: (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '4px 0', fontWeight: 700 }}>
-                    <Sparkles size={14} />
-                    <span>+ New Item (අලුත්ම Item එකක්)</span>
+                    <span>+ New Item</span>
                   </div>
                 ),
                 value: 'NEW'
@@ -1083,7 +900,6 @@ export const InventoryPage: React.FC = () => {
               <div className="form-section">
                 <div className="form-section-header">
                   <span className="form-section-title">
-                    <Boxes size={14} style={{ color: 'var(--primary)' }} />
                     1. Target Product
                   </span>
                 </div>
@@ -1147,7 +963,6 @@ export const InventoryPage: React.FC = () => {
                     <div className="form-section">
                       <div className="form-section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span className="form-section-title">
-                          <TrendingUp size={14} style={{ color: 'var(--primary)' }} />
                           2. Movement Type & Quantity
                         </span>
                         {isWeight && (
@@ -1310,8 +1125,7 @@ export const InventoryPage: React.FC = () => {
               <div className="form-section" style={{ marginBottom: 0 }}>
                 <div className="form-section-header">
                   <span className="form-section-title">
-                    <DollarSign size={14} style={{ color: 'var(--primary)' }} />
-                    3. Pricing & Reference (විකුණුම් / පිරිවැය මිල)
+                    3. Pricing & Reference
                   </span>
                 </div>
 
@@ -1332,7 +1146,7 @@ export const InventoryPage: React.FC = () => {
                             name="price"
                             label={
                               <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                                <span style={{ fontWeight: 700, fontSize: 12.5, color: '#334155' }}>Selling Price (විකුණුම් මිල)</span>
+                                <span style={{ fontWeight: 700, fontSize: 12.5, color: '#334155' }}>Selling Price</span>
                                 {margin !== null && (
                                   <span style={{ fontSize: 11, fontWeight: 700, color: margin >= 0 ? '#16a34a' : '#dc2626' }}>
                                     Margin: {margin}%
@@ -1356,7 +1170,7 @@ export const InventoryPage: React.FC = () => {
 
                           <Form.Item
                             name="cost_price"
-                            label={<span style={{ fontWeight: 700, fontSize: 12.5, color: '#334155' }}>Cost Price (පිරිවැය මිල)</span>}
+                            label={<span style={{ fontWeight: 700, fontSize: 12.5, color: '#334155' }}>Cost Price</span>}
                             style={{ marginBottom: 0 }}
                           >
                             <InputNumber
@@ -1407,7 +1221,7 @@ export const InventoryPage: React.FC = () => {
                 </Form.Item>
 
                 <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>
-                  💡 Tip: ඔබට අවශ්‍ය නම් මෙතනින් Selling Price හෝ Cost Price වෙනස් කළ හැක. එය ස්වයංක්‍රීයව Product Catalog එකෙහි Update වේ.
+                  💡 Tip: You can update the Selling Price or Cost Price here. It will automatically update in the Product Catalog.
                 </div>
               </div>
             </>
@@ -1417,7 +1231,6 @@ export const InventoryPage: React.FC = () => {
               <div className="form-section">
                 <div className="form-section-header">
                   <span className="form-section-title">
-                    <Tag size={14} style={{ color: 'var(--primary)' }} />
                     1. Product Information
                   </span>
                 </div>
@@ -1434,7 +1247,7 @@ export const InventoryPage: React.FC = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 12 }}>
                   <Form.Item
                     name="new_category_id"
-                    label={<span style={{ fontWeight: 700, fontSize: 12.5 }}>Category (ස්වයංක්‍රීය Code)</span>}
+                    label={<span style={{ fontWeight: 700, fontSize: 12.5 }}>Category (Auto Code)</span>}
                     rules={[{ required: true, message: 'Select category' }]}
                     style={{ marginBottom: 0 }}
                   >
@@ -1447,7 +1260,6 @@ export const InventoryPage: React.FC = () => {
                       {categories.map((c) => (
                         <Select.Option key={c.id} value={c.id}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.color || '#16a34a' }} />
                             <span>{c.name}</span>
                           </div>
                         </Select.Option>
@@ -1483,7 +1295,6 @@ export const InventoryPage: React.FC = () => {
               <div className="form-section">
                 <div className="form-section-header">
                   <span className="form-section-title">
-                    <Boxes size={14} style={{ color: 'var(--primary)' }} />
                     2. SKU & Identifier
                   </span>
                 </div>
@@ -1530,7 +1341,6 @@ export const InventoryPage: React.FC = () => {
                         boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
                       }}
                     >
-                      <Sparkles size={14} />
                       <span>Auto Code</span>
                     </button>
                   </div>
@@ -1541,7 +1351,6 @@ export const InventoryPage: React.FC = () => {
               <div className="form-section" style={{ marginBottom: 0 }}>
                 <div className="form-section-header">
                   <span className="form-section-title">
-                    <DollarSign size={14} style={{ color: 'var(--primary)' }} />
                     3. Pricing & Initial Stock
                   </span>
                 </div>

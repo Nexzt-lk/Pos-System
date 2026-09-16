@@ -686,7 +686,7 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
           >
             <div>
               <div style={{ fontSize: 12, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Total Item Price (මුළු ගාණ)
+                Total Item Price
               </div>
               <div style={{ fontSize: 14.5, fontWeight: 700, color: '#e2e8f0', marginTop: 4 }}>
                 {weightBreakdownText}

@@ -147,7 +147,7 @@ export const LoginPage: React.FC = () => {
       if (loggedInUser) {
         setUser(loggedInUser)
       } else {
-        setError('වැරදි PIN අංකයකි. කරුණාකර නැවත උත්සාහ කරන්න. (Invalid 6-digit PIN)')
+        setError('Invalid 6-digit PIN. Please try again.')
         setPasscode('')
       }
     } catch (err: any) {
@@ -256,7 +256,7 @@ export const LoginPage: React.FC = () => {
       if (loggedInUser) {
         setUser(loggedInUser)
       } else if (!error) {
-        setError('මුරපදය හෝ Username වැරදිය. කරුණාකර නැවත උත්සාහ කරන්න.')
+        setError('Invalid Username or Password. Please try again.')
       }
     } catch (err: any) {
       setError(err.message || 'System authentication error')
@@ -491,7 +491,7 @@ export const LoginPage: React.FC = () => {
 
               {/* Description */}
               <p style={{ margin: '0 0 20px 0', fontSize: 12.5, color: '#94a3b8', lineHeight: 1.5 }}>
-                තෝරාගත් ක්‍රියාකරු (Operator) තෝරා ඔබගේ PIN අංකය ඇතුළත් කර Workstation එක විවෘත කරන්න.
+                Select an Operator and enter your PIN to open the Workstation.
               </p>
 
               {/* Operator Select Grid */}

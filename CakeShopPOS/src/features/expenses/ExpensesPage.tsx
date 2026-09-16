@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Receipt, Plus, AlertCircle, Trash2, RefreshCw } from 'lucide-react'
+import { Receipt, Plus, AlertCircle, Trash2 } from 'lucide-react'
 import { RefreshButton } from '../../components/RefreshButton'
 import { Modal, Form, Input, InputNumber, Select, message, Popconfirm } from 'antd'
 import { useAppStore } from '../../store/appStore'
@@ -242,7 +242,7 @@ export const ExpensesPage: React.FC = () => {
                 Record Daily Petty Expense
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>
-                දෛනික වියදම් සටහන් කිරීම · Saved directly to SQLite backend
+                Saved directly to SQLite backend
               </div>
             </div>
           </div>
@@ -329,7 +329,7 @@ export const ExpensesPage: React.FC = () => {
           <div className="form-section" style={{ marginBottom: 4 }}>
             <div className="form-section-header">
               <span className="form-section-title">
-                Expense Amount (රුපියල්)
+                Expense Amount (LKR)
               </span>
             </div>
 
