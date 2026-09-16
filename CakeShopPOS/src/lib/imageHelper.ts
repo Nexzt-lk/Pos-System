@@ -233,7 +233,7 @@ export const getProductImageSrc = (
   path?: string,
   productName?: string,
   categoryName?: string
-): string | null => {
+): string | undefined => {
   let targetPath = path
 
   // Auto-match if no path is provided
@@ -241,7 +241,7 @@ export const getProductImageSrc = (
     if (productName || categoryName) {
       targetPath = getAutoMatchedProductImage(productName, categoryName)
     } else {
-      return null
+      return undefined
     }
   }
 

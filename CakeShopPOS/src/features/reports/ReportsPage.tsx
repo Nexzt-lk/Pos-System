@@ -42,6 +42,7 @@ import { useAppStore } from '../../store/appStore'
 import { formatCurrency, formatDateTime } from '../../lib/formatters'
 import dayjs from 'dayjs'
 import { reportsApi } from '../../api/reportsApi'
+import { RefreshButton } from '../../components/RefreshButton'
 
 type PeriodType = 'daily' | 'weekly' | 'monthly' | 'custom'
 
@@ -583,24 +584,7 @@ export const ReportsPage: React.FC = () => {
 
           {/* Action Buttons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <button
-              onClick={loadAnalytics}
-              title="Refresh Data"
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border)',
-                background: 'var(--surface)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--text-secondary)'
-              }}
-            >
-              <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-            </button>
+            <RefreshButton onClick={loadAnalytics} isLoading={loading} label="" />
 
             <button
               onClick={handleExportCSV}

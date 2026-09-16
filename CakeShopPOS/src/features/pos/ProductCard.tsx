@@ -25,7 +25,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
 
   return (
     <div
-      className={`product-card ${isOutOfStock ? 'out-of-stock' : ''} ${inCartQty > 0 ? 'selected-in-cart' : ''} ${isFocused ? 'keyboard-focused' : ''}`}
+      className={`product-card ${isOutOfStock ? 'out-of-stock' : ''} ${isFocused ? 'keyboard-focused' : ''}`}
       style={isFocused ? {
         border: '2px solid var(--primary)',
         boxShadow: '0 0 0 3px rgba(236, 72, 153, 0.35)',
@@ -33,7 +33,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
       } : undefined}
       onClick={() => !isOutOfStock && onAddToCart(product)}
     >
-      {/* 📸 Modern Rich Product Image Viewport */}
+      {/*   Modern Rich Product Image Viewport */}
       <div className="product-card-img-wrap">
         {imgSrc && !hasImgError ? (
           <img
@@ -56,12 +56,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
           </div>
         )}
 
-        {/* Dynamic In-Cart Counter Pill */}
-        {inCartQty > 0 && (
-          <span className="card-incart-badge">
-            {inCartQty} {product.unit || 'pcs'} in cart
-          </span>
-        )}
 
         {/* Stock Status Badge */}
         {product.track_inventory && (
@@ -94,18 +88,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
               /{product.unit || 'pcs'}
             </span>
           </div>
-          {!isOutOfStock && (
-            <button
-              className="card-add-btn"
-              title="Add to order"
-              onClick={(e) => {
-                e.stopPropagation()
-                onAddToCart(product)
-              }}
-            >
-              <Plus size={15} />
-            </button>
-          )}
+
         </div>
       </div>
     </div>

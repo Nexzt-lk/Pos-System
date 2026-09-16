@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Receipt, Plus, AlertCircle, Trash2, RefreshCw } from 'lucide-react'
+import { RefreshButton } from '../../components/RefreshButton'
 import { Modal, Form, Input, InputNumber, Select, message, Popconfirm } from 'antd'
 import { useAppStore } from '../../store/appStore'
 import { formatCurrency } from '../../lib/formatters'
@@ -93,9 +94,7 @@ export const ExpensesPage: React.FC = () => {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn-secondary" onClick={loadExpenses} disabled={isLoading}>
-            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} /> Refresh
-          </button>
+          <RefreshButton onClick={loadExpenses} isLoading={isLoading} />
           <button className="btn-primary" onClick={() => setIsModalOpen(true)}>
             <Plus size={15} /> Record Expense
           </button>
@@ -104,7 +103,7 @@ export const ExpensesPage: React.FC = () => {
 
       {/* KPI Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, flexShrink: 0 }}>
-        <div className="kpi-card" style={{ borderLeft: '4px solid var(--danger)' }}>
+        <div className="kpi-card">
           <div className="kpi-label">Total Expenses Recorded</div>
           <div className="kpi-value" style={{ color: 'var(--danger)' }}>{formatCurrency(totalExpenses)}</div>
         </div>
