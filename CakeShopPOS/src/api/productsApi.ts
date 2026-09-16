@@ -24,6 +24,7 @@ export interface ProductDto {
   currentStock?: number
   current_stock?: number
   isLowStock?: boolean
+  imagePath?: string
 }
 
 export interface CreateProductRequest {
@@ -39,6 +40,7 @@ export interface CreateProductRequest {
   trackInventory: boolean
   initialStock?: number
   minStockAlert?: number
+  imagePath?: string
 }
 
 export interface UpdateProductRequest {
@@ -51,6 +53,7 @@ export interface UpdateProductRequest {
   unit: string
   trackInventory: boolean
   isActive: boolean
+  imagePath?: string
 }
 
 export const productsApi = {
@@ -85,7 +88,8 @@ export const productsApi = {
             trackInventory: Boolean(p.track_inventory),
             isActive: p.is_active !== undefined ? Boolean(p.is_active) : true,
             currentStock: Number(p.current_stock) || 0,
-            isLowStock: Boolean(p.track_inventory && (Number(p.current_stock) || 0) <= 5)
+            isLowStock: Boolean(p.track_inventory && (Number(p.current_stock) || 0) <= 5),
+            imagePath: p.image_path || p.imagePath
           }))
         }
       }
@@ -129,7 +133,8 @@ export const productsApi = {
           item_code: data.barcode,
           unit: data.unit,
           track_inventory: data.trackInventory ? 1 : 0,
-          is_active: 1
+          is_active: 1,
+          image_path: data.imagePath
         }
         if (api.upsertProduct) {
           await api.upsertProduct(newProduct)
@@ -165,7 +170,8 @@ export const productsApi = {
           item_code: data.barcode,
           unit: data.unit,
           track_inventory: data.trackInventory ? 1 : 0,
-          is_active: data.isActive ? 1 : 0
+          is_active: data.isActive ? 1 : 0,
+          image_path: data.imagePath
         }
         if (api.upsertProduct) {
           await api.upsertProduct(payload)
