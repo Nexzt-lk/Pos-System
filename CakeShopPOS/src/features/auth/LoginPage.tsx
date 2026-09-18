@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
-  Cake, Sparkles, ShieldCheck, Lock, Eye, EyeOff, Store, Clock,
+  Sparkles, ShieldCheck, Lock, Eye, EyeOff, Store, Clock,
   ArrowRight, KeyRound, AlertTriangle, RefreshCw, User, Activity,
-  HardDrive, Wifi, CheckCircle2
+  HardDrive, Wifi, CheckCircle2, Zap, Cloud, Terminal, Check
 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import dayjs from 'dayjs'
+import heroImage from '../../assets/nexzt-login-hero.jpg'
+import nexztLogo from '../../assets/nexzt-logo.png'
 
 type AuthMode = 'passcode' | 'credentials'
 
@@ -77,7 +79,7 @@ export const LoginPage: React.FC = () => {
   const currentTerminalId = useAppStore((state) => state.currentTerminalId)
   const setUser = useAppStore((state) => state.setUser)
 
-  // Live clock
+  // Live real-time clock
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(dayjs().format('HH:mm:ss'))
@@ -268,753 +270,1193 @@ export const LoginPage: React.FC = () => {
   return (
     <>
       <style>{`
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to   { opacity: 1; transform: translateY(0); }
+        /* ══════════════════════════════════════════════════════════════
+           ANIMATIONS & KEYFRAMES
+           ══════════════════════════════════════════════════════════════ */
+        @keyframes floatOrb1 {
+          0% {
+            transform: translate(0px, 0px) scale(1);
+          }
+          50% {
+            transform: translate(60px, 40px) scale(1.12);
+          }
+          100% {
+            transform: translate(-30px, 70px) scale(0.95);
+          }
         }
+
+        @keyframes floatOrb2 {
+          0% {
+            transform: translate(0px, 0px) scale(1);
+          }
+          50% {
+            transform: translate(-70px, -50px) scale(1.15);
+          }
+          100% {
+            transform: translate(40px, -30px) scale(0.9);
+          }
+        }
+
+        @keyframes floatOrb3 {
+          0% {
+            transform: translate(0px, 0px) scale(0.9);
+            opacity: 0.35;
+          }
+          50% {
+            transform: translate(50px, -40px) scale(1.18);
+            opacity: 0.65;
+          }
+          100% {
+            transform: translate(-40px, 30px) scale(0.95);
+            opacity: 0.35;
+          }
+        }
+
+        @keyframes gridMove {
+          0% {
+            background-position: 0 0;
+          }
+          100% {
+            background-position: 48px 48px;
+          }
+        }
+
+        @keyframes heroFloat {
+          0%, 100% {
+            transform: translateY(0px);
+          }
+          50% {
+            transform: translateY(-8px);
+          }
+        }
+
+        @keyframes pulseGlow {
+          0%, 100% {
+            box-shadow: 0 20px 45px -10px rgba(22, 163, 74, 0.22), 0 0 0 1px rgba(34, 197, 94, 0.18);
+          }
+          50% {
+            box-shadow: 0 25px 60px -5px rgba(22, 163, 74, 0.32), 0 0 0 2px rgba(34, 197, 94, 0.32);
+          }
+        }
+
         @keyframes pinPop {
-          0%   { transform: scale(0.6); }
-          60%  { transform: scale(1.18); }
-          100% { transform: scale(1); }
+          0% { transform: scale(0.5); opacity: 0.5; }
+          60% { transform: scale(1.25); }
+          100% { transform: scale(1); opacity: 1; }
         }
+
         @keyframes shake {
-          0%,100% { transform: translateX(0); }
-          20%,60%  { transform: translateX(-6px); }
-          40%,80%  { transform: translateX(6px); }
+          0%, 100% { transform: translateX(0); }
+          20%, 60% { transform: translateX(-8px); }
+          40%, 80% { transform: translateX(8px); }
         }
+
         @keyframes spin {
           to { transform: rotate(360deg); }
         }
-        @keyframes pulse-dot {
-          0%, 100% { opacity: 1; }
-          50%       { opacity: 0.4; }
+
+        @keyframes liveDotPulse {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.4); opacity: 0.6; }
         }
 
-        .login-root {
-          height: 100vh;
+        @keyframes fadeInSlide {
+          from {
+            opacity: 0;
+            transform: translateY(14px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           ROOT WRAPPER - CLEAN WHITE WITH ANIMATED ORBS
+           ══════════════════════════════════════════════════════════════ */
+        .nx-login-root {
+          position: relative;
           width: 100vw;
+          height: 100vh;
           overflow: hidden;
-          display: flex;
-          background: #f0fdf4;
-          font-family: 'Poppins', 'Noto Sans Sinhala', sans-serif;
-          position: relative;
-        }
-        .login-root::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background-image:
-            linear-gradient(rgba(22,163,74,0.04) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(22,163,74,0.04) 1px, transparent 1px);
-          background-size: 32px 32px;
-          pointer-events: none;
-        }
-
-        /* â•â•â• LEFT PANEL â•â•â• */
-        .lp-left {
-          flex: 1.1;
-          display: flex;
-          flex-direction: column;
-          padding: 36px 36px 28px 36px;
-          border-right: 1px solid #e2e8f0;
           background: #ffffff;
-          position: relative;
-          z-index: 1;
-          overflow: hidden;
-          animation: fadeSlideIn 0.4s ease both;
-        }
-        .lp-left::after {
-          content: '';
-          position: absolute;
-          bottom: -120px;
-          left: -120px;
-          width: 400px;
-          height: 400px;
-          border-radius: 50%;
-          background: radial-gradient(circle, rgba(22,163,74,0.07) 0%, transparent 70%);
-          pointer-events: none;
-        }
-        .lp-brand {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          margin-bottom: 24px;
-        }
-        .lp-brand-icon {
-          width: 52px;
-          height: 52px;
-          border-radius: 16px;
-          background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+          font-family: 'Poppins', 'Noto Sans Sinhala', system-ui, -apple-system, sans-serif;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 8px 20px rgba(22,163,74,0.28), inset 0 1px 1px rgba(255,255,255,0.3);
+        }
+
+        /* Animated Background Grid */
+        .nx-bg-grid {
+          position: absolute;
+          inset: 0;
+          background-image:
+            linear-gradient(to right, rgba(22, 163, 74, 0.045) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(22, 163, 74, 0.045) 1px, transparent 1px);
+          background-size: 36px 36px;
+          animation: gridMove 30s linear infinite;
+          pointer-events: none;
+          z-index: 1;
+        }
+
+        /* Animated Gradient Orbs */
+        .nx-orb {
+          position: absolute;
+          border-radius: 50%;
+          filter: blur(80px);
+          pointer-events: none;
+          z-index: 0;
+        }
+
+        .nx-orb-1 {
+          top: -120px;
+          left: -100px;
+          width: 580px;
+          height: 580px;
+          background: radial-gradient(circle, rgba(34, 197, 94, 0.16) 0%, rgba(16, 185, 129, 0.08) 50%, transparent 70%);
+          animation: floatOrb1 20s ease-in-out infinite alternate;
+        }
+
+        .nx-orb-2 {
+          bottom: -150px;
+          right: -80px;
+          width: 650px;
+          height: 650px;
+          background: radial-gradient(circle, rgba(16, 185, 129, 0.14) 0%, rgba(59, 130, 246, 0.08) 50%, transparent 70%);
+          animation: floatOrb2 24s ease-in-out infinite alternate;
+        }
+
+        .nx-orb-3 {
+          top: 35%;
+          right: 38%;
+          width: 480px;
+          height: 480px;
+          background: radial-gradient(circle, rgba(74, 222, 128, 0.12) 0%, rgba(20, 184, 166, 0.06) 60%, transparent 75%);
+          animation: floatOrb3 18s ease-in-out infinite alternate;
+        }
+
+        /* Subtle Vignette / Edge Glow */
+        .nx-vignette {
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(circle at 50% 50%, transparent 60%, rgba(240, 253, 244, 0.5) 100%);
+          pointer-events: none;
+          z-index: 1;
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           MAIN SPLIT CONTAINER
+           ══════════════════════════════════════════════════════════════ */
+        .nx-container {
+          position: relative;
+          z-index: 2;
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: stretch;
+        }
+
+        /* ──────────────────────────────────────────────────────────────
+           LEFT PANEL: 3D HERO IMAGE SHOWCASE
+           ────────────────────────────────────────────────────────────── */
+        .nx-hero-section {
+          flex: 1.1;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          padding: 32px 40px;
+          position: relative;
+          background: linear-gradient(145deg, #f8fafc 0%, #f0fdf4 100%);
+          border-right: 1px solid rgba(226, 232, 240, 0.9);
+          overflow: hidden;
+        }
+
+        .nx-hero-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          z-index: 3;
+        }
+
+        .nx-brand-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 9px;
+          background: #ffffff;
+          padding: 7px 14px;
+          border-radius: 999px;
+          border: 1px solid rgba(34, 197, 94, 0.25);
+          box-shadow: 0 4px 14px rgba(22, 163, 74, 0.08);
+        }
+
+        .nx-brand-logo-img {
+          height: 22px;
+          object-fit: contain;
+        }
+
+        .nx-brand-tag {
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: #16a34a;
+        }
+
+        .nx-branch-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11.5px;
+          font-weight: 600;
+          color: #334155;
+          background: #ffffff;
+          padding: 6px 14px;
+          border-radius: 999px;
+          border: 1px solid #e2e8f0;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+        }
+
+        /* Hero Image Container */
+        .nx-hero-artwork {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+          margin: 16px 0;
+        }
+
+        .nx-hero-image-wrap {
+          position: relative;
+          width: 100%;
+          max-width: 520px;
+          max-height: 520px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          animation: heroFloat 6s ease-in-out infinite;
+        }
+
+        .nx-hero-img {
+          width: 100%;
+          height: auto;
+          max-height: 520px;
+          object-fit: contain;
+          border-radius: 28px;
+          box-shadow:
+            0 24px 48px -12px rgba(22, 163, 74, 0.22),
+            0 12px 24px -8px rgba(0, 0, 0, 0.06),
+            0 0 0 1px rgba(22, 163, 74, 0.15);
+          transition: transform 0.4s ease, box-shadow 0.4s ease;
+          background: #ffffff;
+        }
+
+        .nx-hero-img:hover {
+          transform: scale(1.015);
+          box-shadow:
+            0 32px 64px -12px rgba(22, 163, 74, 0.3),
+            0 0 0 2px rgba(22, 163, 74, 0.3);
+        }
+
+        /* Ambient glow backdrop behind the image */
+        .nx-hero-glow-ring {
+          position: absolute;
+          inset: -15px;
+          border-radius: 36px;
+          background: radial-gradient(circle, rgba(34, 197, 94, 0.2) 0%, rgba(16, 185, 129, 0.05) 60%, transparent 80%);
+          filter: blur(20px);
+          z-index: -1;
+          pointer-events: none;
+        }
+
+        /* Hero Features Row */
+        .nx-hero-features {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 12px;
+          z-index: 3;
+        }
+
+        .nx-feat-chip {
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(226, 232, 240, 0.9);
+          border-radius: 14px;
+          padding: 10px 12px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+          transition: all 0.2s ease;
+        }
+
+        .nx-feat-chip:hover {
+          transform: translateY(-2px);
+          border-color: #86efac;
+          box-shadow: 0 8px 18px rgba(22, 163, 74, 0.1);
+        }
+
+        .nx-feat-icon-box {
+          width: 32px;
+          height: 32px;
+          border-radius: 10px;
+          background: #dcfce7;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #16a34a;
           flex-shrink: 0;
         }
-        .lp-branch-badge {
+
+        .nx-feat-title {
+          font-size: 11.5px;
+          font-weight: 700;
+          color: #0f172a;
+          line-height: 1.2;
+        }
+
+        .nx-feat-sub {
+          font-size: 10px;
+          font-weight: 500;
+          color: #64748b;
+        }
+
+        /* ──────────────────────────────────────────────────────────────
+           RIGHT PANEL: LOGIN & WORKSTATION CONSOLE
+           ────────────────────────────────────────────────────────────── */
+        .nx-auth-section {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          padding: 32px 42px;
+          background: #ffffff;
+          position: relative;
+          z-index: 2;
+          overflow-y: auto;
+        }
+
+        /* Top Bar with Clock & POS Secured */
+        .nx-top-bar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 20px;
+          padding-bottom: 16px;
+          border-bottom: 1px solid #f1f5f9;
+        }
+
+        .nx-clock-wrap {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          padding: 6px 14px;
+          border-radius: 12px;
+        }
+
+        .nx-clock-time {
+          font-family: 'JetBrains Mono', 'Consolas', monospace;
+          font-size: 13.5px;
+          font-weight: 800;
+          color: #0f172a;
+          letter-spacing: 0.05em;
+        }
+
+        .nx-clock-date {
+          font-size: 11px;
+          font-weight: 600;
+          color: #64748b;
+        }
+
+        .nx-security-badge {
           display: inline-flex;
           align-items: center;
           gap: 5px;
-          font-size: 10px;
+          font-size: 11px;
           font-weight: 700;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
           color: #16a34a;
           background: #dcfce7;
           border: 1px solid #bbf7d0;
-          padding: 3px 10px;
+          padding: 6px 12px;
           border-radius: 999px;
-          margin-bottom: 4px;
         }
-        .lp-shop-name {
-          margin: 0;
-          font-size: 22px;
-          font-weight: 900;
-          color: #0f172a;
-          letter-spacing: -0.02em;
-          line-height: 1.2;
+
+        /* Auth Mode Switcher */
+        .nx-mode-tabs {
+          display: flex;
+          background: #f1f5f9;
+          border: 1px solid #e2e8f0;
+          padding: 4px;
+          border-radius: 16px;
+          margin-bottom: 20px;
+          gap: 4px;
         }
-        .lp-desc {
+
+        .nx-mode-tab {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 10px 14px;
+          border-radius: 12px;
           font-size: 12.5px;
+          font-weight: 700;
+          border: none;
+          cursor: pointer;
+          background: transparent;
           color: #64748b;
-          line-height: 1.6;
-          margin: 0 0 22px 0;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .lp-section-label {
+
+        .nx-mode-tab.active {
+          background: #ffffff;
+          color: #16a34a;
+          box-shadow: 0 4px 14px rgba(22, 163, 74, 0.12), 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Operator Selector */
+        .nx-section-title {
           font-size: 10.5px;
           font-weight: 700;
           text-transform: uppercase;
           letter-spacing: 0.09em;
           color: #94a3b8;
-          margin-bottom: 10px;
+          margin-bottom: 8px;
           display: flex;
           align-items: center;
           justify-content: space-between;
         }
-        .lp-section-label span:last-child { color: #16a34a; font-size: 9.5px; }
-        .lp-operator-grid {
+
+        .nx-operator-grid {
           display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 9px;
-          margin-bottom: 20px;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 8px;
+          margin-bottom: 18px;
         }
-        .lp-op-card {
-          padding: 11px 13px;
-          border-radius: 14px;
-          border: 1.5px solid #e2e8f0;
-          background: #f8fafc;
-          cursor: pointer;
-          transition: all 0.18s cubic-bezier(0.4,0,0.2,1);
+
+        .nx-op-card {
           display: flex;
           align-items: center;
           gap: 10px;
+          padding: 8px 12px;
+          border-radius: 14px;
+          border: 1.5px solid #f1f5f9;
+          background: #f8fafc;
+          cursor: pointer;
+          transition: all 0.2s ease;
           position: relative;
         }
-        .lp-op-card:hover {
-          border-color: #86efac;
-          background: #f0fdf4;
+
+        .nx-op-card:hover {
+          border-color: #cbd5e1;
+          background: #ffffff;
           transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(22,163,74,0.1);
         }
-        .lp-op-card.selected {
-          border-color: #16a34a;
-          background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-          box-shadow: 0 4px 14px rgba(22,163,74,0.16);
+
+        .nx-op-card.selected {
+          border-color: #22c55e;
+          background: #ffffff;
+          box-shadow: 0 4px 14px rgba(34, 197, 94, 0.14);
         }
-        .lp-op-avatar {
-          width: 34px;
-          height: 34px;
+
+        .nx-op-avatar {
+          width: 32px;
+          height: 32px;
           border-radius: 10px;
           display: flex;
           align-items: center;
           justify-content: center;
+          color: #ffffff;
           font-weight: 800;
           font-size: 13px;
-          color: white;
           flex-shrink: 0;
         }
-        .lp-op-name {
-          font-size: 12.5px;
+
+        .nx-op-info {
+          min-width: 0;
+          flex: 1;
+        }
+
+        .nx-op-name {
+          font-size: 12px;
           font-weight: 700;
           color: #0f172a;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
         }
-        .lp-op-role { font-size: 10.5px; font-weight: 600; }
-        .lp-diag {
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
-          border-radius: 14px;
-          padding: 13px 15px;
-          display: flex;
-          flex-direction: column;
-          gap: 9px;
-          flex: 1;
-        }
-        .lp-diag-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          font-size: 11.5px;
-        }
-        .lp-diag-label {
-          color: #94a3b8;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-weight: 500;
-        }
-        .lp-diag-value { color: #0f172a; font-weight: 600; }
-        .lp-live-dot {
-          width: 6px; height: 6px;
-          border-radius: 50%;
-          background: #16a34a;
-          display: inline-block;
-          animation: pulse-dot 1.6s ease-in-out infinite;
-        }
-        .lp-footer {
-          padding-top: 16px;
-          margin-top: 16px;
-          border-top: 1px solid #f1f5f9;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-        .lp-clock { display: flex; align-items: center; gap: 8px; }
-        .lp-clock-time {
-          font-family: 'Courier New', monospace;
-          font-size: 14px;
-          font-weight: 800;
-          color: #0f172a;
-          letter-spacing: 0.04em;
-        }
-        .lp-clock-date { font-size: 11px; color: #94a3b8; font-weight: 500; }
-        .lp-secured {
-          display: flex;
-          align-items: center;
-          gap: 5px;
-          font-size: 11px;
-          font-weight: 700;
-          color: #16a34a;
+
+        .nx-op-role {
+          font-size: 10.5px;
+          font-weight: 600;
         }
 
-        /* â•â•â• RIGHT PANEL â•â•â• */
-        .lp-right {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          padding: 36px 36px 28px 36px;
-          background: #ffffff;
-          position: relative;
-          z-index: 1;
-          overflow: hidden;
-          animation: fadeSlideIn 0.4s 0.08s ease both;
-        }
-        .lp-right::before {
-          content: '';
-          position: absolute;
-          top: -100px; right: -100px;
-          width: 340px; height: 340px;
-          border-radius: 50%;
-          background: radial-gradient(circle, rgba(22,163,74,0.06) 0%, transparent 65%);
-          pointer-events: none;
-        }
-        .lp-tabs {
-          display: flex;
-          background: #f1f5f9;
-          padding: 4px;
-          border-radius: 14px;
-          border: 1px solid #e2e8f0;
-          margin-bottom: 20px;
-          gap: 4px;
-        }
-        .lp-tab {
-          flex: 1;
-          padding: 10px 14px;
-          border-radius: 10px;
-          border: none;
-          background: transparent;
-          color: #94a3b8;
-          font-weight: 700;
-          font-size: 12.5px;
-          cursor: pointer;
+        /* Error Alert */
+        .nx-error-box {
           display: flex;
           align-items: center;
-          justify-content: center;
-          gap: 6px;
-          transition: all 0.18s ease;
-          font-family: inherit;
-        }
-        .lp-tab.active {
-          background: #ffffff;
-          color: #16a34a;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-        }
-        .lp-op-banner {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 11px 14px;
-          border-radius: 12px;
-          background: #f0fdf4;
-          border: 1.5px solid #bbf7d0;
-          margin-bottom: 16px;
-          animation: fadeSlideIn 0.25s ease both;
-        }
-        .lp-op-banner-dot {
-          width: 8px; height: 8px;
-          border-radius: 50%;
-          background: #16a34a;
-          box-shadow: 0 0 8px #22c55e;
-          animation: pulse-dot 1.6s ease-in-out infinite;
-        }
-        .lp-op-banner-name { font-size: 13px; font-weight: 800; color: #0f172a; }
-        .lp-op-banner-role { font-size: 10.5px; color: #16a34a; font-weight: 600; }
-        .lp-op-banner-pin {
-          font-size: 10.5px; color: #94a3b8;
-          background: #f1f5f9; border: 1px solid #e2e8f0;
-          padding: 3px 9px; border-radius: 8px; font-weight: 600;
-        }
-        .lp-error {
+          gap: 10px;
           background: #fef2f2;
           border: 1.5px solid #fecaca;
           color: #dc2626;
-          border-radius: 12px;
           padding: 10px 14px;
+          border-radius: 12px;
           font-size: 12px;
           font-weight: 600;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 14px;
+          margin-bottom: 16px;
           animation: shake 0.4s ease;
         }
-        .lp-pin-dots {
-          display: flex;
-          gap: 12px;
-          justify-content: center;
-          margin: 8px 0 10px;
-        }
-        .lp-pin-dot {
-          width: 16px; height: 16px;
-          border-radius: 50%;
-          border: 2px solid #e2e8f0;
-          background: #f8fafc;
-          transition: all 0.15s cubic-bezier(0.4,0,0.2,1);
-        }
-        .lp-pin-dot.filled {
-          background: #16a34a;
-          border-color: #22c55e;
-          box-shadow: 0 0 12px rgba(34,197,94,0.45);
-          animation: pinPop 0.18s ease;
-        }
-        .lp-pin-status {
-          text-align: center;
-          font-size: 12px;
-          font-weight: 600;
-          min-height: 18px;
-          margin-bottom: 14px;
-          color: #94a3b8;
-        }
-        .lp-keypad {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 9px;
-        }
-        .lp-key {
-          height: 58px;
-          border-radius: 14px;
-          border: 1.5px solid #e2e8f0;
-          background: #f8fafc;
-          color: #0f172a;
-          font-size: 20px;
-          font-weight: 700;
-          cursor: pointer;
-          transition: all 0.12s ease;
+
+        /* ──────────────────────────────────────────────────────────────
+           PASSCODE NUMPAD MODE
+           ────────────────────────────────────────────────────────────── */
+        .nx-pin-display {
           display: flex;
           align-items: center;
           justify-content: center;
-          font-family: inherit;
+          gap: 14px;
+          margin: 12px 0 10px 0;
+        }
+
+        .nx-pin-dot {
+          width: 15px;
+          height: 15px;
+          border-radius: 50%;
+          border: 2px solid #cbd5e1;
+          background: #f8fafc;
+          transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .nx-pin-dot.filled {
+          border-color: #16a34a;
+          background: #16a34a;
+          transform: scale(1.15);
+          box-shadow: 0 0 12px rgba(22, 163, 74, 0.5);
+          animation: pinPop 0.25s ease;
+        }
+
+        .nx-pin-status {
+          text-align: center;
+          font-size: 11.5px;
+          font-weight: 600;
+          color: #64748b;
+          min-height: 18px;
+          margin-bottom: 14px;
+        }
+
+        .nx-numpad {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 8px;
+          max-width: 320px;
+          margin: 0 auto;
+        }
+
+        .nx-numkey {
+          height: 48px;
+          border-radius: 14px;
+          border: 1.5px solid #e2e8f0;
+          background: #ffffff;
+          font-size: 18px;
+          font-weight: 700;
+          color: #0f172a;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
+          transition: all 0.15s ease;
           user-select: none;
         }
-        .lp-key:hover:not(:disabled) {
+
+        .nx-numkey:hover:not(:disabled) {
+          border-color: #22c55e;
           background: #f0fdf4;
-          border-color: #86efac;
           color: #16a34a;
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(22,163,74,0.12);
+          transform: translateY(-2px);
+          box-shadow: 0 6px 14px rgba(22, 163, 74, 0.12);
         }
-        .lp-key:active:not(:disabled) { transform: translateY(1px) scale(0.97); }
-        .lp-key:disabled { opacity: 0.35; cursor: not-allowed; }
-        .lp-key.key-clear {
-          font-size: 11px; font-weight: 800; letter-spacing: 0.07em;
-          color: #94a3b8; background: #f1f5f9; border-color: #e2e8f0;
+
+        .nx-numkey:active:not(:disabled) {
+          transform: translateY(1px) scale(0.98);
         }
-        .lp-key.key-delete {
-          font-size: 20px; color: #ef4444; background: #fff5f5; border-color: #fecaca;
+
+        .nx-numkey:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
-        .lp-field-label {
-          font-size: 10.5px; font-weight: 700;
-          text-transform: uppercase; letter-spacing: 0.07em;
-          color: #94a3b8; margin-bottom: 6px;
-          display: flex; align-items: center; justify-content: space-between;
-        }
-        .lp-field-wrap {
-          display: flex; align-items: center;
+
+        .nx-numkey.key-action {
+          font-size: 12px;
+          font-weight: 800;
+          letter-spacing: 0.05em;
+          color: #64748b;
           background: #f8fafc;
-          border: 1.5px solid #e2e8f0;
-          border-radius: 12px;
-          padding: 0 14px;
-          transition: all 0.18s ease;
         }
-        .lp-field-wrap.focused {
-          background: #f0fdf4;
-          border-color: #16a34a;
-          box-shadow: 0 0 0 3px rgba(22,163,74,0.08);
+
+        .nx-numkey.key-action:hover:not(:disabled) {
+          background: #f1f5f9;
+          color: #0f172a;
+          border-color: #cbd5e1;
         }
-        .lp-field-wrap.field-error { border-color: #ef4444; background: #fff5f5; }
-        .lp-input {
-          flex: 1; padding: 13px 0;
-          border: none; outline: none;
-          background: transparent;
-          font-size: 13.5px; font-weight: 600;
-          color: #0f172a; caret-color: #16a34a;
-          font-family: inherit;
+
+        .nx-numkey.key-delete:hover:not(:disabled) {
+          color: #dc2626;
+          border-color: #fca5a5;
+          background: #fef2f2;
         }
-        .lp-input::placeholder { color: #cbd5e1; font-weight: 400; }
-        .lp-field-err { font-size: 11px; color: #dc2626; font-weight: 600; margin-top: 4px; display: block; }
-        .lp-submit {
-          margin-top: 8px; width: 100%;
-          padding: 14px 20px; border-radius: 14px; border: none;
-          background: linear-gradient(135deg, #16a34a 0%, #15803d 60%, #166534 100%);
-          color: #ffffff; font-size: 14px; font-weight: 800; cursor: pointer;
-          display: flex; align-items: center; justify-content: center; gap: 8px;
-          box-shadow: 0 6px 20px rgba(22,163,74,0.32);
-          transition: all 0.18s ease;
-          font-family: inherit;
+
+        /* ──────────────────────────────────────────────────────────────
+           CREDENTIALS MODE
+           ────────────────────────────────────────────────────────────── */
+        .nx-cred-form {
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+          max-width: 360px;
+          margin: 0 auto;
+          width: 100%;
         }
-        .lp-submit:hover:not(:disabled) {
-          transform: translateY(-1px);
-          box-shadow: 0 10px 28px rgba(22,163,74,0.40);
+
+        .nx-field-group {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
         }
-        .lp-submit:active:not(:disabled) { transform: translateY(1px); }
-        .lp-submit:disabled { opacity: 0.6; cursor: not-allowed; }
-        .lp-right-footer {
-          padding-top: 14px;
-          margin-top: auto;
-          border-top: 1px solid #f1f5f9;
+
+        .nx-field-label-row {
           display: flex;
           align-items: center;
           justify-content: space-between;
           font-size: 11px;
+          font-weight: 700;
+          color: #475569;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+        }
+
+        .nx-field-input-box {
+          display: flex;
+          align-items: center;
+          background: #f8fafc;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 10px 14px;
+          transition: all 0.2s ease;
+        }
+
+        .nx-field-input-box.focused {
+          border-color: #16a34a;
+          background: #ffffff;
+          box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+        }
+
+        .nx-field-input-box.error {
+          border-color: #ef4444;
+          background: #fef2f2;
+        }
+
+        .nx-native-input {
+          flex: 1;
+          background: transparent;
+          border: none;
+          outline: none;
+          font-size: 13px;
+          font-weight: 600;
+          color: #0f172a;
+          font-family: inherit;
+        }
+
+        .nx-native-input::placeholder {
           color: #94a3b8;
+          font-weight: 500;
         }
-        .lp-right-footer .secured {
-          display: flex; align-items: center; gap: 4px;
-          color: #16a34a; font-weight: 700;
+
+        .nx-toggle-pw-btn {
+          background: none;
+          border: none;
+          cursor: pointer;
+          color: #94a3b8;
+          padding: 2px;
+          display: flex;
+          align-items: center;
+          transition: color 0.15s ease;
         }
-        .lp-pw-toggle {
-          background: none; border: none; cursor: pointer;
-          color: #94a3b8; padding: 4px;
-          display: flex; align-items: center;
-          transition: color 0.15s;
+
+        .nx-toggle-pw-btn:hover {
+          color: #16a34a;
         }
-        .lp-pw-toggle:hover { color: #16a34a; }
+
+        .nx-submit-btn {
+          width: 100%;
+          padding: 12px 18px;
+          border-radius: 12px;
+          border: none;
+          background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+          color: #ffffff;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          box-shadow: 0 8px 20px rgba(22, 163, 74, 0.28);
+          transition: all 0.2s ease;
+          margin-top: 6px;
+        }
+
+        .nx-submit-btn:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 12px 24px rgba(22, 163, 74, 0.35);
+        }
+
+        .nx-submit-btn:active:not(:disabled) {
+          transform: translateY(1px);
+        }
+
+        .nx-submit-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        /* ──────────────────────────────────────────────────────────────
+           BOTTOM DIAGNOSTICS & FOOTER
+           ────────────────────────────────────────────────────────────── */
+        .nx-diagnostics-bar {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 8px;
+          padding-top: 14px;
+          border-top: 1px solid #f1f5f9;
+          margin-top: 12px;
+        }
+
+        .nx-diag-item {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          font-size: 11px;
+          background: #f8fafc;
+          padding: 6px 10px;
+          border-radius: 8px;
+          border: 1px solid #f1f5f9;
+        }
+
+        .nx-diag-label {
+          color: #64748b;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          font-weight: 600;
+        }
+
+        .nx-diag-val {
+          color: #0f172a;
+          font-weight: 700;
+        }
+
+        .nx-live-pulse-dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: #16a34a;
+          display: inline-block;
+          animation: liveDotPulse 1.8s ease-in-out infinite;
+        }
+
+        .nx-auth-footer {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          font-size: 10.5px;
+          color: #94a3b8;
+          padding-top: 10px;
+        }
+
+        .nx-auth-footer-brand {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          color: #16a34a;
+          font-weight: 700;
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           RESPONSIVE TWEAKS FOR TABLETS / COMPACT POS SCREENS
+           ══════════════════════════════════════════════════════════════ */
+        @media (max-width: 1024px) {
+          .nx-container {
+            flex-direction: column;
+          }
+          .nx-hero-section {
+            display: none; /* Focus on auth console on ultra compact screens */
+          }
+        }
       `}</style>
 
-      <div className="login-root">
+      <div className="nx-login-root">
+        {/* Animated Background Orbs */}
+        <div className="nx-orb nx-orb-1" />
+        <div className="nx-orb nx-orb-2" />
+        <div className="nx-orb nx-orb-3" />
 
-        {/* ══════════ LEFT PANEL ══════════ */}
-        <div className="lp-left">
+        {/* Animated Moving Background Grid */}
+        <div className="nx-bg-grid" />
+        <div className="nx-vignette" />
 
-          {/* Brand */}
-          <div className="lp-brand">
-            <div className="lp-brand-icon">
-              <Cake size={26} color="#ffffff" />
-            </div>
-            <div>
-              <div className="lp-branch-badge">
-                <Sparkles size={10} />
-                Katugastota Branch · Live POS
+        <div className="nx-container">
+          {/* ══════════════════════════════════════════════════════════════
+              LEFT PANEL: 3D HERO VISUAL SHOWCASE
+              ══════════════════════════════════════════════════════════════ */}
+          <div className="nx-hero-section">
+            {/* Top Bar on Hero side */}
+            <div className="nx-hero-header">
+              <div className="nx-brand-badge">
+                <img src={nexztLogo} alt="Nexzt POS" className="nx-brand-logo-img" />
+                <span className="nx-brand-tag">POS Workstation</span>
               </div>
-              <h1 className="lp-shop-name">Wasana Cake</h1>
+              <div className="nx-branch-pill">
+                <Store size={14} color="#16a34a" />
+                <span>{currentShop?.name || 'Wasana Cake - Katugastota'}</span>
+              </div>
+            </div>
+
+            {/* Central 3D Artwork */}
+            <div className="nx-hero-artwork">
+              <div className="nx-hero-image-wrap">
+                <div className="nx-hero-glow-ring" />
+                <img
+                  src={heroImage}
+                  alt="Welcome to Nexzt POS"
+                  className="nx-hero-img"
+                />
+              </div>
+            </div>
+
+            {/* Bottom 3 Feature Badges */}
+            <div className="nx-hero-features">
+              <div className="nx-feat-chip">
+                <div className="nx-feat-icon-box">
+                  <Zap size={16} />
+                </div>
+                <div>
+                  <div className="nx-feat-title">Fast Billing</div>
+                  <div className="nx-feat-sub">Quick Touch & Numpad</div>
+                </div>
+              </div>
+
+              <div className="nx-feat-chip">
+                <div className="nx-feat-icon-box">
+                  <Cloud size={16} />
+                </div>
+                <div>
+                  <div className="nx-feat-title">Live Auto-Sync</div>
+                  <div className="nx-feat-sub">Multi-Terminal Cloud</div>
+                </div>
+              </div>
+
+              <div className="nx-feat-chip">
+                <div className="nx-feat-icon-box">
+                  <HardDrive size={16} />
+                </div>
+                <div>
+                  <div className="nx-feat-title">Offline Ready</div>
+                  <div className="nx-feat-sub">SQLite Local DB</div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <p className="lp-desc">
-            Select an Operator and enter your PIN to open the Workstation.
-          </p>
-
-          {/* Operator grid */}
-          <div style={{ marginBottom: 20 }}>
-            <div className="lp-section-label">
-              <span>Active Operator</span>
-              <span>Quick Touch</span>
+          {/* ══════════════════════════════════════════════════════════════
+              RIGHT PANEL: OPERATOR LOGIN & AUTHENTICATION CONSOLE
+              ══════════════════════════════════════════════════════════════ */}
+          <div className="nx-auth-section">
+            {/* Top Bar */}
+            <div className="nx-top-bar">
+              <div className="nx-clock-wrap">
+                <Clock size={14} color="#16a34a" />
+                <span className="nx-clock-time">{currentTime}</span>
+                <span style={{ color: '#cbd5e1' }}>|</span>
+                <span className="nx-clock-date">{currentDate}</span>
+              </div>
+              <div className="nx-security-badge">
+                <ShieldCheck size={14} />
+                <span>Station {currentTerminalId} · Active</span>
+              </div>
             </div>
-            <div className="lp-operator-grid">
-              {PRESET_OPERATORS.map((op) => {
-                const isSelected = selectedOperator?.id === op.id
-                return (
-                  <div
-                    key={op.id}
-                    onClick={() => handleSelectOperator(op)}
-                    className={`lp-op-card ${isSelected ? 'selected' : ''}`}
-                  >
-                    <div
-                      className="lp-op-avatar"
-                      style={{ background: op.avatarColor }}
-                    >
-                      {op.name.charAt(0)}
-                    </div>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div className="lp-op-name">{op.name}</div>
-                      <div className="lp-op-role" style={{ color: op.avatarColor }}>
-                        {op.roleTitle}
+
+            <div>
+              {/* Mode Tabs */}
+              <div className="nx-mode-tabs">
+                <button
+                  type="button"
+                  className={`nx-mode-tab ${mode === 'passcode' ? 'active' : ''}`}
+                  onClick={() => { setMode('passcode'); setError(null) }}
+                >
+                  <KeyRound size={15} />
+                  <span>Quick PIN</span>
+                </button>
+                <button
+                  type="button"
+                  className={`nx-mode-tab ${mode === 'credentials' ? 'active' : ''}`}
+                  onClick={() => { setMode('credentials'); setError(null) }}
+                >
+                  <User size={15} />
+                  <span>Password Login</span>
+                </button>
+              </div>
+
+              {/* Operator Selection */}
+              <div>
+                <div className="nx-section-title">
+                  <span>Active Operator</span>
+                  <span style={{ color: '#16a34a', fontSize: 10 }}>Touch to Switch</span>
+                </div>
+                <div className="nx-operator-grid">
+                  {PRESET_OPERATORS.map((op) => {
+                    const isSelected = selectedOperator?.id === op.id
+                    return (
+                      <div
+                        key={op.id}
+                        onClick={() => handleSelectOperator(op)}
+                        className={`nx-op-card ${isSelected ? 'selected' : ''}`}
+                      >
+                        <div
+                          className="nx-op-avatar"
+                          style={{ background: op.avatarColor }}
+                        >
+                          {op.name.charAt(0)}
+                        </div>
+                        <div className="nx-op-info">
+                          <div className="nx-op-name">{op.name}</div>
+                          <div className="nx-op-role" style={{ color: op.avatarColor }}>
+                            {op.roleTitle}
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <Check size={14} color="#16a34a" style={{ flexShrink: 0 }} />
+                        )}
                       </div>
-                    </div>
-                    {isSelected && (
-                      <CheckCircle2 size={15} color="#16a34a" style={{ flexShrink: 0 }} />
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Error Message */}
+              {error && (
+                <div className="nx-error-box">
+                  <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {/* ── PASSCODE MODE ── */}
+              {mode === 'passcode' && (
+                <div>
+                  <div className="nx-pin-display">
+                    {[...Array(6)].map((_, i) => (
+                      <div
+                        key={i}
+                        className={`nx-pin-dot ${i < passcode.length ? 'filled' : ''}`}
+                      />
+                    ))}
+                  </div>
+
+                  <div className="nx-pin-status">
+                    {isLoading ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#16a34a' }}>
+                        <RefreshCw size={13} style={{ animation: 'spin 0.8s linear infinite' }} />
+                        Verifying operator PIN...
+                      </span>
+                    ) : passcode.length === 0 ? (
+                      selectedOperator ? (
+                        <span>Enter 6-digit PIN for <strong>{selectedOperator.name}</strong> (Hint: 123456)</span>
+                      ) : (
+                        'Enter 6-digit PIN on keypad or keyboard'
+                      )
+                    ) : (
+                      <span style={{ color: '#16a34a' }}>{passcode.length} / 6 digits entered</span>
                     )}
                   </div>
-                )
-              })}
-            </div>
-          </div>
 
-          {/* Diagnostics */}
-          <div className="lp-diag">
-            <div className="lp-diag-row">
-              <span className="lp-diag-label"><Store size={13} color="#16a34a" /> Branch</span>
-              <span className="lp-diag-value">{currentShop?.name || 'Wasana Cake - Katugastota'}</span>
-            </div>
-            <div className="lp-diag-row">
-              <span className="lp-diag-label"><Activity size={13} color="#3b82f6" /> Terminal</span>
-              <span className="lp-diag-value">Station {currentTerminalId} · Active</span>
-            </div>
-            <div className="lp-diag-row">
-              <span className="lp-diag-label"><HardDrive size={13} color="#a855f7" /> Database</span>
-              <span className="lp-diag-value">Offline SQLite Ready</span>
-            </div>
-            <div className="lp-diag-row">
-              <span className="lp-diag-label"><Wifi size={13} color="#f59e0b" /> Cloud Sync</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#16a34a', fontWeight: 700, fontSize: 11.5 }}>
-                <span className="lp-live-dot" /> Live Auto-Sync
-              </span>
-            </div>
-          </div>
-
-          {/* Clock footer */}
-          <div className="lp-footer">
-            <div className="lp-clock">
-              <Clock size={13} color="#16a34a" />
-              <span className="lp-clock-time">{currentTime}</span>
-              <span style={{ color: '#e2e8f0' }}>|</span>
-              <span className="lp-clock-date">{currentDate}</span>
-            </div>
-            <div className="lp-secured">
-              <ShieldCheck size={13} /> POS Secured
-            </div>
-          </div>
-        </div>
-
-        {/* â•â•â•â•â•â•â•â•â•â• RIGHT PANEL â•â•â•â•â•â•â•â•â•â• */}
-        <div className="lp-right">
-
-          {/* Mode tabs */}
-          <div className="lp-tabs">
-            <button
-              type="button"
-              className={`lp-tab ${mode === 'passcode' ? 'active' : ''}`}
-              onClick={() => { setMode('passcode'); setError(null) }}
-            >
-              <KeyRound size={14} /> Quick PIN
-            </button>
-            <button
-              type="button"
-              className={`lp-tab ${mode === 'credentials' ? 'active' : ''}`}
-              onClick={() => { setMode('credentials'); setError(null) }}
-            >
-              <User size={14} /> Password Login
-            </button>
-          </div>
-
-          {/* Operator banner */}
-          {selectedOperator && (
-            <div className="lp-op-banner">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span className="lp-op-banner-dot" />
-                <div>
-                  <div className="lp-op-banner-name">{selectedOperator.name}</div>
-                  <div className="lp-op-banner-role">{selectedOperator.roleTitle} · Ready to unlock</div>
-                </div>
-              </div>
-              <span className="lp-op-banner-pin">PIN: 123456</span>
-            </div>
-          )}
-
-          {/* Error */}
-          {error && (
-            <div className="lp-error">
-              <AlertTriangle size={15} style={{ flexShrink: 0 }} />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* â”€â”€ Passcode mode â”€â”€ */}
-          {mode === 'passcode' && (
-            <div>
-              <div className="lp-pin-dots">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className={`lp-pin-dot ${i < passcode.length ? 'filled' : ''}`} />
-                ))}
-              </div>
-
-              <div className="lp-pin-status">
-                {isLoading ? (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#16a34a' }}>
-                    <RefreshCw size={13} style={{ animation: 'spin 0.8s linear infinite' }} />
-                    Verifying operator PIN...
-                  </span>
-                ) : passcode.length === 0 ? (
-                  'Enter 6-digit PIN (Touch keypad or keyboard)'
-                ) : (
-                  <span style={{ color: '#16a34a' }}>{passcode.length} / 6 digits entered</span>
-                )}
-              </div>
-
-              <div className="lp-keypad">
-                {['1','2','3','4','5','6','7','8','9'].map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    className="lp-key"
-                    onClick={() => handlePasscodeKey(d)}
-                    disabled={isLoading}
-                  >
-                    {d}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  className="lp-key key-clear"
-                  onClick={() => { setPasscode(''); setError(null) }}
-                  disabled={isLoading || passcode.length === 0}
-                >
-                  CLEAR
-                </button>
-                <button
-                  type="button"
-                  className="lp-key"
-                  onClick={() => handlePasscodeKey('0')}
-                  disabled={isLoading}
-                >
-                  0
-                </button>
-                <button
-                  type="button"
-                  className="lp-key key-delete"
-                  onClick={() => setPasscode((p) => p.slice(0, -1))}
-                  disabled={isLoading || passcode.length === 0}
-                >
-                  âŒ«
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* â”€â”€ Credentials mode â”€â”€ */}
-          {mode === 'credentials' && (
-            <form onSubmit={handleCredentialsLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {/* Email */}
-              <div>
-                <div className="lp-field-label">
-                  <span>Operator ID or Email</span>
-                  {detectedRole && (
-                    <span
-                      style={{
-                        fontSize: 10, fontWeight: 700,
-                        color: detectedRole.color, background: detectedRole.bg,
-                        padding: '2px 8px', borderRadius: 10
-                      }}
+                  {/* Tactile 3x4 Numpad */}
+                  <div className="nx-numpad">
+                    {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
+                      <button
+                        key={digit}
+                        type="button"
+                        className="nx-numkey"
+                        onClick={() => handlePasscodeKey(digit)}
+                        disabled={isLoading}
+                      >
+                        {digit}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      className="nx-numkey key-action"
+                      onClick={() => { setPasscode(''); setError(null) }}
+                      disabled={isLoading || passcode.length === 0}
                     >
-                      {detectedRole.label}
-                    </span>
-                  )}
+                      CLEAR
+                    </button>
+                    <button
+                      type="button"
+                      className="nx-numkey"
+                      onClick={() => handlePasscodeKey('0')}
+                      disabled={isLoading}
+                    >
+                      0
+                    </button>
+                    <button
+                      type="button"
+                      className="nx-numkey key-action key-delete"
+                      onClick={() => setPasscode((p) => p.slice(0, -1))}
+                      disabled={isLoading || passcode.length === 0}
+                    >
+                      ⌫
+                    </button>
+                  </div>
                 </div>
-                <div className={`lp-field-wrap ${emailFocused ? 'focused' : ''} ${fieldErrors.email ? 'field-error' : ''}`}>
-                  <User size={15} color={emailFocused ? '#16a34a' : '#94a3b8'} style={{ marginRight: 10, flexShrink: 0 }} />
-                  <input
-                    type="text"
-                    className="lp-input"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value)
-                      if (fieldErrors.email) setFieldErrors((p) => ({ ...p, email: undefined }))
-                    }}
-                    onFocus={() => setEmailFocused(true)}
-                    onBlur={() => setEmailFocused(false)}
-                    placeholder="cashier1 Â· manager Â· owner"
-                    disabled={isLoading}
-                    autoComplete="username"
-                  />
-                </div>
-                {fieldErrors.email && <span className="lp-field-err">{fieldErrors.email}</span>}
-              </div>
+              )}
 
-              {/* Password */}
-              <div>
-                <label className="lp-field-label">Security Password</label>
-                <div className={`lp-field-wrap ${passFocused ? 'focused' : ''} ${fieldErrors.password ? 'field-error' : ''}`}>
-                  <Lock size={15} color={password.length > 0 || passFocused ? '#16a34a' : '#94a3b8'} style={{ marginRight: 10, flexShrink: 0 }} />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    className="lp-input"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value)
-                      if (fieldErrors.password) setFieldErrors((p) => ({ ...p, password: undefined }))
-                    }}
-                    onFocus={() => setPassFocused(true)}
-                    onBlur={() => setPassFocused(false)}
-                    placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
-                    disabled={isLoading}
-                    autoComplete="current-password"
-                  />
-                  <button type="button" className="lp-pw-toggle" onClick={() => setShowPassword(!showPassword)}>
-                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+              {/* ── CREDENTIALS MODE ── */}
+              {mode === 'credentials' && (
+                <form onSubmit={handleCredentialsLogin} className="nx-cred-form">
+                  <div className="nx-field-group">
+                    <div className="nx-field-label-row">
+                      <span>Operator ID / Email</span>
+                      {detectedRole && (
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: detectedRole.color,
+                            background: detectedRole.bg,
+                            padding: '2px 8px',
+                            borderRadius: 10
+                          }}
+                        >
+                          {detectedRole.label}
+                        </span>
+                      )}
+                    </div>
+                    <div className={`nx-field-input-box ${emailFocused ? 'focused' : ''} ${fieldErrors.email ? 'error' : ''}`}>
+                      <User size={15} color={emailFocused ? '#16a34a' : '#94a3b8'} style={{ marginRight: 10, flexShrink: 0 }} />
+                      <input
+                        type="text"
+                        className="nx-native-input"
+                        value={email}
+                        onChange={(e) => {
+                          setEmail(e.target.value)
+                          if (fieldErrors.email) setFieldErrors((p) => ({ ...p, email: undefined }))
+                        }}
+                        onFocus={() => setEmailFocused(true)}
+                        onBlur={() => setEmailFocused(false)}
+                        placeholder="cashier1@rasacakes.lk"
+                        disabled={isLoading}
+                        autoComplete="username"
+                      />
+                    </div>
+                    {fieldErrors.email && (
+                      <span style={{ fontSize: 11, color: '#dc2626', fontWeight: 600 }}>{fieldErrors.email}</span>
+                    )}
+                  </div>
+
+                  <div className="nx-field-group">
+                    <div className="nx-field-label-row">
+                      <span>Password</span>
+                    </div>
+                    <div className={`nx-field-input-box ${passFocused ? 'focused' : ''} ${fieldErrors.password ? 'error' : ''}`}>
+                      <Lock size={15} color={password.length > 0 || passFocused ? '#16a34a' : '#94a3b8'} style={{ marginRight: 10, flexShrink: 0 }} />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        className="nx-native-input"
+                        value={password}
+                        onChange={(e) => {
+                          setPassword(e.target.value)
+                          if (fieldErrors.password) setFieldErrors((p) => ({ ...p, password: undefined }))
+                        }}
+                        onFocus={() => setPassFocused(true)}
+                        onBlur={() => setPassFocused(false)}
+                        placeholder="••••••••"
+                        disabled={isLoading}
+                        autoComplete="current-password"
+                      />
+                      <button
+                        type="button"
+                        className="nx-toggle-pw-btn"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    </div>
+                    {fieldErrors.password && (
+                      <span style={{ fontSize: 11, color: '#dc2626', fontWeight: 600 }}>{fieldErrors.password}</span>
+                    )}
+                  </div>
+
+                  <button type="submit" className="nx-submit-btn" disabled={isLoading}>
+                    {isLoading ? (
+                      <>
+                        <RefreshCw size={15} style={{ animation: 'spin 0.8s linear infinite' }} />
+                        <span>Authenticating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Unlock Workstation</span>
+                        <ArrowRight size={15} />
+                      </>
+                    )}
                   </button>
+
+                  <div style={{ textAlign: 'center', fontSize: 11, color: '#94a3b8' }}>
+                    Default Password:&nbsp;
+                    <span style={{ color: '#16a34a', fontWeight: 700 }}>cashier123</span>
+                    &nbsp;/&nbsp;
+                    <span style={{ color: '#16a34a', fontWeight: 700 }}>123456</span>
+                  </div>
+                </form>
+              )}
+            </div>
+
+            {/* Bottom Station Diagnostics & Footer */}
+            <div>
+              <div className="nx-diagnostics-bar">
+                <div className="nx-diag-item">
+                  <span className="nx-diag-label"><Store size={13} color="#16a34a" /> Branch</span>
+                  <span className="nx-diag-val">{currentShop?.name || 'Wasana Cake - Katugastota'}</span>
                 </div>
-                {fieldErrors.password && <span className="lp-field-err">{fieldErrors.password}</span>}
+                <div className="nx-diag-item">
+                  <span className="nx-diag-label"><Activity size={13} color="#3b82f6" /> Terminal</span>
+                  <span className="nx-diag-val">Station {currentTerminalId} · Active</span>
+                </div>
+                <div className="nx-diag-item">
+                  <span className="nx-diag-label"><HardDrive size={13} color="#a855f7" /> Database</span>
+                  <span className="nx-diag-val">Offline SQLite</span>
+                </div>
+                <div className="nx-diag-item">
+                  <span className="nx-diag-label"><Wifi size={13} color="#f59e0b" /> Cloud Sync</span>
+                  <span className="nx-diag-val" style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#16a34a' }}>
+                    <span className="nx-live-pulse-dot" /> Live Auto-Sync
+                  </span>
+                </div>
               </div>
 
-              <button type="submit" className="lp-submit" disabled={isLoading}>
-                {isLoading ? (
-                  <><RefreshCw size={15} style={{ animation: 'spin 0.8s linear infinite' }} /><span>Authenticating...</span></>
-                ) : (
-                  <><span>Unlock Workstation</span><ArrowRight size={15} /></>
-                )}
-              </button>
-
-              <div style={{ textAlign: 'center', fontSize: 11, color: '#94a3b8' }}>
-                Default Password:&nbsp;
-                <span style={{ color: '#16a34a', fontWeight: 700 }}>cashier123</span>
-                &nbsp;/&nbsp;
-                <span style={{ color: '#16a34a', fontWeight: 700 }}>123456</span>
+              <div className="nx-auth-footer">
+                <span>Wasana POS Terminal v1.0.0</span>
+                <span className="nx-auth-footer-brand">
+                  <ShieldCheck size={12} /> Nexzt POS Encrypted
+                </span>
               </div>
-            </form>
-          )}
-
-          {/* Footer */}
-          <div className="lp-right-footer">
-            <span>Wasana POS Terminal v1.0.0</span>
-            <span className="secured">
-              <ShieldCheck size={12} /> End-to-End Encrypted
-            </span>
+            </div>
           </div>
         </div>
       </div>
     </>
   )
 }
-
