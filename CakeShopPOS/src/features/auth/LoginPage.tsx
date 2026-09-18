@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react'
+﻿import React, { useState, useEffect, useCallback } from 'react'
 import {
-  Cake, CakeSlice, Sparkles, ShieldCheck, Lock, Eye, EyeOff, Store, Clock,
+  Cake, Sparkles, ShieldCheck, Lock, Eye, EyeOff, Store, Clock,
   ArrowRight, KeyRound, AlertTriangle, RefreshCw, User, Activity,
-  HardDrive, Wifi, CheckCircle2, ChevronRight
+  HardDrive, Wifi, CheckCircle2
 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import dayjs from 'dayjs'
@@ -27,7 +27,7 @@ const PRESET_OPERATORS: OperatorProfile[] = [
     role: 'cashier',
     roleTitle: 'Cashier 01',
     avatarColor: '#16a34a',
-    badgeColor: 'rgba(22, 163, 74, 0.15)'
+    badgeColor: '#dcfce7'
   },
   {
     id: 'u0000000-0000-0000-0000-000000000004',
@@ -36,7 +36,7 @@ const PRESET_OPERATORS: OperatorProfile[] = [
     role: 'cashier',
     roleTitle: 'Cashier 02',
     avatarColor: '#059669',
-    badgeColor: 'rgba(5, 150, 105, 0.15)'
+    badgeColor: '#d1fae5'
   },
   {
     id: 'u0000000-0000-0000-0000-000000000002',
@@ -45,7 +45,7 @@ const PRESET_OPERATORS: OperatorProfile[] = [
     role: 'manager',
     roleTitle: 'Branch Manager',
     avatarColor: '#2563eb',
-    badgeColor: 'rgba(37, 99, 235, 0.15)'
+    badgeColor: '#dbeafe'
   },
   {
     id: 'u0000000-0000-0000-0000-000000000001',
@@ -54,7 +54,7 @@ const PRESET_OPERATORS: OperatorProfile[] = [
     role: 'owner',
     roleTitle: 'Store Owner',
     avatarColor: '#d97706',
-    badgeColor: 'rgba(217, 119, 6, 0.15)'
+    badgeColor: '#fef3c7'
   }
 ]
 
@@ -98,9 +98,9 @@ export const LoginPage: React.FC = () => {
   // Detect role badge for typed input
   const getDetectedRole = (input: string) => {
     const clean = input.trim().toLowerCase()
-    if (clean.includes('owner')) return { label: 'Store Owner', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)' }
-    if (clean.includes('manager')) return { label: 'Branch Manager', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.15)' }
-    if (clean.includes('cashier')) return { label: 'Terminal Cashier', color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)' }
+    if (clean.includes('owner')) return { label: 'Store Owner', color: '#d97706', bg: '#fef3c7' }
+    if (clean.includes('manager')) return { label: 'Branch Manager', color: '#2563eb', bg: '#dbeafe' }
+    if (clean.includes('cashier')) return { label: 'Terminal Cashier', color: '#16a34a', bg: '#dcfce7' }
     return null
   }
 
@@ -147,7 +147,7 @@ export const LoginPage: React.FC = () => {
       if (loggedInUser) {
         setUser(loggedInUser)
       } else {
-        setError('වැරදි PIN අංකයකි. කරුණාකර නැවත උත්සාහ කරන්න. (Invalid 6-digit PIN)')
+        setError('à·€à·à¶»à¶¯à·’ PIN à¶…à¶‚à¶šà¶ºà¶šà·’. à¶šà¶»à·”à¶«à·à¶šà¶» à¶±à·à·€à¶­ à¶‹à¶­à·Šà·ƒà·à·„ à¶šà¶»à¶±à·Šà¶±. (Invalid 6-digit PIN)')
         setPasscode('')
       }
     } catch (err: any) {
@@ -256,7 +256,7 @@ export const LoginPage: React.FC = () => {
       if (loggedInUser) {
         setUser(loggedInUser)
       } else if (!error) {
-        setError('මුරපදය හෝ Username වැරදිය. කරුණාකර නැවත උත්සාහ කරන්න.')
+        setError('à¶¸à·”à¶»à¶´à¶¯à¶º à·„à· Username à·€à·à¶»à¶¯à·’à¶º. à¶šà¶»à·”à¶«à·à¶šà¶» à¶±à·à·€à¶­ à¶‹à¶­à·Šà·ƒà·à·„ à¶šà¶»à¶±à·Šà¶±.')
       }
     } catch (err: any) {
       setError(err.message || 'System authentication error')
@@ -268,823 +268,754 @@ export const LoginPage: React.FC = () => {
   return (
     <>
       <style>{`
-        @keyframes floatSlow {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-12px) rotate(3deg); }
-        }
-        @keyframes pulseGlow {
-          0%, 100% { box-shadow: 0 0 25px rgba(22, 163, 74, 0.25), 0 0 50px rgba(22, 163, 74, 0.1); }
-          50% { box-shadow: 0 0 40px rgba(22, 163, 74, 0.45), 0 0 80px rgba(22, 163, 74, 0.2); }
-        }
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          20%, 60% { transform: translateX(-8px); }
-          40%, 80% { transform: translateX(8px); }
+        @keyframes fadeSlideIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes pinPop {
-          0% { transform: scale(0.7); opacity: 0; }
-          60% { transform: scale(1.15); opacity: 1; }
-          100% { transform: scale(1); opacity: 1; }
+          0%   { transform: scale(0.6); }
+          60%  { transform: scale(1.18); }
+          100% { transform: scale(1); }
+        }
+        @keyframes shake {
+          0%,100% { transform: translateX(0); }
+          20%,60%  { transform: translateX(-6px); }
+          40%,80%  { transform: translateX(6px); }
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes pulse-dot {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0.4; }
         }
 
-        .wasana-bg {
-          background: radial-gradient(circle at 20% 20%, #0f2416 0%, #08110b 45%, #050906 100%);
+        .login-root {
+          height: 100vh;
+          width: 100vw;
+          overflow: hidden;
+          display: flex;
+          background: #f0fdf4;
+          font-family: 'Poppins', 'Noto Sans Sinhala', sans-serif;
+          position: relative;
+        }
+        .login-root::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background-image:
+            linear-gradient(rgba(22,163,74,0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(22,163,74,0.04) 1px, transparent 1px);
+          background-size: 32px 32px;
+          pointer-events: none;
         }
 
-        .wasana-glass-card {
-          background: rgba(14, 25, 18, 0.75);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-          border: 1px solid rgba(34, 197, 94, 0.2);
+        /* â•â•â• LEFT PANEL â•â•â• */
+        .lp-left {
+          flex: 1.1;
+          display: flex;
+          flex-direction: column;
+          padding: 36px 36px 28px 36px;
+          border-right: 1px solid #e2e8f0;
+          background: #ffffff;
+          position: relative;
+          z-index: 1;
+          overflow: hidden;
+          animation: fadeSlideIn 0.4s ease both;
         }
-
-        .operator-card {
-          transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-          cursor: pointer;
-          border: 1.5px solid rgba(255, 255, 255, 0.07);
-          background: rgba(255, 255, 255, 0.025);
+        .lp-left::after {
+          content: '';
+          position: absolute;
+          bottom: -120px;
+          left: -120px;
+          width: 400px;
+          height: 400px;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(22,163,74,0.07) 0%, transparent 70%);
+          pointer-events: none;
         }
-        .operator-card:hover {
-          transform: translateY(-2px);
-          border-color: rgba(34, 197, 94, 0.4);
-          background: rgba(34, 197, 94, 0.07);
+        .lp-brand {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          margin-bottom: 24px;
         }
-        .operator-card.selected {
-          border-color: #22c55e;
-          background: linear-gradient(135deg, rgba(34, 197, 94, 0.18) 0%, rgba(21, 128, 61, 0.12) 100%);
-          box-shadow: 0 4px 20px rgba(34, 197, 94, 0.25), inset 0 0 15px rgba(34, 197, 94, 0.1);
-        }
-
-        .keypad-btn {
-          height: 60px;
+        .lp-brand-icon {
+          width: 52px;
+          height: 52px;
           border-radius: 16px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          background: rgba(255, 255, 255, 0.04);
-          color: #f8fafc;
+          background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 8px 20px rgba(22,163,74,0.28), inset 0 1px 1px rgba(255,255,255,0.3);
+          flex-shrink: 0;
+        }
+        .lp-branch-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: #16a34a;
+          background: #dcfce7;
+          border: 1px solid #bbf7d0;
+          padding: 3px 10px;
+          border-radius: 999px;
+          margin-bottom: 4px;
+        }
+        .lp-shop-name {
+          margin: 0;
           font-size: 22px;
+          font-weight: 900;
+          color: #0f172a;
+          letter-spacing: -0.02em;
+          line-height: 1.2;
+        }
+        .lp-desc {
+          font-size: 12.5px;
+          color: #64748b;
+          line-height: 1.6;
+          margin: 0 0 22px 0;
+        }
+        .lp-section-label {
+          font-size: 10.5px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.09em;
+          color: #94a3b8;
+          margin-bottom: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .lp-section-label span:last-child { color: #16a34a; font-size: 9.5px; }
+        .lp-operator-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 9px;
+          margin-bottom: 20px;
+        }
+        .lp-op-card {
+          padding: 11px 13px;
+          border-radius: 14px;
+          border: 1.5px solid #e2e8f0;
+          background: #f8fafc;
+          cursor: pointer;
+          transition: all 0.18s cubic-bezier(0.4,0,0.2,1);
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          position: relative;
+        }
+        .lp-op-card:hover {
+          border-color: #86efac;
+          background: #f0fdf4;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(22,163,74,0.1);
+        }
+        .lp-op-card.selected {
+          border-color: #16a34a;
+          background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+          box-shadow: 0 4px 14px rgba(22,163,74,0.16);
+        }
+        .lp-op-avatar {
+          width: 34px;
+          height: 34px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 800;
+          font-size: 13px;
+          color: white;
+          flex-shrink: 0;
+        }
+        .lp-op-name {
+          font-size: 12.5px;
+          font-weight: 700;
+          color: #0f172a;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .lp-op-role { font-size: 10.5px; font-weight: 600; }
+        .lp-diag {
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 14px;
+          padding: 13px 15px;
+          display: flex;
+          flex-direction: column;
+          gap: 9px;
+          flex: 1;
+        }
+        .lp-diag-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          font-size: 11.5px;
+        }
+        .lp-diag-label {
+          color: #94a3b8;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-weight: 500;
+        }
+        .lp-diag-value { color: #0f172a; font-weight: 600; }
+        .lp-live-dot {
+          width: 6px; height: 6px;
+          border-radius: 50%;
+          background: #16a34a;
+          display: inline-block;
+          animation: pulse-dot 1.6s ease-in-out infinite;
+        }
+        .lp-footer {
+          padding-top: 16px;
+          margin-top: 16px;
+          border-top: 1px solid #f1f5f9;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .lp-clock { display: flex; align-items: center; gap: 8px; }
+        .lp-clock-time {
+          font-family: 'Courier New', monospace;
+          font-size: 14px;
+          font-weight: 800;
+          color: #0f172a;
+          letter-spacing: 0.04em;
+        }
+        .lp-clock-date { font-size: 11px; color: #94a3b8; font-weight: 500; }
+        .lp-secured {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 11px;
+          font-weight: 700;
+          color: #16a34a;
+        }
+
+        /* â•â•â• RIGHT PANEL â•â•â• */
+        .lp-right {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          padding: 36px 36px 28px 36px;
+          background: #ffffff;
+          position: relative;
+          z-index: 1;
+          overflow: hidden;
+          animation: fadeSlideIn 0.4s 0.08s ease both;
+        }
+        .lp-right::before {
+          content: '';
+          position: absolute;
+          top: -100px; right: -100px;
+          width: 340px; height: 340px;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(22,163,74,0.06) 0%, transparent 65%);
+          pointer-events: none;
+        }
+        .lp-tabs {
+          display: flex;
+          background: #f1f5f9;
+          padding: 4px;
+          border-radius: 14px;
+          border: 1px solid #e2e8f0;
+          margin-bottom: 20px;
+          gap: 4px;
+        }
+        .lp-tab {
+          flex: 1;
+          padding: 10px 14px;
+          border-radius: 10px;
+          border: none;
+          background: transparent;
+          color: #94a3b8;
+          font-weight: 700;
+          font-size: 12.5px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          transition: all 0.18s ease;
+          font-family: inherit;
+        }
+        .lp-tab.active {
+          background: #ffffff;
+          color: #16a34a;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        }
+        .lp-op-banner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 11px 14px;
+          border-radius: 12px;
+          background: #f0fdf4;
+          border: 1.5px solid #bbf7d0;
+          margin-bottom: 16px;
+          animation: fadeSlideIn 0.25s ease both;
+        }
+        .lp-op-banner-dot {
+          width: 8px; height: 8px;
+          border-radius: 50%;
+          background: #16a34a;
+          box-shadow: 0 0 8px #22c55e;
+          animation: pulse-dot 1.6s ease-in-out infinite;
+        }
+        .lp-op-banner-name { font-size: 13px; font-weight: 800; color: #0f172a; }
+        .lp-op-banner-role { font-size: 10.5px; color: #16a34a; font-weight: 600; }
+        .lp-op-banner-pin {
+          font-size: 10.5px; color: #94a3b8;
+          background: #f1f5f9; border: 1px solid #e2e8f0;
+          padding: 3px 9px; border-radius: 8px; font-weight: 600;
+        }
+        .lp-error {
+          background: #fef2f2;
+          border: 1.5px solid #fecaca;
+          color: #dc2626;
+          border-radius: 12px;
+          padding: 10px 14px;
+          font-size: 12px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 14px;
+          animation: shake 0.4s ease;
+        }
+        .lp-pin-dots {
+          display: flex;
+          gap: 12px;
+          justify-content: center;
+          margin: 8px 0 10px;
+        }
+        .lp-pin-dot {
+          width: 16px; height: 16px;
+          border-radius: 50%;
+          border: 2px solid #e2e8f0;
+          background: #f8fafc;
+          transition: all 0.15s cubic-bezier(0.4,0,0.2,1);
+        }
+        .lp-pin-dot.filled {
+          background: #16a34a;
+          border-color: #22c55e;
+          box-shadow: 0 0 12px rgba(34,197,94,0.45);
+          animation: pinPop 0.18s ease;
+        }
+        .lp-pin-status {
+          text-align: center;
+          font-size: 12px;
+          font-weight: 600;
+          min-height: 18px;
+          margin-bottom: 14px;
+          color: #94a3b8;
+        }
+        .lp-keypad {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 9px;
+        }
+        .lp-key {
+          height: 58px;
+          border-radius: 14px;
+          border: 1.5px solid #e2e8f0;
+          background: #f8fafc;
+          color: #0f172a;
+          font-size: 20px;
           font-weight: 700;
           cursor: pointer;
           transition: all 0.12s ease;
           display: flex;
           align-items: center;
           justify-content: center;
-          backdrop-filter: blur(8px);
+          font-family: inherit;
           user-select: none;
         }
-        .keypad-btn:hover:not(:disabled) {
-          background: rgba(34, 197, 94, 0.18);
-          border-color: rgba(34, 197, 94, 0.5);
-          color: #86efac;
-          transform: translateY(-2px) scale(1.02);
-          box-shadow: 0 6px 16px rgba(34, 197, 94, 0.25);
+        .lp-key:hover:not(:disabled) {
+          background: #f0fdf4;
+          border-color: #86efac;
+          color: #16a34a;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(22,163,74,0.12);
         }
-        .keypad-btn:active:not(:disabled) {
-          transform: translateY(1px) scale(0.97);
+        .lp-key:active:not(:disabled) { transform: translateY(1px) scale(0.97); }
+        .lp-key:disabled { opacity: 0.35; cursor: not-allowed; }
+        .lp-key.key-clear {
+          font-size: 11px; font-weight: 800; letter-spacing: 0.07em;
+          color: #94a3b8; background: #f1f5f9; border-color: #e2e8f0;
         }
-        .keypad-btn:disabled {
-          opacity: 0.3;
-          cursor: not-allowed;
+        .lp-key.key-delete {
+          font-size: 20px; color: #ef4444; background: #fff5f5; border-color: #fecaca;
         }
-        .keypad-btn.action-btn {
-          font-size: 13px;
-          font-weight: 800;
-          letter-spacing: 0.06em;
+        .lp-field-label {
+          font-size: 10.5px; font-weight: 700;
+          text-transform: uppercase; letter-spacing: 0.07em;
+          color: #94a3b8; margin-bottom: 6px;
+          display: flex; align-items: center; justify-content: space-between;
         }
+        .lp-field-wrap {
+          display: flex; align-items: center;
+          background: #f8fafc;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 0 14px;
+          transition: all 0.18s ease;
+        }
+        .lp-field-wrap.focused {
+          background: #f0fdf4;
+          border-color: #16a34a;
+          box-shadow: 0 0 0 3px rgba(22,163,74,0.08);
+        }
+        .lp-field-wrap.field-error { border-color: #ef4444; background: #fff5f5; }
+        .lp-input {
+          flex: 1; padding: 13px 0;
+          border: none; outline: none;
+          background: transparent;
+          font-size: 13.5px; font-weight: 600;
+          color: #0f172a; caret-color: #16a34a;
+          font-family: inherit;
+        }
+        .lp-input::placeholder { color: #cbd5e1; font-weight: 400; }
+        .lp-field-err { font-size: 11px; color: #dc2626; font-weight: 600; margin-top: 4px; display: block; }
+        .lp-submit {
+          margin-top: 8px; width: 100%;
+          padding: 14px 20px; border-radius: 14px; border: none;
+          background: linear-gradient(135deg, #16a34a 0%, #15803d 60%, #166534 100%);
+          color: #ffffff; font-size: 14px; font-weight: 800; cursor: pointer;
+          display: flex; align-items: center; justify-content: center; gap: 8px;
+          box-shadow: 0 6px 20px rgba(22,163,74,0.32);
+          transition: all 0.18s ease;
+          font-family: inherit;
+        }
+        .lp-submit:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 10px 28px rgba(22,163,74,0.40);
+        }
+        .lp-submit:active:not(:disabled) { transform: translateY(1px); }
+        .lp-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+        .lp-right-footer {
+          padding-top: 14px;
+          margin-top: auto;
+          border-top: 1px solid #f1f5f9;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          font-size: 11px;
+          color: #94a3b8;
+        }
+        .lp-right-footer .secured {
+          display: flex; align-items: center; gap: 4px;
+          color: #16a34a; font-weight: 700;
+        }
+        .lp-pw-toggle {
+          background: none; border: none; cursor: pointer;
+          color: #94a3b8; padding: 4px;
+          display: flex; align-items: center;
+          transition: color 0.15s;
+        }
+        .lp-pw-toggle:hover { color: #16a34a; }
       `}</style>
 
-      <div
-        className="wasana-bg"
-        style={{
-          height: '100vh',
-          width: '100vw',
-          overflow: 'hidden',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontFamily: "'Poppins', 'Noto Sans Sinhala', sans-serif",
-          position: 'relative',
-          padding: 24,
-          boxSizing: 'border-box'
-        }}
-      >
-        {/* Ambient background glows */}
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
-          <div
-            style={{
-              position: 'absolute',
-              top: '-15%',
-              left: '-10%',
-              width: 650,
-              height: 650,
-              background: 'radial-gradient(circle, rgba(22, 163, 74, 0.2) 0%, transparent 70%)',
-              borderRadius: '50%'
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '-20%',
-              right: '-10%',
-              width: 700,
-              height: 700,
-              background: 'radial-gradient(circle, rgba(217, 119, 6, 0.12) 0%, transparent 70%)',
-              borderRadius: '50%'
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              top: '40%',
-              right: '25%',
-              width: 400,
-              height: 400,
-              background: 'radial-gradient(circle, rgba(34, 197, 94, 0.08) 0%, transparent 70%)',
-              borderRadius: '50%'
-            }}
-          />
-        </div>
+      <div className="login-root">
 
-        {/* Master Window Container */}
-        <div
-          className="wasana-glass-card"
-          style={{
-            width: '100%',
-            maxWidth: 1060,
-            minHeight: 620,
-            borderRadius: 28,
-            overflow: 'hidden',
-            display: 'flex',
-            boxShadow: '0 30px 90px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(34, 197, 94, 0.2)',
-            position: 'relative',
-            zIndex: 1
-          }}
-        >
-          {/* ══════════════════════════════════════════════════════════════
-              LEFT SHOWCASE PANEL: Brand Identity, Operators, Diagnostics
-              ══════════════════════════════════════════════════════════════ */}
-          <div
-            style={{
-              flex: '1.05',
-              background: 'linear-gradient(175deg, rgba(13, 27, 18, 0.95) 0%, rgba(7, 16, 11, 0.98) 100%)',
-              padding: '36px 36px 30px 36px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              borderRight: '1px solid rgba(34, 197, 94, 0.15)',
-              position: 'relative',
-              overflow: 'hidden'
-            }}
-          >
-            {/* Top: Brand Header */}
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
-                <div
-                  style={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: 16,
-                    background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 8px 24px rgba(22, 163, 74, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.4)',
-                    animation: 'floatSlow 4s ease-in-out infinite'
-                  }}
-                >
-                  <Cake size={28} color="#ffffff" />
-                </div>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span
-                      style={{
-                        fontSize: 10.5,
-                        fontWeight: 800,
-                        letterSpacing: '0.12em',
-                        textTransform: 'uppercase',
-                        color: '#4ade80',
-                        background: 'rgba(74, 222, 128, 0.12)',
-                        padding: '3px 9px',
-                        borderRadius: 20,
-                        border: '1px solid rgba(74, 222, 128, 0.3)'
-                      }}
-                    >
-                      Katugastota Branch
-                    </span>
-                    <span style={{ fontSize: 11, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <Sparkles size={12} /> Live POS
-                    </span>
-                  </div>
-                  <h1
-                    style={{
-                      margin: '4px 0 0 0',
-                      fontSize: 24,
-                      fontWeight: 900,
-                      color: '#ffffff',
-                      letterSpacing: '-0.02em',
-                      lineHeight: 1.15
-                    }}
-                  >
-                    Wasana Cake
-                  </h1>
-                </div>
-              </div>
+        {/* â•â•â•â•â•â•â•â•â•â• LEFT PANEL â•â•â•â•â•â•â•â•â•â• */}
+        <div className="lp-left">
 
-              {/* Description */}
-              <p style={{ margin: '0 0 20px 0', fontSize: 12.5, color: '#94a3b8', lineHeight: 1.5 }}>
-                තෝරාගත් ක්‍රියාකරු (Operator) තෝරා ඔබගේ PIN අංකය ඇතුළත් කර Workstation එක විවෘත කරන්න.
-              </p>
-
-              {/* Operator Select Grid */}
-              <div style={{ marginBottom: 20 }}>
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    color: '#64748b',
-                    marginBottom: 10,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                  }}
-                >
-                  <span>Select Active Operator</span>
-                  <span style={{ color: '#4ade80', fontSize: 10 }}>Quick Touch</span>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  {PRESET_OPERATORS.map((op) => {
-                    const isSelected = selectedOperator?.id === op.id
-                    return (
-                      <div
-                        key={op.id}
-                        onClick={() => handleSelectOperator(op)}
-                        className={`operator-card ${isSelected ? 'selected' : ''}`}
-                        style={{
-                          padding: '12px 14px',
-                          borderRadius: 16,
-                          position: 'relative'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div
-                            style={{
-                              width: 36,
-                              height: 36,
-                              borderRadius: 12,
-                              background: op.badgeColor,
-                              border: `1.5px solid ${op.avatarColor}`,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: '#ffffff',
-                              fontWeight: 800,
-                              fontSize: 14,
-                              flexShrink: 0
-                            }}
-                          >
-                            {op.name.charAt(0)}
-                          </div>
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                            <div
-                              style={{
-                                fontSize: 13,
-                                fontWeight: 700,
-                                color: isSelected ? '#ffffff' : '#e2e8f0',
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis'
-                              }}
-                            >
-                              {op.name}
-                            </div>
-                            <div
-                              style={{
-                                fontSize: 11,
-                                fontWeight: 600,
-                                color: op.avatarColor
-                              }}
-                            >
-                              {op.roleTitle}
-                            </div>
-                          </div>
-                          {isSelected && (
-                            <CheckCircle2 size={16} color="#22c55e" style={{ flexShrink: 0 }} />
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Station Diagnostics */}
-              <div
-                style={{
-                  background: 'rgba(0, 0, 0, 0.3)',
-                  border: '1px solid rgba(255, 255, 255, 0.06)',
-                  borderRadius: 16,
-                  padding: '12px 14px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 8
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11.5 }}>
-                  <span style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Store size={13} color="#4ade80" /> Branch
-                  </span>
-                  <span style={{ color: '#f1f5f9', fontWeight: 600 }}>{currentShop?.name || 'Wasana Cake - Katugastota'}</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11.5 }}>
-                  <span style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Activity size={13} color="#3b82f6" /> Terminal
-                  </span>
-                  <span style={{ color: '#f1f5f9', fontWeight: 600 }}>Station {currentTerminalId} · Active</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11.5 }}>
-                  <span style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <HardDrive size={13} color="#a855f7" /> Database
-                  </span>
-                  <span style={{ color: '#f1f5f9', fontWeight: 600 }}>Offline SQLite Ready</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11.5 }}>
-                  <span style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Wifi size={13} color="#f59e0b" /> Cloud Sync
-                  </span>
-                  <span style={{ color: '#4ade80', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ade80', display: 'inline-block' }} /> Live Auto-Sync
-                  </span>
-                </div>
-              </div>
+          {/* Brand */}
+          <div className="lp-brand">
+            <div className="lp-brand-icon">
+              <Cake size={26} color="#ffffff" />
             </div>
-
-            {/* Bottom: Live Clock & Security Status */}
-            <div
-              style={{
-                paddingTop: 16,
-                marginTop: 16,
-                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Clock size={14} color="#4ade80" />
-                <span
-                  style={{
-                    fontFamily: "'Courier New', monospace",
-                    fontSize: 14,
-                    fontWeight: 800,
-                    color: '#f8fafc',
-                    letterSpacing: '0.05em'
-                  }}
-                >
-                  {currentTime}
-                </span>
-                <span style={{ color: '#334155' }}>|</span>
-                <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>{currentDate}</span>
+            <div>
+              <div className="lp-branch-badge">
+                <Sparkles size={10} />
+                Katugastota Branch Â· Live POS
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#4ade80', fontWeight: 700 }}>
-                <ShieldCheck size={14} />
-                <span>POS Secured</span>
-              </div>
+              <h1 className="lp-shop-name">Wasana Cake</h1>
             </div>
           </div>
 
-          {/* ══════════════════════════════════════════════════════════════
-              RIGHT ACTION PANEL: Mode Tabs, Passcode Numpad & Credentials
-              ══════════════════════════════════════════════════════════════ */}
-          <div
-            style={{
-              flex: '1',
-              background: 'linear-gradient(160deg, rgba(8, 16, 11, 0.96) 0%, rgba(4, 9, 6, 0.98) 100%)',
-              padding: '36px 36px 30px 36px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              position: 'relative'
-            }}
-          >
-            <div>
-              {/* Header with Switcher Tabs */}
-              <div
-                style={{
-                  display: 'flex',
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  padding: 4,
-                  borderRadius: 16,
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  marginBottom: 20
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('passcode')
-                    setError(null)
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: '10px 14px',
-                    borderRadius: 12,
-                    border: 'none',
-                    background: mode === 'passcode' ? 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)' : 'transparent',
-                    color: mode === 'passcode' ? '#ffffff' : '#94a3b8',
-                    fontWeight: 700,
-                    fontSize: 12.5,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                    boxShadow: mode === 'passcode' ? '0 4px 12px rgba(22, 163, 74, 0.35)' : 'none',
-                    transition: 'all 0.18s ease'
-                  }}
-                >
-                  <KeyRound size={15} /> Quick PIN
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('credentials')
-                    setError(null)
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: '10px 14px',
-                    borderRadius: 12,
-                    border: 'none',
-                    background: mode === 'credentials' ? 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)' : 'transparent',
-                    color: mode === 'credentials' ? '#ffffff' : '#94a3b8',
-                    fontWeight: 700,
-                    fontSize: 12.5,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                    boxShadow: mode === 'credentials' ? '0 4px 12px rgba(22, 163, 74, 0.35)' : 'none',
-                    transition: 'all 0.18s ease'
-                  }}
-                >
-                  <User size={15} /> Password Login
-                </button>
-              </div>
+          <p className="lp-desc">
+            à¶­à·à¶»à·à¶œà¶­à·Š à¶šà·Šâ€à¶»à·’à¶ºà·à¶šà¶»à·” (Operator) à¶­à·à¶»à· à¶”à¶¶à¶œà·š PIN à¶…à¶‚à¶šà¶º à¶‡à¶­à·”à·…à¶­à·Š à¶šà¶»
+            Workstation à¶‘à¶š à·€à·’à·€à·˜à¶­ à¶šà¶»à¶±à·Šà¶±.
+          </p>
 
-              {/* Current Selected Operator Banner */}
-              {selectedOperator && (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '10px 14px',
-                    borderRadius: 14,
-                    background: 'rgba(34, 197, 94, 0.08)',
-                    border: '1px solid rgba(34, 197, 94, 0.25)',
-                    marginBottom: 16
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                    <div
-                      style={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: '50%',
-                        background: '#22c55e',
-                        boxShadow: '0 0 10px #22c55e'
-                      }}
-                    />
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: '#f8fafc' }}>
-                        {selectedOperator.name}
-                      </div>
-                      <div style={{ fontSize: 10.5, color: '#86efac', fontWeight: 600 }}>
-                        {selectedOperator.roleTitle} · Ready to unlock
-                      </div>
-                    </div>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      color: '#94a3b8',
-                      background: 'rgba(0, 0, 0, 0.25)',
-                      padding: '3px 8px',
-                      borderRadius: 8
-                    }}
-                  >
-                    PIN: 123456
-                  </span>
-                </div>
-              )}
-
-              {/* Error Message */}
-              {error && (
-                <div
-                  style={{
-                    background: 'rgba(239, 68, 68, 0.12)',
-                    border: '1px solid rgba(239, 68, 68, 0.35)',
-                    color: '#fca5a5',
-                    borderRadius: 14,
-                    padding: '10px 14px',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    marginBottom: 14,
-                    animation: 'shake 0.4s ease'
-                  }}
-                >
-                  <AlertTriangle size={15} color="#f87171" style={{ flexShrink: 0 }} />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              {/* ── MODE 1: PASSCODE (NUMPAD) ── */}
-              {mode === 'passcode' && (
-                <div>
-                  {/* PIN Display Circles */}
-                  <div style={{ display: 'flex', gap: 12, justifyContent: 'center', margin: '14px 0 10px 0' }}>
-                    {[...Array(6)].map((_, i) => {
-                      const isFilled = i < passcode.length
-                      return (
-                        <div
-                          key={i}
-                          style={{
-                            width: 16,
-                            height: 16,
-                            borderRadius: '50%',
-                            background: isFilled ? '#22c55e' : 'rgba(255, 255, 255, 0.08)',
-                            border: `2px solid ${isFilled ? '#4ade80' : 'rgba(255, 255, 255, 0.2)'}`,
-                            boxShadow: isFilled ? '0 0 14px rgba(34, 197, 94, 0.8)' : 'none',
-                            transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
-                            animation: isFilled ? 'pinPop 0.18s ease' : 'none'
-                          }}
-                        />
-                      )
-                    })}
-                  </div>
-
-                  <div
-                    style={{
-                      textAlign: 'center',
-                      marginBottom: 16,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      minHeight: 18,
-                      color: isLoading ? '#4ade80' : '#94a3b8'
-                    }}
-                  >
-                    {isLoading ? (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                        <RefreshCw size={13} style={{ animation: 'spin 0.8s linear infinite' }} />
-                        Verifying operator PIN...
-                      </span>
-                    ) : passcode.length === 0 ? (
-                      'Enter 6-digit PIN (Touch keypad or keyboard)'
-                    ) : (
-                      <span style={{ color: '#4ade80' }}>{passcode.length} / 6 digits entered</span>
-                    )}
-                  </div>
-
-                  {/* 3x4 Touch POS Keypad */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                    {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
-                      <button
-                        key={d}
-                        type="button"
-                        className="keypad-btn"
-                        onClick={() => handlePasscodeKey(d)}
-                        disabled={isLoading}
-                      >
-                        {d}
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      className="keypad-btn action-btn"
-                      style={{ color: '#94a3b8' }}
-                      onClick={() => {
-                        setPasscode('')
-                        setError(null)
-                      }}
-                      disabled={isLoading || passcode.length === 0}
-                    >
-                      CLEAR
-                    </button>
-                    <button
-                      type="button"
-                      className="keypad-btn"
-                      onClick={() => handlePasscodeKey('0')}
-                      disabled={isLoading}
-                    >
-                      0
-                    </button>
-                    <button
-                      type="button"
-                      className="keypad-btn action-btn"
-                      style={{ color: '#f87171', fontSize: 20 }}
-                      onClick={() => setPasscode((p) => p.slice(0, -1))}
-                      disabled={isLoading || passcode.length === 0}
-                    >
-                      ⌫
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* ── MODE 2: CREDENTIALS (USERNAME + PASSWORD) ── */}
-              {mode === 'credentials' && (
-                <form onSubmit={handleCredentialsLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                        Operator ID or Email
-                      </label>
-                      {detectedRole && (
-                        <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            color: detectedRole.color,
-                            background: detectedRole.bg,
-                            padding: '2px 8px',
-                            borderRadius: 10
-                          }}
-                        >
-                          {detectedRole.label}
-                        </span>
-                      )}
-                    </div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        background: emailFocused ? 'rgba(34, 197, 94, 0.08)' : 'rgba(255, 255, 255, 0.04)',
-                        border: `1.5px solid ${
-                          fieldErrors.email ? '#ef4444' : emailFocused ? '#22c55e' : 'rgba(255, 255, 255, 0.1)'
-                        }`,
-                        borderRadius: 14,
-                        padding: '0 14px',
-                        transition: 'all 0.18s ease'
-                      }}
-                    >
-                      <User size={16} color={emailFocused ? '#4ade80' : '#64748b'} style={{ marginRight: 10 }} />
-                      <input
-                        type="text"
-                        value={email}
-                        onChange={(e) => {
-                          setEmail(e.target.value)
-                          if (fieldErrors.email) setFieldErrors((p) => ({ ...p, email: undefined }))
-                        }}
-                        onFocus={() => setEmailFocused(true)}
-                        onBlur={() => setEmailFocused(false)}
-                        placeholder="cashier1 · manager · owner"
-                        disabled={isLoading}
-                        autoComplete="username"
-                        style={{
-                          width: '100%',
-                          padding: '13px 0',
-                          border: 'none',
-                          outline: 'none',
-                          background: 'transparent',
-                          fontSize: 13.5,
-                          fontWeight: 600,
-                          color: '#ffffff',
-                          caretColor: '#22c55e'
-                        }}
-                      />
-                    </div>
-                    {fieldErrors.email && (
-                      <span style={{ fontSize: 11, color: '#f87171', fontWeight: 600, marginTop: 4, display: 'block' }}>
-                        {fieldErrors.email}
-                      </span>
-                    )}
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      Security Password
-                    </label>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        background: passFocused ? 'rgba(34, 197, 94, 0.08)' : 'rgba(255, 255, 255, 0.04)',
-                        border: `1.5px solid ${
-                          fieldErrors.password ? '#ef4444' : passFocused ? '#22c55e' : 'rgba(255, 255, 255, 0.1)'
-                        }`,
-                        borderRadius: 14,
-                        padding: '0 14px',
-                        transition: 'all 0.18s ease'
-                      }}
-                    >
-                      <Lock size={16} color={password.length > 0 ? '#4ade80' : passFocused ? '#4ade80' : '#64748b'} style={{ marginRight: 10 }} />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        value={password}
-                        onChange={(e) => {
-                          setPassword(e.target.value)
-                          if (fieldErrors.password) setFieldErrors((p) => ({ ...p, password: undefined }))
-                        }}
-                        onFocus={() => setPassFocused(true)}
-                        onBlur={() => setPassFocused(false)}
-                        placeholder="••••••••"
-                        disabled={isLoading}
-                        autoComplete="current-password"
-                        style={{
-                          width: '100%',
-                          padding: '13px 0',
-                          border: 'none',
-                          outline: 'none',
-                          background: 'transparent',
-                          fontSize: 13.5,
-                          fontWeight: 600,
-                          color: '#ffffff',
-                          caretColor: '#22c55e'
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: 4 }}
-                      >
-                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                    {fieldErrors.password && (
-                      <span style={{ fontSize: 11, color: '#f87171', fontWeight: 600, marginTop: 4, display: 'block' }}>
-                        {fieldErrors.password}
-                      </span>
-                    )}
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    style={{
-                      marginTop: 8,
-                      padding: '14px 20px',
-                      borderRadius: 16,
-                      border: 'none',
-                      background: 'linear-gradient(135deg, #16a34a 0%, #15803d 60%, #166534 100%)',
-                      color: '#ffffff',
-                      fontSize: 14,
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      boxShadow: '0 8px 24px rgba(22, 163, 74, 0.45)',
-                      transition: 'all 0.18s ease'
-                    }}
-                  >
-                    {isLoading ? (
-                      <>
-                        <RefreshCw size={16} style={{ animation: 'spin 0.8s linear infinite' }} />
-                        <span>Authenticating...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Unlock Workstation</span>
-                        <ArrowRight size={16} />
-                      </>
-                    )}
-                  </button>
-
-                  <div style={{ textAlign: 'center', fontSize: 11, color: '#64748b' }}>
-                    Default Password: <span style={{ color: '#4ade80' }}>cashier123</span> / <span style={{ color: '#4ade80' }}>123456</span>
-                  </div>
-                </form>
-              )}
+          {/* Operator grid */}
+          <div style={{ marginBottom: 20 }}>
+            <div className="lp-section-label">
+              <span>Active Operator</span>
+              <span>Quick Touch</span>
             </div>
+            <div className="lp-operator-grid">
+              {PRESET_OPERATORS.map((op) => {
+                const isSelected = selectedOperator?.id === op.id
+                return (
+                  <div
+                    key={op.id}
+                    onClick={() => handleSelectOperator(op)}
+                    className={`lp-op-card ${isSelected ? 'selected' : ''}`}
+                  >
+                    <div
+                      className="lp-op-avatar"
+                      style={{ background: op.avatarColor }}
+                    >
+                      {op.name.charAt(0)}
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div className="lp-op-name">{op.name}</div>
+                      <div className="lp-op-role" style={{ color: op.avatarColor }}>
+                        {op.roleTitle}
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <CheckCircle2 size={15} color="#16a34a" style={{ flexShrink: 0 }} />
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
 
-            {/* Terminal Security Badge */}
-            <div
-              style={{
-                marginTop: 20,
-                paddingTop: 14,
-                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                fontSize: 11,
-                color: '#64748b'
-              }}
-            >
-              <span>Wasana POS Terminal v1.0.0</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#4ade80' }}>
-                <ShieldCheck size={13} /> End-to-End Encrypted
+          {/* Diagnostics */}
+          <div className="lp-diag">
+            <div className="lp-diag-row">
+              <span className="lp-diag-label"><Store size={13} color="#16a34a" /> Branch</span>
+              <span className="lp-diag-value">{currentShop?.name || 'Wasana Cake â€“ Katugastota'}</span>
+            </div>
+            <div className="lp-diag-row">
+              <span className="lp-diag-label"><Activity size={13} color="#3b82f6" /> Terminal</span>
+              <span className="lp-diag-value">Station {currentTerminalId} Â· Active</span>
+            </div>
+            <div className="lp-diag-row">
+              <span className="lp-diag-label"><HardDrive size={13} color="#a855f7" /> Database</span>
+              <span className="lp-diag-value">Offline SQLite Ready</span>
+            </div>
+            <div className="lp-diag-row">
+              <span className="lp-diag-label"><Wifi size={13} color="#f59e0b" /> Cloud Sync</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#16a34a', fontWeight: 700, fontSize: 11.5 }}>
+                <span className="lp-live-dot" /> Live Autoâ€‘Sync
               </span>
             </div>
+          </div>
+
+          {/* Clock footer */}
+          <div className="lp-footer">
+            <div className="lp-clock">
+              <Clock size={13} color="#16a34a" />
+              <span className="lp-clock-time">{currentTime}</span>
+              <span style={{ color: '#e2e8f0' }}>|</span>
+              <span className="lp-clock-date">{currentDate}</span>
+            </div>
+            <div className="lp-secured">
+              <ShieldCheck size={13} /> POS Secured
+            </div>
+          </div>
+        </div>
+
+        {/* â•â•â•â•â•â•â•â•â•â• RIGHT PANEL â•â•â•â•â•â•â•â•â•â• */}
+        <div className="lp-right">
+
+          {/* Mode tabs */}
+          <div className="lp-tabs">
+            <button
+              type="button"
+              className={`lp-tab ${mode === 'passcode' ? 'active' : ''}`}
+              onClick={() => { setMode('passcode'); setError(null) }}
+            >
+              <KeyRound size={14} /> Quick PIN
+            </button>
+            <button
+              type="button"
+              className={`lp-tab ${mode === 'credentials' ? 'active' : ''}`}
+              onClick={() => { setMode('credentials'); setError(null) }}
+            >
+              <User size={14} /> Password Login
+            </button>
+          </div>
+
+          {/* Operator banner */}
+          {selectedOperator && (
+            <div className="lp-op-banner">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span className="lp-op-banner-dot" />
+                <div>
+                  <div className="lp-op-banner-name">{selectedOperator.name}</div>
+                  <div className="lp-op-banner-role">{selectedOperator.roleTitle} Â· Ready to unlock</div>
+                </div>
+              </div>
+              <span className="lp-op-banner-pin">PIN: 123456</span>
+            </div>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div className="lp-error">
+              <AlertTriangle size={15} style={{ flexShrink: 0 }} />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* â”€â”€ Passcode mode â”€â”€ */}
+          {mode === 'passcode' && (
+            <div>
+              <div className="lp-pin-dots">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className={`lp-pin-dot ${i < passcode.length ? 'filled' : ''}`} />
+                ))}
+              </div>
+
+              <div className="lp-pin-status">
+                {isLoading ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#16a34a' }}>
+                    <RefreshCw size={13} style={{ animation: 'spin 0.8s linear infinite' }} />
+                    Verifying operator PIN...
+                  </span>
+                ) : passcode.length === 0 ? (
+                  'Enter 6-digit PIN (Touch keypad or keyboard)'
+                ) : (
+                  <span style={{ color: '#16a34a' }}>{passcode.length} / 6 digits entered</span>
+                )}
+              </div>
+
+              <div className="lp-keypad">
+                {['1','2','3','4','5','6','7','8','9'].map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    className="lp-key"
+                    onClick={() => handlePasscodeKey(d)}
+                    disabled={isLoading}
+                  >
+                    {d}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className="lp-key key-clear"
+                  onClick={() => { setPasscode(''); setError(null) }}
+                  disabled={isLoading || passcode.length === 0}
+                >
+                  CLEAR
+                </button>
+                <button
+                  type="button"
+                  className="lp-key"
+                  onClick={() => handlePasscodeKey('0')}
+                  disabled={isLoading}
+                >
+                  0
+                </button>
+                <button
+                  type="button"
+                  className="lp-key key-delete"
+                  onClick={() => setPasscode((p) => p.slice(0, -1))}
+                  disabled={isLoading || passcode.length === 0}
+                >
+                  âŒ«
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* â”€â”€ Credentials mode â”€â”€ */}
+          {mode === 'credentials' && (
+            <form onSubmit={handleCredentialsLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Email */}
+              <div>
+                <div className="lp-field-label">
+                  <span>Operator ID or Email</span>
+                  {detectedRole && (
+                    <span
+                      style={{
+                        fontSize: 10, fontWeight: 700,
+                        color: detectedRole.color, background: detectedRole.bg,
+                        padding: '2px 8px', borderRadius: 10
+                      }}
+                    >
+                      {detectedRole.label}
+                    </span>
+                  )}
+                </div>
+                <div className={`lp-field-wrap ${emailFocused ? 'focused' : ''} ${fieldErrors.email ? 'field-error' : ''}`}>
+                  <User size={15} color={emailFocused ? '#16a34a' : '#94a3b8'} style={{ marginRight: 10, flexShrink: 0 }} />
+                  <input
+                    type="text"
+                    className="lp-input"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value)
+                      if (fieldErrors.email) setFieldErrors((p) => ({ ...p, email: undefined }))
+                    }}
+                    onFocus={() => setEmailFocused(true)}
+                    onBlur={() => setEmailFocused(false)}
+                    placeholder="cashier1 Â· manager Â· owner"
+                    disabled={isLoading}
+                    autoComplete="username"
+                  />
+                </div>
+                {fieldErrors.email && <span className="lp-field-err">{fieldErrors.email}</span>}
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="lp-field-label">Security Password</label>
+                <div className={`lp-field-wrap ${passFocused ? 'focused' : ''} ${fieldErrors.password ? 'field-error' : ''}`}>
+                  <Lock size={15} color={password.length > 0 || passFocused ? '#16a34a' : '#94a3b8'} style={{ marginRight: 10, flexShrink: 0 }} />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    className="lp-input"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value)
+                      if (fieldErrors.password) setFieldErrors((p) => ({ ...p, password: undefined }))
+                    }}
+                    onFocus={() => setPassFocused(true)}
+                    onBlur={() => setPassFocused(false)}
+                    placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                    disabled={isLoading}
+                    autoComplete="current-password"
+                  />
+                  <button type="button" className="lp-pw-toggle" onClick={() => setShowPassword(!showPassword)}>
+                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+                {fieldErrors.password && <span className="lp-field-err">{fieldErrors.password}</span>}
+              </div>
+
+              <button type="submit" className="lp-submit" disabled={isLoading}>
+                {isLoading ? (
+                  <><RefreshCw size={15} style={{ animation: 'spin 0.8s linear infinite' }} /><span>Authenticating...</span></>
+                ) : (
+                  <><span>Unlock Workstation</span><ArrowRight size={15} /></>
+                )}
+              </button>
+
+              <div style={{ textAlign: 'center', fontSize: 11, color: '#94a3b8' }}>
+                Default Password:&nbsp;
+                <span style={{ color: '#16a34a', fontWeight: 700 }}>cashier123</span>
+                &nbsp;/&nbsp;
+                <span style={{ color: '#16a34a', fontWeight: 700 }}>123456</span>
+              </div>
+            </form>
+          )}
+
+          {/* Footer */}
+          <div className="lp-right-footer">
+            <span>Wasana POS Terminal v1.0.0</span>
+            <span className="secured">
+              <ShieldCheck size={12} /> End-to-End Encrypted
+            </span>
           </div>
         </div>
       </div>
     </>
   )
 }
+
