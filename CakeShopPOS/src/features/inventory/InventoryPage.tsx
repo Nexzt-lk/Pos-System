@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   Barcode
  
- 
 } from 'lucide-react'
 import { Modal, Form, Select, InputNumber, Input, Segmented, message } from 'antd'
 import { Product, Category, normalizeProduct, normalizeCategory } from '../../types/product'
@@ -291,6 +290,20 @@ export const InventoryPage: React.FC = () => {
       })
   }, [tracked, searchQuery, selectedCategory, stockFilter, sortBy])
 
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 50
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, selectedCategory, stockFilter, sortBy])
+
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE
+    return filteredProducts.slice(start, start + ITEMS_PER_PAGE)
+  }, [filteredProducts, currentPage])
+  
+  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE)
+
   return (
     <div className="page-container" style={{ padding: '18px 24px', gap: 16 }}>
       {/* ── Page Header ── */}
@@ -570,9 +583,11 @@ export const InventoryPage: React.FC = () => {
                   <th style={{ padding: '13px 16px', width: '14%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Selling Price
                   </th>
-                  <th style={{ padding: '13px 16px', width: '12%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Cost Price
-                  </th>
+                  {(currentUser?.role === 'admin' || currentUser?.role === 'owner') && (
+                    <th style={{ padding: '13px 16px', width: '12%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Cost Price
+                    </th>
+                  )}
                   <th style={{ padding: '13px 16px', width: '14%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     On-Hand Stock
                   </th>
@@ -582,7 +597,7 @@ export const InventoryPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredProducts.map((product) => {
+                {paginatedProducts.map((product) => {
                   const stockNum = product.current_stock ?? 0
                   const isLow = stockNum <= 5 && stockNum > 0
                   const isOut = stockNum <= 0
@@ -684,15 +699,17 @@ export const InventoryPage: React.FC = () => {
                       </td>
 
                       {/* Cost Price */}
-                      <td style={{ padding: '12px 16px' }}>
-                        {product.cost_price ? (
-                          <span style={{ color: '#64748b', fontWeight: 600, fontSize: 12.5 }}>
-                            {formatCurrency(product.cost_price)}
-                          </span>
-                        ) : (
-                          <span style={{ color: '#cbd5e1', fontSize: 12 }}>—</span>
-                        )}
-                      </td>
+                      {(currentUser?.role === 'admin' || currentUser?.role === 'owner') && (
+                        <td style={{ padding: '12px 16px' }}>
+                          {product.cost_price ? (
+                            <span style={{ color: '#64748b', fontWeight: 600, fontSize: 12.5 }}>
+                              {formatCurrency(product.cost_price)}
+                            </span>
+                          ) : (
+                            <span style={{ color: '#cbd5e1', fontSize: 12 }}>—</span>
+                          )}
+                        </td>
+                      )}
 
                       {/* On-Hand Stock */}
                       <td style={{ padding: '12px 16px' }}>
@@ -805,6 +822,30 @@ export const InventoryPage: React.FC = () => {
               </tbody>
             </table>
           </div>
+          
+          {totalPages > 1 && (
+            <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e2e8f0', background: '#f8fafc', borderBottomLeftRadius: 14, borderBottomRightRadius: 14 }}>
+              <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>
+                Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredProducts.length)} of {filteredProducts.length} items
+              </span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(p => p - 1)}
+                  style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f1f5f9' : '#fff', color: currentPage === 1 ? '#94a3b8' : '#334155', fontWeight: 600, fontSize: 12, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+                >
+                  Previous
+                </button>
+                <button
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(p => p + 1)}
+                  style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f1f5f9' : '#fff', color: currentPage === totalPages ? '#94a3b8' : '#334155', fontWeight: 600, fontSize: 12, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1169,6 +1210,7 @@ export const InventoryPage: React.FC = () => {
                           </Form.Item>
 
                           <Form.Item
+                            hidden={!(currentUser?.role === 'admin' || currentUser?.role === 'owner')}
                             name="cost_price"
                             label={<span style={{ fontWeight: 700, fontSize: 12.5, color: '#334155' }}>Cost Price</span>}
                             style={{ marginBottom: 0 }}
@@ -1185,7 +1227,7 @@ export const InventoryPage: React.FC = () => {
                           </Form.Item>
                         </div>
 
-                        {sellP > 0 && costP > 0 && (
+                        {(currentUser?.role === 'admin' || currentUser?.role === 'owner') && sellP > 0 && costP > 0 && (
                           <div
                             style={{
                               display: 'flex',
@@ -1372,6 +1414,7 @@ export const InventoryPage: React.FC = () => {
                   </Form.Item>
 
                   <Form.Item
+                    hidden={!(currentUser?.role === 'admin' || currentUser?.role === 'owner')}
                     name="new_cost_price"
                     label={<span style={{ fontWeight: 600, fontSize: 12 }}>Cost Price (Rs.)</span>}
                     style={{ marginBottom: 0 }}

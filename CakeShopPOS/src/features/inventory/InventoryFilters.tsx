@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Search, ArrowUpDown } from 'lucide-react'
 import { Segmented, Select } from 'antd'
 import { Category } from '../../types/product'
@@ -38,6 +38,19 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
   outOfStockCount,
   searchPlaceholder = "Search by product name, code, barcode..."
 }) => {
+  const [localSearch, setLocalSearch] = useState(searchQuery)
+
+  useEffect(() => {
+    setLocalSearch(searchQuery)
+  }, [searchQuery])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchQuery(localSearch)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [localSearch, setSearchQuery])
+
   return (
     <div
       style={{
@@ -67,14 +80,14 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
           <Search size={16} style={{ color: 'var(--text-muted)' }} />
           <input
             type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
             placeholder={searchPlaceholder}
             style={{ fontSize: 13 }}
           />
-          {searchQuery && (
+          {localSearch && (
             <button
-              onClick={() => setSearchQuery('')}
+              onClick={() => setLocalSearch('')}
               style={{
                 border: 'none',
                 background: 'transparent',
