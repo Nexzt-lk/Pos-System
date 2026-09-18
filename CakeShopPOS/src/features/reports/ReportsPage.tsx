@@ -641,18 +641,8 @@ export const ReportsPage: React.FC = () => {
           padding: '18px 20px',
           borderRadius: 'var(--radius-lg)',
           border: '1px solid var(--border)',
-          boxShadow: 'var(--shadow-sm)',
-          position: 'relative',
-          overflow: 'hidden'
+          boxShadow: 'var(--shadow-sm)'
         }}>
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 3,
-            background: 'linear-gradient(90deg, #16a34a, #22c55e)'
-          }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               Total Revenue
@@ -709,18 +699,8 @@ export const ReportsPage: React.FC = () => {
           padding: '18px 20px',
           borderRadius: 'var(--radius-lg)',
           border: '1px solid var(--border)',
-          boxShadow: 'var(--shadow-sm)',
-          position: 'relative',
-          overflow: 'hidden'
+          boxShadow: 'var(--shadow-sm)'
         }}>
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 3,
-            background: 'linear-gradient(90deg, #2563eb, #3b82f6)'
-          }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               Total Bills / Orders
@@ -777,18 +757,8 @@ export const ReportsPage: React.FC = () => {
           padding: '18px 20px',
           borderRadius: 'var(--radius-lg)',
           border: '1px solid var(--border)',
-          boxShadow: 'var(--shadow-sm)',
-          position: 'relative',
-          overflow: 'hidden'
+          boxShadow: 'var(--shadow-sm)'
         }}>
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 3,
-            background: 'linear-gradient(90deg, #8b5cf6, #a855f7)'
-          }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               Average Ticket (AOV)
@@ -820,18 +790,8 @@ export const ReportsPage: React.FC = () => {
           padding: '18px 20px',
           borderRadius: 'var(--radius-lg)',
           border: '1px solid var(--border)',
-          boxShadow: 'var(--shadow-sm)',
-          position: 'relative',
-          overflow: 'hidden'
+          boxShadow: 'var(--shadow-sm)'
         }}>
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 3,
-            background: 'linear-gradient(90deg, #f59e0b, #fbbf24)'
-          }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               Total Discounts
@@ -863,18 +823,8 @@ export const ReportsPage: React.FC = () => {
           padding: '18px 20px',
           borderRadius: 'var(--radius-lg)',
           border: '1px solid var(--border)',
-          boxShadow: 'var(--shadow-sm)',
-          position: 'relative',
-          overflow: 'hidden'
+          boxShadow: 'var(--shadow-sm)'
         }}>
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 3,
-            background: 'linear-gradient(90deg, #06b6d4, #0891b2)'
-          }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               Gross Profit & Margin
