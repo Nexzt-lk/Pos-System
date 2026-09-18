@@ -13,7 +13,7 @@ export interface ImagePreset {
 }
 
 export const BAKERY_IMAGE_PRESETS: ImagePreset[] = [
-  // ── 1. Cakes & Gateaux (කේක් වර්ග) ──
+  // ── 1. Cakes & Gateaux ──
   {
     id: 'chocolate_cake',
     name: 'Chocolate Fudge Cake',
@@ -55,7 +55,7 @@ export const BAKERY_IMAGE_PRESETS: ImagePreset[] = [
     categoryKey: 'cakes'
   },
 
-  // ── 2. Pastries & Savories (පැටිස්, රෝල්ස්, පැස්ට්‍රි) ──
+  // ── 2. Pastries & Savories ──
   {
     id: 'savoury_pastries',
     name: 'Savoury Patties & Rolls',
@@ -81,7 +81,7 @@ export const BAKERY_IMAGE_PRESETS: ImagePreset[] = [
     categoryKey: 'pastries'
   },
 
-  // ── 3. Breads & Buns (පාන් සහ බනිස් වර්ග) ──
+  // ── 3. Breads & Buns ──
   {
     id: 'fish_bun',
     name: 'Fresh Bakery Buns & Bread',
@@ -91,7 +91,7 @@ export const BAKERY_IMAGE_PRESETS: ImagePreset[] = [
     categoryKey: 'breads'
   },
 
-  // ── 4. Sweet Items & Desserts (පැණිරස සහ ඩෙසර්ට්ස්) ──
+  // ── 4. Sweet Items & Desserts ──
   {
     id: 'choco_fudge_cupcake',
     name: 'Choco Fudge Cupcake',
@@ -101,7 +101,7 @@ export const BAKERY_IMAGE_PRESETS: ImagePreset[] = [
     categoryKey: 'sweets'
   },
 
-  // ── 5. Biscuits & Cookies (බිස්කට් සහ කුකීස්) ──
+  // ── 5. Biscuits & Cookies ──
   {
     id: 'cookies_biscuits',
     name: 'Baked Cookies & Biscuits',
@@ -111,7 +111,7 @@ export const BAKERY_IMAGE_PRESETS: ImagePreset[] = [
     categoryKey: 'cookies'
   },
 
-  // ── 6. Ice Cream & Frozen Treats (අයිස්ක්‍රීම් වර්ග) ──
+  // ── 6. Ice Cream & Frozen Treats ──
   {
     id: 'ice_cream',
     name: 'Ice Cream Sundae & Treats',
@@ -121,7 +121,7 @@ export const BAKERY_IMAGE_PRESETS: ImagePreset[] = [
     categoryKey: 'icecream'
   },
 
-  // ── 7. Birthday Deco & Party Items (උපන්දින සැරසිලි) ──
+  // ── 7. Birthday Deco & Party Items ──
   {
     id: 'party_deco',
     name: 'Birthday Candles & Party Items',
@@ -131,7 +131,7 @@ export const BAKERY_IMAGE_PRESETS: ImagePreset[] = [
     categoryKey: 'party'
   },
 
-  // ── 8. Beverages & Coffee (බීම සහ කෝපි වර්ග) ──
+  // ── 8. Beverages & Coffee ──
   {
     id: 'iced_caramel_latte',
     name: 'Coffee & Beverages',
@@ -233,7 +233,7 @@ export const getProductImageSrc = (
   path?: string,
   productName?: string,
   categoryName?: string
-): string | null => {
+): string | undefined => {
   let targetPath = path
 
   // Auto-match if no path is provided
@@ -241,7 +241,7 @@ export const getProductImageSrc = (
     if (productName || categoryName) {
       targetPath = getAutoMatchedProductImage(productName, categoryName)
     } else {
-      return null
+      return undefined
     }
   }
 

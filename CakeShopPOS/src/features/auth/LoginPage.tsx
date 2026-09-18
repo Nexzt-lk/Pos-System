@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Cake, Sparkles, ShieldCheck, Lock, Eye, EyeOff, Store, Clock,
   ArrowRight, KeyRound, AlertTriangle, RefreshCw, User, Activity,
@@ -147,7 +147,7 @@ export const LoginPage: React.FC = () => {
       if (loggedInUser) {
         setUser(loggedInUser)
       } else {
-        setError('à·€à·à¶»à¶¯à·’ PIN à¶…à¶‚à¶šà¶ºà¶šà·’. à¶šà¶»à·”à¶«à·à¶šà¶» à¶±à·à·€à¶­ à¶‹à¶­à·Šà·ƒà·à·„ à¶šà¶»à¶±à·Šà¶±. (Invalid 6-digit PIN)')
+        setError('Invalid 6-digit PIN. Please try again.')
         setPasscode('')
       }
     } catch (err: any) {
@@ -256,7 +256,7 @@ export const LoginPage: React.FC = () => {
       if (loggedInUser) {
         setUser(loggedInUser)
       } else if (!error) {
-        setError('à¶¸à·”à¶»à¶´à¶¯à¶º à·„à· Username à·€à·à¶»à¶¯à·’à¶º. à¶šà¶»à·”à¶«à·à¶šà¶» à¶±à·à·€à¶­ à¶‹à¶­à·Šà·ƒà·à·„ à¶šà¶»à¶±à·Šà¶±.')
+        setError('Invalid Username or Password. Please try again.')
       }
     } catch (err: any) {
       setError(err.message || 'System authentication error')
@@ -725,7 +725,7 @@ export const LoginPage: React.FC = () => {
 
       <div className="login-root">
 
-        {/* â•â•â•â•â•â•â•â•â•â• LEFT PANEL â•â•â•â•â•â•â•â•â•â• */}
+        {/* ══════════ LEFT PANEL ══════════ */}
         <div className="lp-left">
 
           {/* Brand */}
@@ -736,15 +736,14 @@ export const LoginPage: React.FC = () => {
             <div>
               <div className="lp-branch-badge">
                 <Sparkles size={10} />
-                Katugastota Branch Â· Live POS
+                Katugastota Branch · Live POS
               </div>
               <h1 className="lp-shop-name">Wasana Cake</h1>
             </div>
           </div>
 
           <p className="lp-desc">
-            à¶­à·à¶»à·à¶œà¶­à·Š à¶šà·Šâ€à¶»à·’à¶ºà·à¶šà¶»à·” (Operator) à¶­à·à¶»à· à¶”à¶¶à¶œà·š PIN à¶…à¶‚à¶šà¶º à¶‡à¶­à·”à·…à¶­à·Š à¶šà¶»
-            Workstation à¶‘à¶š à·€à·’à·€à·˜à¶­ à¶šà¶»à¶±à·Šà¶±.
+            Select an Operator and enter your PIN to open the Workstation.
           </p>
 
           {/* Operator grid */}
@@ -787,11 +786,11 @@ export const LoginPage: React.FC = () => {
           <div className="lp-diag">
             <div className="lp-diag-row">
               <span className="lp-diag-label"><Store size={13} color="#16a34a" /> Branch</span>
-              <span className="lp-diag-value">{currentShop?.name || 'Wasana Cake â€“ Katugastota'}</span>
+              <span className="lp-diag-value">{currentShop?.name || 'Wasana Cake - Katugastota'}</span>
             </div>
             <div className="lp-diag-row">
               <span className="lp-diag-label"><Activity size={13} color="#3b82f6" /> Terminal</span>
-              <span className="lp-diag-value">Station {currentTerminalId} Â· Active</span>
+              <span className="lp-diag-value">Station {currentTerminalId} · Active</span>
             </div>
             <div className="lp-diag-row">
               <span className="lp-diag-label"><HardDrive size={13} color="#a855f7" /> Database</span>
@@ -800,7 +799,7 @@ export const LoginPage: React.FC = () => {
             <div className="lp-diag-row">
               <span className="lp-diag-label"><Wifi size={13} color="#f59e0b" /> Cloud Sync</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#16a34a', fontWeight: 700, fontSize: 11.5 }}>
-                <span className="lp-live-dot" /> Live Autoâ€‘Sync
+                <span className="lp-live-dot" /> Live Auto-Sync
               </span>
             </div>
           </div>
@@ -847,7 +846,7 @@ export const LoginPage: React.FC = () => {
                 <span className="lp-op-banner-dot" />
                 <div>
                   <div className="lp-op-banner-name">{selectedOperator.name}</div>
-                  <div className="lp-op-banner-role">{selectedOperator.roleTitle} Â· Ready to unlock</div>
+                  <div className="lp-op-banner-role">{selectedOperator.roleTitle} · Ready to unlock</div>
                 </div>
               </div>
               <span className="lp-op-banner-pin">PIN: 123456</span>

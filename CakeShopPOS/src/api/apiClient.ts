@@ -1,5 +1,8 @@
 import axios, { AxiosRequestConfig, AxiosResponse } from 'axios'
 
+let apiStatus: 'online' | 'offline' | 'unknown' = 'unknown'
+let nextCheckTime = 0
+
 // Get API base URL from environment variable or default to local CakeShop API server
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5292/api'
 
@@ -11,9 +14,20 @@ export const axiosInstance = axios.create({
   timeout: 10000
 })
 
-// Request interceptor to attach auth token if available
+// Request interceptor to attach auth token if available and handle fail-fast
 axiosInstance.interceptors.request.use(
   (config) => {
+    // If the API is known to be offline, reduce timeout significantly to fail fast
+    if (apiStatus === 'offline') {
+      if (Date.now() < nextCheckTime) {
+        // Instantly reject to prevent ANY network delay (drops load time to 0s)
+        return Promise.reject(new Error('API is currently offline, using local database fallback'))
+      } else {
+        // Try once every 10 seconds with a very short timeout to see if it's back
+        config.timeout = 500
+      }
+    }
+
     const token = localStorage.getItem('auth_token')
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`
@@ -25,8 +39,17 @@ axiosInstance.interceptors.request.use(
 
 // Response interceptor to handle errors cleanly
 axiosInstance.interceptors.response.use(
-  (response: AxiosResponse) => response,
+  (response: AxiosResponse) => {
+    apiStatus = 'online' // API is working
+    return response
+  },
   (error) => {
+    if (apiStatus !== 'offline') {
+      console.warn('[API Client] Backend server unreachable, switching to offline mode.')
+    }
+    apiStatus = 'offline' // Mark as offline so subsequent requests fail instantly
+    nextCheckTime = Date.now() + 10000 // Wait 10 seconds before checking again
+
     const errorData = error.response?.data
     let message = ''
     if (typeof errorData === 'string') {
@@ -43,7 +66,7 @@ axiosInstance.interceptors.response.use(
 
 const triggerAutoSync = () => {
   if (typeof window !== 'undefined' && (window as any).electronAPI?.triggerSync) {
-    (window as any).electronAPI.triggerSync().catch(() => {})
+    (window as any).electronAPI.triggerSync().catch(() => { })
   }
 }
 
