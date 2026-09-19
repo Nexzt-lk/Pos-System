@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { User, Shop } from '../types/shop'
+import { useStockAlertStore } from './stockAlertStore'
 
 interface AppState {
   currentTenantId: string
@@ -46,5 +47,8 @@ export const useAppStore = create<AppState>((set) => ({
   setApiUrl: (apiUrl) => set({ apiUrl }),
   setIsOnline: (isOnline) => set({ isOnline }),
   setIsApiHealthy: (isApiHealthy) => set({ isApiHealthy }),
-  logout: () => set({ currentUser: null })
+  logout: () => {
+    useStockAlertStore.getState().resetSession()
+    set({ currentUser: null })
+  }
 }))

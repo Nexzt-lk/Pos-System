@@ -4,7 +4,10 @@ import {
   Receipt, Settings, LogOut, Clock, Store, Monitor
 } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
+import { useStockAlertStore } from '../store/stockAlertStore'
 import { SyncIndicator } from './SyncIndicator'
+import { StockNotificationBell } from './StockNotificationBell'
+import { LowStockAlertModal } from './LowStockAlertModal'
 import dayjs from 'dayjs'
 
 import nexztLogo from '../assets/nexzt-logo.png'
@@ -22,6 +25,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
   const currentUser = useAppStore((s) => s.currentUser)
   const logout = useAppStore((s) => s.logout)
   const setShop = useAppStore((s) => s.setShop)
+  const fetchStockAlerts = useStockAlertStore((s) => s.fetchStockAlerts)
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
   const [currentTime, setCurrentTime] = useState(dayjs().format('hh:mm:ss A'))
@@ -30,6 +34,28 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
     const t = setInterval(() => setCurrentTime(dayjs().format('hh:mm:ss A')), 1000)
     return () => clearInterval(t)
   }, [])
+
+  // Auto-fetch stock alerts on login / mount and poll every 30 seconds
+  useEffect(() => {
+    if (!currentUser || !currentShop) return
+
+    // Initial check on login: automatically prompts the Low Stock Modal if items are low
+    fetchStockAlerts(currentShop.id, true)
+
+    const timer = setInterval(() => {
+      fetchStockAlerts(currentShop.id, false)
+    }, 30000)
+
+    const handleOrderCompleted = () => {
+      fetchStockAlerts(currentShop.id, false)
+    }
+    window.addEventListener('pos:order-completed', handleOrderCompleted)
+
+    return () => {
+      clearInterval(timer)
+      window.removeEventListener('pos:order-completed', handleOrderCompleted)
+    }
+  }, [currentUser?.id, currentShop?.id])
 
   const allNavItems = [
     { id: 'pos', label: 'Counter POS', icon: ShoppingCart, roles: ['owner', 'admin', 'manager', 'cashier'] },
@@ -190,6 +216,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
           </div>
 
           <div className="topbar-right">
+            <StockNotificationBell onNavigateToInventory={() => setActiveTab('inventory')} />
             <SyncIndicator />
             <div className="clock-pill">
               <Clock size={12} style={{ display: 'inline', marginRight: 4 }} />
@@ -201,6 +228,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
         {/* Page Content */}
         <main style={{ flex: 1, overflow: 'hidden' }}>{children}</main>
       </div>
+
+      {/* ── Login / Global Low Stock Alert Modal ── */}
+      <LowStockAlertModal onNavigateToInventory={() => setActiveTab('inventory')} />
     </div>
   )
 }

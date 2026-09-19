@@ -18,6 +18,7 @@ import { inventoryApi } from '../../api/inventoryApi'
 import { RefreshButton } from '../../components/RefreshButton'
 import { InventoryFilters } from './InventoryFilters'
 import { useAppStore } from '../../store/appStore'
+import { useStockAlertStore } from '../../store/stockAlertStore'
 import { formatCurrency, formatStockQty } from '../../lib/formatters'
 import { generateCategoryItemCode } from '../../lib/skuGenerator'
 import { getAutoMatchedProductImage, getProductImageSrc } from '../../lib/imageHelper'
@@ -232,6 +233,9 @@ export const InventoryPage: React.FC = () => {
 
       setIsModalOpen(false)
       await loadData()
+      if (currentShop?.id) {
+        useStockAlertStore.getState().fetchStockAlerts(currentShop.id, false)
+      }
     } catch (err: any) {
       console.error('Failed to save stock movement:', err)
       message.error(err.message || 'Failed to save movement')
