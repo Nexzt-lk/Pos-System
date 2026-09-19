@@ -163,14 +163,158 @@ async function pullCloudCatalog(): Promise<void> {
         db.run(
           `
           INSERT OR IGNORE INTO inventory (id, product_id, quantity, min_quantity)
-          VALUES (?, ?, 25.0, 5.0);
+          VALUES (?, ?, 0, 5.0);
         `,
           ['inv-' + p.id, p.id]
         )
       }
-      db.save()
-      console.log(`[AutoSync] 📥 Synchronized catalog from Supabase Cloud: ${prodRes.data.length} products verified.`)
     }
+
+    // 3. Fetch Real Inventory Stock Levels from Supabase Cloud
+    try {
+      const invRes = await axios.get(`${url}/rest/v1/inventory?select=*`, {
+        headers: {
+          apikey: key,
+          Authorization: `Bearer ${key}`
+        },
+        timeout: 5000
+      })
+
+      if (invRes.data && Array.isArray(invRes.data) && invRes.data.length > 0) {
+        for (const inv of invRes.data) {
+          const invId = inv.id || ('inv-' + inv.product_id)
+          db.run(
+            `
+            INSERT INTO inventory (id, product_id, quantity, min_quantity, updated_at)
+            VALUES (?, ?, ?, ?, datetime('now'))
+            ON CONFLICT(id) DO UPDATE SET
+              quantity = excluded.quantity,
+              min_quantity = excluded.min_quantity,
+              updated_at = datetime('now');
+          `,
+            [
+              invId,
+              inv.product_id,
+              Number(inv.quantity) || 0,
+              Number(inv.min_quantity) || 5
+            ]
+          )
+        }
+      }
+    } catch (_) {}
+
+    // 4. Fetch Users / Operator Profiles from Supabase Cloud
+    try {
+      const userRes = await axios.get(`${url}/rest/v1/users?select=*`, {
+        headers: {
+          apikey: key,
+          Authorization: `Bearer ${key}`
+        },
+        timeout: 5000
+      })
+
+      if (userRes.data && Array.isArray(userRes.data) && userRes.data.length > 0) {
+        for (const u of userRes.data) {
+          db.run(
+            `
+            INSERT INTO users (id, shop_id, name, email, pin_hash, password_hash, role, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+              name = excluded.name,
+              email = excluded.email,
+              pin_hash = excluded.pin_hash,
+              password_hash = excluded.password_hash,
+              role = excluded.role,
+              is_active = excluded.is_active;
+          `,
+            [
+              u.id,
+              u.shop_id || defaultShopId,
+              u.name,
+              u.email || null,
+              u.pin_hash || '123456',
+              u.password_hash || null,
+              u.role || 'cashier',
+              u.is_active !== false ? 1 : 0
+            ]
+          )
+        }
+      }
+    } catch (_) {}
+
+    // 5. Seed historical orders & order items if new device has empty order history
+    try {
+      const orderCountRes = db.query<any>(`SELECT count(*) as count FROM orders;`)
+      const localCount = orderCountRes?.[0]?.count ?? 0
+      if (localCount === 0) {
+        const cloudOrders = await axios.get(`${url}/rest/v1/orders?select=*&order=created_at.desc&limit=100`, {
+          headers: { apikey: key, Authorization: `Bearer ${key}` },
+          timeout: 6000
+        })
+        if (cloudOrders.data && Array.isArray(cloudOrders.data)) {
+          for (const ord of cloudOrders.data) {
+            db.run(
+              `
+              INSERT OR IGNORE INTO orders (
+                id, shop_id, order_no, terminal_id, cashier_id, cashier_name,
+                subtotal, discount_type, discount_amount, tax_amount, total_amount,
+                status, note, local_id, sync_status, created_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?);
+            `,
+              [
+                ord.id,
+                ord.shop_id || defaultShopId,
+                ord.order_no,
+                ord.terminal_id || 'T1',
+                ord.cashier_id || null,
+                ord.cashier_name || 'Cashier',
+                Number(ord.subtotal) || 0,
+                ord.discount_type || 'fixed',
+                Number(ord.discount_amount) || 0,
+                Number(ord.tax_amount) || 0,
+                Number(ord.total_amount) || 0,
+                ord.status || 'completed',
+                ord.note || null,
+                ord.local_id || ord.id,
+                ord.created_at || new Date().toISOString()
+              ]
+            )
+          }
+
+          const cloudItems = await axios.get(`${url}/rest/v1/order_items?select=*&limit=500`, {
+            headers: { apikey: key, Authorization: `Bearer ${key}` },
+            timeout: 6000
+          })
+          if (cloudItems.data && Array.isArray(cloudItems.data)) {
+            for (const item of cloudItems.data) {
+              db.run(
+                `
+                INSERT OR IGNORE INTO order_items (
+                  id, order_id, product_id, product_name, item_code,
+                  unit_price, cost_price, quantity, discount, subtotal
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+              `,
+                [
+                  item.id,
+                  item.order_id,
+                  item.product_id,
+                  item.product_name,
+                  item.item_code || null,
+                  Number(item.unit_price) || 0,
+                  item.cost_price ? Number(item.cost_price) : null,
+                  Number(item.quantity) || 1,
+                  Number(item.discount) || 0,
+                  Number(item.subtotal) || 0
+                ]
+              )
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
+    db.save()
+    console.log(`[AutoSync] 📥 Synchronized catalog & inventory from Supabase Cloud: ${prodRes.data?.length || 0} products verified.`)
   } catch (_) {
     // Offline or network unreachable - continue smoothly offline
   }
