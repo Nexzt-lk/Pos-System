@@ -1,8 +1,7 @@
 import React, { useState } from 'react'
-import { Plus, Cake } from 'lucide-react'
+import { Cake } from 'lucide-react'
 import { Product } from '../../types/product'
 import { formatCurrency } from '../../lib/formatters'
-import { useCartStore } from '../../store/cartStore'
 import { getProductImageSrc } from '../../lib/imageHelper'
 
 interface ProductCardProps {
@@ -12,9 +11,6 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, isFocused }) => {
-  const items = useCartStore((s) => s.items)
-  const cartItem = items.find((i) => i.product_id === product.id)
-  const inCartQty = cartItem?.quantity || 0
 
   const [hasImgError, setHasImgError] = useState(false)
 

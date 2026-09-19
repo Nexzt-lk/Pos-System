@@ -81,7 +81,6 @@ export const InventoryPage: React.FC = () => {
     form.resetFields()
     if (product) {
       setEntryMode('EXISTING')
-      const isWeight = product.unit?.toLowerCase() === 'kg' || product.unit?.toLowerCase() === 'g'
       const isBaseGram = product.unit?.toLowerCase() === 'g'
 
       const defaultMode = isBaseGram ? 'g' : 'kg'
@@ -98,7 +97,6 @@ export const InventoryPage: React.FC = () => {
     } else {
       setEntryMode('EXISTING')
       const firstTracked = products.find(p => p.track_inventory)
-      const isWeight = firstTracked?.unit?.toLowerCase() === 'kg' || firstTracked?.unit?.toLowerCase() === 'g'
       const isBaseGram = firstTracked?.unit?.toLowerCase() === 'g'
       setMovementWeightMode(isBaseGram ? 'g' : 'kg')
 
@@ -117,7 +115,6 @@ export const InventoryPage: React.FC = () => {
   const handleProductSelectInMovementModal = (productId: string) => {
     const selectedProd = products.find((p) => p.id === productId)
     if (selectedProd) {
-      const isWeight = selectedProd.unit?.toLowerCase() === 'kg' || selectedProd.unit?.toLowerCase() === 'g'
       const isBaseGram = selectedProd.unit?.toLowerCase() === 'g'
       setMovementWeightMode(isBaseGram ? 'g' : 'kg')
       form.setFieldsValue({
@@ -583,16 +580,14 @@ export const InventoryPage: React.FC = () => {
                   <th style={{ padding: '13px 16px', width: '14%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Selling Price
                   </th>
-                  {(currentUser?.role === 'admin' || currentUser?.role === 'owner') && (
-                    <th style={{ padding: '13px 16px', width: '12%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      Cost Price
-                    </th>
-                  )}
-                  <th style={{ padding: '13px 16px', width: '14%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    On-Hand Stock
+                  <th style={{ padding: '13px 16px', width: '12%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Cost Price
                   </th>
-                  <th style={{ padding: '13px 18px', textAlign: 'right', width: '10%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Quick Action
+                  <th style={{ padding: '13px 16px', width: '14%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Stock
+                  </th>
+                  <th style={{ padding: '13px 18px', textAlign: 'right', width: '12%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Update Stock
                   </th>
                 </tr>
               </thead>
@@ -699,17 +694,15 @@ export const InventoryPage: React.FC = () => {
                       </td>
 
                       {/* Cost Price */}
-                      {(currentUser?.role === 'admin' || currentUser?.role === 'owner') && (
-                        <td style={{ padding: '12px 16px' }}>
-                          {product.cost_price ? (
-                            <span style={{ color: '#64748b', fontWeight: 600, fontSize: 12.5 }}>
-                              {formatCurrency(product.cost_price)}
-                            </span>
-                          ) : (
-                            <span style={{ color: '#cbd5e1', fontSize: 12 }}>—</span>
-                          )}
-                        </td>
-                      )}
+                      <td style={{ padding: '12px 16px' }}>
+                        {product.cost_price ? (
+                          <span style={{ color: '#64748b', fontWeight: 600, fontSize: 12.5 }}>
+                            {formatCurrency(product.cost_price)}
+                          </span>
+                        ) : (
+                          <span style={{ color: '#cbd5e1', fontSize: 12 }}>—</span>
+                        )}
+                      </td>
 
                       {/* On-Hand Stock */}
                       <td style={{ padding: '12px 16px' }}>
@@ -1059,7 +1052,7 @@ export const InventoryPage: React.FC = () => {
                           name="type"
                           label={<span style={{ fontWeight: 700, fontSize: 12.5 }}>Action Type</span>}
                           initialValue="IN"
-                          rules={[{ required: true }]}
+                          rules={[{ required: true, message: 'Please select an action type' }]}
                           style={{ marginBottom: 0 }}
                         >
                           <Select size="large" style={{ borderRadius: 8 }}>
@@ -1085,7 +1078,23 @@ export const InventoryPage: React.FC = () => {
                               Quantity {isWeight ? `(${movementWeightMode})` : `(${selectedProd?.unit || 'pcs'})`}
                             </span>
                           }
-                          rules={[{ required: true, message: 'Enter quantity' }]}
+                          rules={[
+                            { required: true, message: 'Please enter quantity' },
+                            {
+                              validator: (_, val) => {
+                                if (val === undefined || val === null || val === '') {
+                                  return Promise.reject(new Error('Please enter quantity'))
+                                }
+                                if (Number(val) <= 0) {
+                                  return Promise.reject(new Error('Quantity must be greater than 0'))
+                                }
+                                if (Number(val) > 1000000) {
+                                  return Promise.reject(new Error('Quantity exceeds maximum limit (1,000,000)'))
+                                }
+                                return Promise.resolve()
+                              }
+                            }
+                          ]}
                           initialValue={1}
                           style={{ marginBottom: 0 }}
                         >
@@ -1195,11 +1204,27 @@ export const InventoryPage: React.FC = () => {
                                 )}
                               </div>
                             }
-                            rules={[{ required: true, message: 'Enter selling price' }]}
+                            rules={[
+                              { required: true, message: 'Please enter selling price' },
+                              {
+                                validator: (_, val) => {
+                                  if (val === undefined || val === null || val === '') {
+                                    return Promise.reject(new Error('Please enter selling price'))
+                                  }
+                                  if (Number(val) <= 0) {
+                                    return Promise.reject(new Error('Selling price must be greater than 0'))
+                                  }
+                                  if (Number(val) > 10000000) {
+                                    return Promise.reject(new Error('Selling price exceeds maximum limit (10,000,000)'))
+                                  }
+                                  return Promise.resolve()
+                                }
+                              }
+                            ]}
                             style={{ marginBottom: 0 }}
                           >
                             <InputNumber
-                              min={0}
+                              min={0.01}
                               step={10}
                               placeholder="e.g. 3500"
                               size="large"
@@ -1210,9 +1235,23 @@ export const InventoryPage: React.FC = () => {
                           </Form.Item>
 
                           <Form.Item
-                            hidden={!(currentUser?.role === 'admin' || currentUser?.role === 'owner')}
                             name="cost_price"
                             label={<span style={{ fontWeight: 700, fontSize: 12.5, color: '#334155' }}>Cost Price</span>}
+                            rules={[
+                              {
+                                validator: (_, val) => {
+                                  if (val !== undefined && val !== null && val !== '') {
+                                    if (Number(val) < 0) {
+                                      return Promise.reject(new Error('Cost price cannot be negative'))
+                                    }
+                                    if (Number(val) > 10000000) {
+                                      return Promise.reject(new Error('Cost price exceeds maximum limit (10,000,000)'))
+                                    }
+                                  }
+                                  return Promise.resolve()
+                                }
+                              }
+                            ]}
                             style={{ marginBottom: 0 }}
                           >
                             <InputNumber
@@ -1220,14 +1259,14 @@ export const InventoryPage: React.FC = () => {
                               step={10}
                               placeholder="e.g. 2100"
                               size="large"
-                              style={{ width: '100%', borderRadius: 8 }}
+                              style={{ width: '100%', borderRadius: 8, fontWeight: 700 }}
                               formatter={(v) => `Rs. ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                               parser={(v) => v!.replace(/Rs\.\s?|(,*)/g, '') as any}
                             />
                           </Form.Item>
                         </div>
 
-                        {(currentUser?.role === 'admin' || currentUser?.role === 'owner') && sellP > 0 && costP > 0 && (
+                        {sellP > 0 && costP > 0 && (
                           <div
                             style={{
                               display: 'flex',
@@ -1257,6 +1296,9 @@ export const InventoryPage: React.FC = () => {
                 <Form.Item
                   name="note"
                   label={<span style={{ fontWeight: 600, fontSize: 12, color: '#475569' }}>Batch Reference / Note</span>}
+                  rules={[
+                    { max: 250, message: 'Note cannot exceed 250 characters' }
+                  ]}
                   style={{ marginBottom: 6 }}
                 >
                   <Input placeholder="e.g. Morning bake batch, supplier invoice..." size="large" style={{ borderRadius: 8 }} />
@@ -1280,7 +1322,12 @@ export const InventoryPage: React.FC = () => {
                 <Form.Item
                   name="new_name"
                   label={<span style={{ fontWeight: 700, fontSize: 12.5 }}>Product Name / Title</span>}
-                  rules={[{ required: true, message: 'Please enter product name' }]}
+                  rules={[
+                    { required: true, message: 'Please enter product name' },
+                    { whitespace: true, message: 'Product name cannot be blank spaces' },
+                    { min: 2, message: 'Product name must be at least 2 characters' },
+                    { max: 100, message: 'Product name cannot exceed 100 characters' }
+                  ]}
                   style={{ marginBottom: 12 }}
                 >
                   <Input placeholder="e.g. Blueberry Cheesecake 1kg" size="large" style={{ borderRadius: 8 }} />
@@ -1290,7 +1337,7 @@ export const InventoryPage: React.FC = () => {
                   <Form.Item
                     name="new_category_id"
                     label={<span style={{ fontWeight: 700, fontSize: 12.5 }}>Category (Auto Code)</span>}
-                    rules={[{ required: true, message: 'Select category' }]}
+                    rules={[{ required: true, message: 'Please select a category' }]}
                     style={{ marginBottom: 0 }}
                   >
                     <Select
@@ -1313,6 +1360,7 @@ export const InventoryPage: React.FC = () => {
                     name="new_unit"
                     label={<span style={{ fontWeight: 700, fontSize: 12.5 }}>Unit</span>}
                     initialValue="pcs"
+                    rules={[{ required: true, message: 'Please select a unit' }]}
                     style={{ marginBottom: 0 }}
                   >
                     <Select
@@ -1352,7 +1400,16 @@ export const InventoryPage: React.FC = () => {
                         </span>
                       </span>
                     }
-                    rules={[{ required: true, message: 'Please enter or generate item code' }]}
+                    rules={[
+                      { required: true, message: 'Please enter or generate item code' },
+                      { whitespace: true, message: 'Item code cannot be blank spaces' },
+                      { min: 2, message: 'Item code must be at least 2 characters' },
+                      { max: 50, message: 'Item code cannot exceed 50 characters' },
+                      {
+                        pattern: /^[a-zA-Z0-9_\-\.\/]+$/,
+                        message: 'Item code can only contain letters, numbers, hyphens, underscores, slashes, or dots'
+                      }
+                    ]}
                     style={{ marginBottom: 0 }}
                   >
                     <Input
@@ -1401,11 +1458,27 @@ export const InventoryPage: React.FC = () => {
                   <Form.Item
                     name="new_price"
                     label={<span style={{ fontWeight: 600, fontSize: 12 }}>Selling Price (Rs.)</span>}
-                    rules={[{ required: true, message: 'Enter price' }]}
+                    rules={[
+                      { required: true, message: 'Please enter selling price' },
+                      {
+                        validator: (_, val) => {
+                          if (val === undefined || val === null || val === '') {
+                            return Promise.reject(new Error('Please enter selling price'))
+                          }
+                          if (Number(val) <= 0) {
+                            return Promise.reject(new Error('Selling price must be greater than 0'))
+                          }
+                          if (Number(val) > 10000000) {
+                            return Promise.reject(new Error('Selling price exceeds maximum limit (10,000,000)'))
+                          }
+                          return Promise.resolve()
+                        }
+                      }
+                    ]}
                     style={{ marginBottom: 0 }}
                   >
                     <InputNumber
-                      min={0}
+                      min={0.01}
                       size="large"
                       style={{ width: '100%', borderRadius: 8, fontWeight: 700, color: 'var(--primary-dark)' }}
                       formatter={(v) => `Rs. ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
@@ -1414,9 +1487,23 @@ export const InventoryPage: React.FC = () => {
                   </Form.Item>
 
                   <Form.Item
-                    hidden={!(currentUser?.role === 'admin' || currentUser?.role === 'owner')}
                     name="new_cost_price"
                     label={<span style={{ fontWeight: 600, fontSize: 12 }}>Cost Price (Rs.)</span>}
+                    rules={[
+                      {
+                        validator: (_, val) => {
+                          if (val !== undefined && val !== null && val !== '') {
+                            if (Number(val) < 0) {
+                              return Promise.reject(new Error('Cost price cannot be negative'))
+                            }
+                            if (Number(val) > 10000000) {
+                              return Promise.reject(new Error('Cost price exceeds maximum limit (10,000,000)'))
+                            }
+                          }
+                          return Promise.resolve()
+                        }
+                      }
+                    ]}
                     style={{ marginBottom: 0 }}
                   >
                     <InputNumber
@@ -1433,7 +1520,6 @@ export const InventoryPage: React.FC = () => {
                   {({ getFieldValue }) => {
                     const chosenUnit = getFieldValue('new_unit') || 'pcs'
                     const isNewWeight = chosenUnit === 'kg' || chosenUnit === 'g'
-                    const isNewBaseGram = chosenUnit === 'g'
                     const currentQty = Number(getFieldValue('new_quantity')) || 0
 
                     return (
@@ -1492,7 +1578,23 @@ export const InventoryPage: React.FC = () => {
                                 )}
                               </div>
                             }
-                            rules={[{ required: true, message: 'Enter initial stock quantity' }]}
+                            rules={[
+                              { required: true, message: 'Please enter initial stock quantity' },
+                              {
+                                validator: (_, val) => {
+                                  if (val === undefined || val === null || val === '') {
+                                    return Promise.reject(new Error('Please enter initial stock quantity'))
+                                  }
+                                  if (Number(val) < 0) {
+                                    return Promise.reject(new Error('Stock quantity cannot be negative'))
+                                  }
+                                  if (Number(val) > 1000000) {
+                                    return Promise.reject(new Error('Stock quantity exceeds maximum limit (1,000,000)'))
+                                  }
+                                  return Promise.resolve()
+                                }
+                              }
+                            ]}
                             initialValue={isNewWeight ? (newProductWeightMode === 'g' ? 500 : 1) : 10}
                             style={{ marginBottom: 0 }}
                           >
@@ -1507,6 +1609,9 @@ export const InventoryPage: React.FC = () => {
                           <Form.Item
                             name="new_note"
                             label={<span style={{ fontWeight: 600, fontSize: 12 }}>Note / Supplier Info</span>}
+                            rules={[
+                              { max: 250, message: 'Note cannot exceed 250 characters' }
+                            ]}
                             style={{ marginBottom: 0 }}
                           >
                             <Input placeholder="e.g. Initial supplier batch" size="large" style={{ borderRadius: 8 }} />

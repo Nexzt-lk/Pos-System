@@ -13,7 +13,6 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Sparkles,
-  RefreshCw,
   Download,
   Printer,
   ChevronLeft,

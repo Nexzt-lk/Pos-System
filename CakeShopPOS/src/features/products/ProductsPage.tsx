@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import {
   Plus,
-  Search,
   Cake,
   Edit3,
   Package2,
@@ -9,20 +8,17 @@ import {
   CheckCircle2,
   RefreshCw,
   Barcode,
-  ArrowUpDown,
   Trash2,
   Layers,
   Image as ImageIcon,
-  Sparkles,
-  LayoutGrid,
-  List
+  Sparkles
 } from 'lucide-react'
-import { Modal, Form, Input, InputNumber, Select, Switch, message, Popconfirm, Segmented } from 'antd'
+import { Modal, Form, Input, InputNumber, Select, Switch, message, Popconfirm } from 'antd'
 import { Product, Category, normalizeProduct, normalizeCategory } from '../../types/product'
 import { productsApi } from '../../api/productsApi'
 import { categoriesApi } from '../../api/categoriesApi'
 import { useAppStore } from '../../store/appStore'
-import { formatCurrency, formatStockQty } from '../../lib/formatters'
+import { formatCurrency } from '../../lib/formatters'
 import { generateCategoryItemCode } from '../../lib/skuGenerator'
 import { BAKERY_IMAGE_PRESETS, getAutoMatchedProductImage, getProductImageSrc } from '../../lib/imageHelper'
 import { RefreshButton } from '../../components/RefreshButton'
@@ -37,7 +33,7 @@ export const ProductsPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [stockFilter, setStockFilter] = useState<'all' | 'in_stock' | 'low_stock' | 'out_of_stock'>('all')
   const [sortBy, setSortBy] = useState<'name_asc' | 'name_desc' | 'price_asc' | 'price_desc' | 'stock_asc' | 'stock_desc'>('name_asc')
-  const [viewMode, setViewMode] = useState<'cards' | 'table'>('table')
+  const [viewMode] = useState<'cards' | 'table'>('table')
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
@@ -91,7 +87,6 @@ export const ProductsPage: React.FC = () => {
       setEditingProduct(product)
       setModalSellingPrice(product.price || 0)
       setModalCostPrice(product.cost_price || 0)
-      const isWeight = product.unit?.toLowerCase() === 'kg' || product.unit?.toLowerCase() === 'g'
       setProdStockWeightMode(product.unit?.toLowerCase() === 'g' ? 'g' : 'kg')
 
       form.setFieldsValue({
@@ -631,23 +626,20 @@ export const ProductsPage: React.FC = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 10, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
                 <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                  <th style={{ padding: '13px 18px', width: '30%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <th style={{ padding: '13px 18px', width: '32%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Product Name
                   </th>
-                  <th style={{ padding: '13px 16px', width: '16%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <th style={{ padding: '13px 16px', width: '18%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Category
                   </th>
-                  <th style={{ padding: '13px 16px', width: '14%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <th style={{ padding: '13px 16px', width: '16%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Item Code / Barcode
                   </th>
                   <th style={{ padding: '13px 16px', width: '14%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Selling Price
                   </th>
-                  <th style={{ padding: '13px 16px', width: '12%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <th style={{ padding: '13px 16px', width: '10%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Cost Price
-                  </th>
-                  <th style={{ padding: '13px 16px', width: '14%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    On-Hand Stock
                   </th>
                   <th style={{ padding: '13px 18px', textAlign: 'right', width: '10%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Quick Action
@@ -657,15 +649,7 @@ export const ProductsPage: React.FC = () => {
               <tbody>
                 {filteredProducts.map((product) => {
                   const isTracked = Boolean(product.track_inventory)
-                  const stockNum = product.current_stock ?? 0
-                  const isLow = isTracked && stockNum <= 5 && stockNum > 0
-                  const isOut = isTracked && stockNum <= 0
                   const catColor = product.category_color || '#16a34a'
-
-                  // Margin calculation
-                  const hasCost = Boolean(product.cost_price && product.cost_price > 0)
-                  const profit = product.price - (product.cost_price || 0)
-                  const margin = hasCost && product.price > 0 ? ((profit / product.price) * 100).toFixed(0) : null
 
                   return (
                     <tr
@@ -778,43 +762,7 @@ export const ProductsPage: React.FC = () => {
                         )}
                       </td>
 
-                      {/* Stock Status */}
-                      <td style={{ padding: '12px 16px' }}>
-                        {isTracked ? (
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 6,
-                              padding: '4px 10px',
-                              borderRadius: 99,
-                              fontSize: 11.5,
-                              fontWeight: 700,
-                              background: isOut ? '#fef2f2' : isLow ? '#fffbeb' : '#f0fdf4',
-                              color: isOut ? '#991b1b' : isLow ? '#92400e' : '#166534',
-                              border: `1px solid ${isOut ? '#fecaca' : isLow ? '#fde68a' : '#bbf7d0'}`
-                            }}
-                          >
-                            {isOut ? 'Out of Stock' : formatStockQty(product.current_stock, product.unit)}
-                          </span>
-                        ) : (
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 4,
-                              padding: '3px 8px',
-                              borderRadius: 6,
-                              fontSize: 11,
-                              fontWeight: 600,
-                              background: '#f1f5f9',
-                              color: '#64748b'
-                            }}
-                          >
-                            Non-tracked
-                          </span>
-                        )}
-                      </td>
+
 
                       {/* Quick Action */}
                       <td style={{ padding: '12px 18px', textAlign: 'right' }}>
@@ -1015,7 +963,12 @@ export const ProductsPage: React.FC = () => {
           <Form.Item
             name="name"
             label={<span style={{ fontWeight: 600, fontSize: 12.5, color: '#334155' }}>Product Name</span>}
-            rules={[{ required: true, message: 'Please enter product name' }]}
+            rules={[
+              { required: true, message: 'Please enter product name' },
+              { whitespace: true, message: 'Product name cannot be blank spaces' },
+              { min: 2, message: 'Product name must be at least 2 characters' },
+              { max: 100, message: 'Product name cannot exceed 100 characters' }
+            ]}
             style={{ marginBottom: 12 }}
           >
             <Input placeholder="e.g. Chocolate Fudge Gateau 1kg" size="large" style={{ borderRadius: 8 }} />
@@ -1026,7 +979,7 @@ export const ProductsPage: React.FC = () => {
             <Form.Item
               name="category_id"
               label={<span style={{ fontWeight: 600, fontSize: 12.5, color: '#334155' }}>Category</span>}
-              rules={[{ required: true, message: 'Select category' }]}
+              rules={[{ required: true, message: 'Please select a category' }]}
               style={{ marginBottom: 0 }}
             >
               <Select
@@ -1063,7 +1016,7 @@ export const ProductsPage: React.FC = () => {
               name="unit"
               label={<span style={{ fontWeight: 600, fontSize: 12.5, color: '#334155' }}>Unit</span>}
               initialValue="pcs"
-              rules={[{ required: true }]}
+              rules={[{ required: true, message: 'Please select a unit' }]}
               style={{ marginBottom: 0 }}
             >
               <Select size="large" style={{ borderRadius: 8 }}>
@@ -1090,11 +1043,27 @@ export const ProductsPage: React.FC = () => {
                   )}
                 </div>
               }
-              rules={[{ required: true, message: 'Enter selling price' }]}
+              rules={[
+                { required: true, message: 'Please enter selling price' },
+                {
+                  validator: (_, val) => {
+                    if (val === undefined || val === null || val === '') {
+                      return Promise.reject(new Error('Selling price is required'))
+                    }
+                    if (Number(val) <= 0) {
+                      return Promise.reject(new Error('Selling price must be greater than 0'))
+                    }
+                    if (Number(val) > 10000000) {
+                      return Promise.reject(new Error('Selling price exceeds maximum limit'))
+                    }
+                    return Promise.resolve()
+                  }
+                }
+              ]}
               style={{ marginBottom: 0 }}
             >
               <InputNumber
-                min={0}
+                min={0.01}
                 step={10}
                 placeholder="e.g. 3800"
                 size="large"
@@ -1105,6 +1074,21 @@ export const ProductsPage: React.FC = () => {
             <Form.Item
               name="cost_price"
               label={<span style={{ fontWeight: 600, fontSize: 12.5, color: '#334155' }}>Cost Price (Rs. - Optional)</span>}
+              rules={[
+                {
+                  validator: (_, val) => {
+                    if (val !== undefined && val !== null && val !== '') {
+                      if (Number(val) < 0) {
+                        return Promise.reject(new Error('Cost price cannot be negative'))
+                      }
+                      if (Number(val) > 10000000) {
+                        return Promise.reject(new Error('Cost price exceeds maximum limit'))
+                      }
+                    }
+                    return Promise.resolve()
+                  }
+                }
+              ]}
               style={{ marginBottom: 0 }}
             >
               <InputNumber
@@ -1122,6 +1106,24 @@ export const ProductsPage: React.FC = () => {
             <Form.Item
               name="barcode"
               label={<span style={{ fontWeight: 600, fontSize: 12.5, color: '#334155' }}>Barcode / Item Code</span>}
+              rules={[
+                {
+                  validator: (_, val) => {
+                    if (val && typeof val === 'string' && val.trim().length > 0) {
+                      if (val.trim().length < 2) {
+                        return Promise.reject(new Error('Barcode must be at least 2 characters'))
+                      }
+                      if (val.trim().length > 50) {
+                        return Promise.reject(new Error('Barcode cannot exceed 50 characters'))
+                      }
+                      if (!/^[a-zA-Z0-9_\-\.\/]+$/.test(val.trim())) {
+                        return Promise.reject(new Error('Barcode can only contain letters, numbers, hyphens, or dots'))
+                      }
+                    }
+                    return Promise.resolve()
+                  }
+                }
+              ]}
               style={{ flex: 1, marginBottom: 0 }}
             >
               <Input
@@ -1435,7 +1437,23 @@ export const ProductsPage: React.FC = () => {
                         </div>
                       }
                       initialValue={isWeight ? (prodStockWeightMode === 'g' ? 500 : 1) : 10}
-                      rules={[{ required: true, message: 'Enter initial stock quantity' }]}
+                      rules={[
+                        { required: true, message: 'Please enter initial stock quantity' },
+                        {
+                          validator: (_, val) => {
+                            if (val === undefined || val === null || val === '') {
+                              return Promise.reject(new Error('Initial stock quantity is required'))
+                            }
+                            if (Number(val) < 0) {
+                              return Promise.reject(new Error('Initial stock cannot be negative'))
+                            }
+                            if (Number(val) > 1000000) {
+                              return Promise.reject(new Error('Initial stock quantity is too large'))
+                            }
+                            return Promise.resolve()
+                          }
+                        }
+                      ]}
                       style={{ marginBottom: 6 }}
                     >
                       <InputNumber
