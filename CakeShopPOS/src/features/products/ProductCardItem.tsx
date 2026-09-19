@@ -285,7 +285,7 @@ export const ProductCardItem: React.FC<ProductCardItemProps> = ({
           style={{
             fontSize: 14.5,
             fontWeight: 700,
-            color: '#0f172a',
+            color: '#64748b',
             lineHeight: 1.35,
             minHeight: 38,
             display: '-webkit-box',

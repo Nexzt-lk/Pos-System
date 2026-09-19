@@ -350,13 +350,13 @@ export const ProductsPage: React.FC = () => {
           }}
         >
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Total Products
             </div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: '#15803d', marginTop: 2 }}>
+            <div style={{ fontSize: 24, fontWeight: 900, color: '#2563eb', marginTop: 2 }}>
               {totalCount}
             </div>
-            <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 600, marginTop: 1 }}>
+            <div style={{ fontSize: 11, color: '#3b82f6', fontWeight: 600, marginTop: 1 }}>
               Catalog items
             </div>
           </div>
@@ -365,12 +365,12 @@ export const ProductsPage: React.FC = () => {
               width: 44,
               height: 44,
               borderRadius: 12,
-              background: '#f0fdf4',
-              border: '1px solid #bbf7d0',
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#16a34a'
+              color: '#2563eb'
             }}
           >
             <Package2 size={22} />
@@ -421,8 +421,8 @@ export const ProductsPage: React.FC = () => {
         {/* Low Stock Alerts */}
         <div
           style={{
-            background: lowStockCount > 0 ? '#fffbeb' : '#ffffff',
-            border: lowStockCount > 0 ? '1.5px solid #fde68a' : '1px solid #e2e8f0',
+            background: '#ffffff',
+            border: lowStockCount > 0 ? '1px solid #fecaca' : '1px solid #e2e8f0',
             borderRadius: 14,
             padding: '14px 16px',
             display: 'flex',
@@ -432,13 +432,13 @@ export const ProductsPage: React.FC = () => {
           }}
         >
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: lowStockCount > 0 ? '#92400e' : '#166534', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Low Stock Warning
             </div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: lowStockCount > 0 ? '#b45309' : '#15803d', marginTop: 2 }}>
+            <div style={{ fontSize: 24, fontWeight: 900, color: '#dc2626', marginTop: 2 }}>
               {lowStockCount}
             </div>
-            <div style={{ fontSize: 11, color: lowStockCount > 0 ? '#d97706' : '#16a34a', fontWeight: 600, marginTop: 1 }}>
+            <div style={{ fontSize: 11, color: '#ef4444', fontWeight: 600, marginTop: 1 }}>
               ≤ 5 items remaining
             </div>
           </div>
@@ -447,12 +447,12 @@ export const ProductsPage: React.FC = () => {
               width: 44,
               height: 44,
               borderRadius: 12,
-              background: lowStockCount > 0 ? '#fef3c7' : '#f0fdf4',
-              border: lowStockCount > 0 ? '1px solid #fde68a' : '1px solid #bbf7d0',
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: lowStockCount > 0 ? '#d97706' : '#16a34a'
+              color: '#dc2626'
             }}
           >
             <AlertTriangle size={22} />
@@ -473,13 +473,13 @@ export const ProductsPage: React.FC = () => {
           }}
         >
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#6b21a8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Categories
             </div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: '#15803d', marginTop: 2 }}>
+            <div style={{ fontSize: 24, fontWeight: 900, color: '#7e22ce', marginTop: 2 }}>
               {categories.length}
             </div>
-            <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 600, marginTop: 1 }}>
+            <div style={{ fontSize: 11, color: '#9333ea', fontWeight: 600, marginTop: 1 }}>
               Menu groups
             </div>
           </div>
@@ -488,12 +488,12 @@ export const ProductsPage: React.FC = () => {
               width: 44,
               height: 44,
               borderRadius: 12,
-              background: '#f0fdf4',
-              border: '1px solid #bbf7d0',
+              background: '#faf5ff',
+              border: '1px solid #e9d5ff',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#16a34a'
+              color: '#9333ea'
             }}
           >
             <Layers size={22} />
@@ -621,192 +621,155 @@ export const ProductsPage: React.FC = () => {
             background: '#ffffff'
           }}
         >
-        <div style={{ overflowX: 'auto', flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <div className="table-wrap" style={{ flex: 1, overflowY: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
-              <thead style={{ position: 'sticky', top: 0, zIndex: 10, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                  <th style={{ padding: '13px 18px', width: '32%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Product Name
-                  </th>
-                  <th style={{ padding: '13px 16px', width: '18%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Category
-                  </th>
-                  <th style={{ padding: '13px 16px', width: '16%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Item Code / Barcode
-                  </th>
-                  <th style={{ padding: '13px 16px', width: '14%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Selling Price
-                  </th>
-                  <th style={{ padding: '13px 16px', width: '10%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Cost Price
-                  </th>
-                  <th style={{ padding: '13px 18px', textAlign: 'right', width: '10%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Quick Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProducts.map((product) => {
-                  const isTracked = Boolean(product.track_inventory)
-                  const catColor = product.category_color || '#16a34a'
+          <div style={{ overflowX: 'auto', flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <div className="table-wrap" style={{ flex: 1, overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
+                <thead style={{ position: 'sticky', top: 0, zIndex: 10, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                    <th style={{ padding: '13px 18px', width: '32%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Product Name
+                    </th>
+                    <th style={{ padding: '13px 16px', width: '18%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Category
+                    </th>
+                    <th style={{ padding: '13px 16px', width: '16%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Item Code / Barcode
+                    </th>
+                    <th style={{ padding: '13px 16px', width: '14%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Selling Price
+                    </th>
+                    <th style={{ padding: '13px 16px', width: '10%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Cost Price
+                    </th>
+                    <th style={{ padding: '13px 18px', textAlign: 'right', width: '10%', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Quick Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredProducts.map((product) => {
+                    const isTracked = Boolean(product.track_inventory)
+                    const catColor = product.category_color || '#16a34a'
 
-                  return (
-                    <tr
-                      key={product.id}
-                      style={{
-                        borderBottom: '1px solid #f1f5f9',
-                        transition: 'background 0.12s ease'
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = '#ffffff')}
-                    >
-                      {/* Product Name + Icon */}
-                      <td style={{ padding: '12px 18px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div
-                            style={{
-                              width: 40,
-                              height: 40,
-                              borderRadius: 10,
-                              background: `${catColor}15`,
-                              border: `1px solid ${catColor}30`,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: catColor,
-                              fontWeight: 800,
-                              fontSize: 14,
-                              flexShrink: 0,
-                              overflow: 'hidden',
-                              position: 'relative'
-                            }}
-                          >
-                            <img
-                              src={getProductImageSrc(product.image_path, product.name, product.category_name) || undefined}
-                              alt={product.name}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none'
-                              }}
-                            />
-                            <Cake size={18} style={{ position: 'absolute', zIndex: 0, opacity: 0.7 }} />
-                          </div>
-                          <div style={{ minWidth: 0 }}>
+                    return (
+                      <tr
+                        key={product.id}
+                        style={{
+                          borderBottom: '1px solid #f1f5f9',
+                          transition: 'background 0.12s ease'
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = '#ffffff')}
+                      >
+                        {/* Product Name + Icon */}
+                        <td style={{ padding: '12px 18px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                             <div
                               style={{
-                                color: 'var(--text-primary)',
-                                fontWeight: 600,
-                                fontSize: 13.5,
-                                lineHeight: 1.3
+                                width: 40,
+                                height: 40,
+                                borderRadius: 10,
+                                background: `${catColor}15`,
+                                border: `1px solid ${catColor}30`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: catColor,
+                                fontWeight: 800,
+                                fontSize: 14,
+                                flexShrink: 0,
+                                overflow: 'hidden',
+                                position: 'relative'
                               }}
                             >
-                              {product.name}
+                              <img
+                                src={getProductImageSrc(product.image_path, product.name, product.category_name) || undefined}
+                                alt={product.name}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none'
+                                }}
+                              />
+                              <Cake size={18} style={{ position: 'absolute', zIndex: 0, opacity: 0.7 }} />
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-                              <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>
-                                Unit: <strong>{product.unit}</strong>
-                              </span>
-                              {!isTracked && (
-                                <span style={{ fontSize: 10, background: 'var(--surface-2)', color: 'var(--text-muted)', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>
-                                  Service Item
+                            <div style={{ minWidth: 0 }}>
+                              <div
+                                style={{
+                                  color: '#64748b',
+                                  fontWeight: 600,
+                                  fontSize: 13.5,
+                                  lineHeight: 1.3
+                                }}
+                              >
+                                {product.name}
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                                <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>
+                                  Unit: <strong>{product.unit}</strong>
                                 </span>
-                              )}
+                                {!isTracked && (
+                                  <span style={{ fontSize: 10, background: 'var(--surface-2)', color: 'var(--text-muted)', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>
+                                    Service Item
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Category */}
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>
-                          {product.category_name || 'General'}
-                        </span>
-                      </td>
-
-                      {/* Barcode / SKU */}
-                      <td style={{ padding: '12px 16px' }}>
-                        {product.barcode ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                            <Barcode size={14} style={{ color: '#94a3b8' }} />
-                            <span
-                              style={{
-                                fontFamily: 'monospace',
-                                color: '#64748b',
-                                fontSize: 13
-                              }}
-                            >
-                              {product.barcode}
-                            </span>
-                          </div>
-                        ) : (
-                          <span style={{ color: '#cbd5e1', fontSize: 12 }}>—</span>
-                        )}
-                      </td>
-
-                      {/* Selling Price */}
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ fontWeight: 600, color: '#64748b', fontSize: 12.5 }}>
-                          {formatCurrency(product.price)}
-                        </div>
-                      </td>
-
-                      {/* Cost Price */}
-                      <td style={{ padding: '12px 16px' }}>
-                        {product.cost_price ? (
-                          <span style={{ color: '#64748b', fontWeight: 600, fontSize: 12.5 }}>
-                            {formatCurrency(product.cost_price)}
+                        {/* Category */}
+                        <td style={{ padding: '12px 16px' }}>
+                          <span style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>
+                            {product.category_name || 'General'}
                           </span>
-                        ) : (
-                          <span style={{ color: '#cbd5e1', fontSize: 12 }}>—</span>
-                        )}
-                      </td>
+                        </td>
+
+                        {/* Barcode / SKU */}
+                        <td style={{ padding: '12px 16px' }}>
+                          {product.barcode ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                              <Barcode size={14} style={{ color: '#94a3b8' }} />
+                              <span
+                                style={{
+                                  fontFamily: 'monospace',
+                                  color: '#64748b',
+                                  fontSize: 13
+                                }}
+                              >
+                                {product.barcode}
+                              </span>
+                            </div>
+                          ) : (
+                            <span style={{ color: '#cbd5e1', fontSize: 12 }}>—</span>
+                          )}
+                        </td>
+
+                        {/* Selling Price */}
+                        <td style={{ padding: '12px 16px' }}>
+                          <div style={{ fontWeight: 600, color: '#64748b', fontSize: 12.5 }}>
+                            {formatCurrency(product.price)}
+                          </div>
+                        </td>
+
+                        {/* Cost Price */}
+                        <td style={{ padding: '12px 16px' }}>
+                          {product.cost_price ? (
+                            <span style={{ color: '#64748b', fontWeight: 600, fontSize: 12.5 }}>
+                              {formatCurrency(product.cost_price)}
+                            </span>
+                          ) : (
+                            <span style={{ color: '#cbd5e1', fontSize: 12 }}>—</span>
+                          )}
+                        </td>
 
 
 
-                      {/* Quick Action */}
-                      <td style={{ padding: '12px 18px', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
-                          <button
-                            onClick={() => handleOpenModal(product)}
-                            title="Edit Product Details"
-                            style={{
-                              width: 28,
-                              height: 28,
-                              borderRadius: 8,
-                              border: '1px solid transparent',
-                              background: 'transparent',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: 'var(--primary)',
-                              transition: 'all 0.15s ease'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = 'var(--primary-bg)'
-                              e.currentTarget.style.color = 'var(--primary-dark)'
-                              e.currentTarget.style.borderColor = 'var(--primary-muted)'
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = 'transparent'
-                              e.currentTarget.style.color = 'var(--primary)'
-                              e.currentTarget.style.borderColor = 'transparent'
-                            }}
-                          >
-                            <Edit3 size={15} />
-                          </button>
-
-                          <Popconfirm
-                            title="Remove Product"
-                            description={`Are you sure you want to remove "${product.name}" from the active catalog?`}
-                            onConfirm={() => handleDeleteProduct(product)}
-                            okText="Yes, Remove"
-                            cancelText="Cancel"
-                            okButtonProps={{ danger: true, style: { fontWeight: 700 } }}
-                          >
+                        {/* Quick Action */}
+                        <td style={{ padding: '12px 18px', textAlign: 'right' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
                             <button
-                              title="Delete Product"
+                              onClick={() => handleOpenModal(product)}
+                              title="Edit Product Details"
                               style={{
                                 width: 28,
                                 height: 28,
@@ -817,84 +780,121 @@ export const ProductsPage: React.FC = () => {
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                color: '#94a3b8',
+                                color: 'var(--primary)',
                                 transition: 'all 0.15s ease'
                               }}
                               onMouseEnter={(e) => {
-                                e.currentTarget.style.background = '#fee2e2'
-                                e.currentTarget.style.color = '#ef4444'
-                                e.currentTarget.style.borderColor = '#fca5a5'
+                                e.currentTarget.style.background = 'var(--primary-bg)'
+                                e.currentTarget.style.color = 'var(--primary-dark)'
+                                e.currentTarget.style.borderColor = 'var(--primary-muted)'
                               }}
                               onMouseLeave={(e) => {
                                 e.currentTarget.style.background = 'transparent'
-                                e.currentTarget.style.color = '#94a3b8'
+                                e.currentTarget.style.color = 'var(--primary)'
                                 e.currentTarget.style.borderColor = 'transparent'
                               }}
                             >
-                              <Trash2 size={15} />
+                              <Edit3 size={15} />
                             </button>
-                          </Popconfirm>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
 
-                {filteredProducts.length === 0 && (
-                  <tr>
-                    <td colSpan={7} style={{ padding: '60px 20px', textAlign: 'center' }}>
-                      <div
-                        style={{
-                          width: 56,
-                          height: 56,
-                          borderRadius: 16,
-                          background: '#f1f5f9',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          margin: '0 auto 12px',
-                          color: '#94a3b8'
-                        }}
-                      >
-                        <Package2 size={28} />
-                      </div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
-                        No Products Found
-                      </div>
-                      <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, maxWidth: 360, margin: '4px auto 16px' }}>
-                        {searchQuery
-                          ? `No items matching "${searchQuery}". Try searching with a different term.`
-                          : 'No products in this category yet. Click "Add New Product" to create one.'}
-                      </div>
-                      {searchQuery && (
-                        <button
-                          onClick={() => {
-                            setSearchQuery('')
-                            setSelectedCategory('all')
-                            setStockFilter('all')
-                          }}
+                            <Popconfirm
+                              title="Remove Product"
+                              description={`Are you sure you want to remove "${product.name}" from the active catalog?`}
+                              onConfirm={() => handleDeleteProduct(product)}
+                              okText="Yes, Remove"
+                              cancelText="Cancel"
+                              okButtonProps={{ danger: true, style: { fontWeight: 700 } }}
+                            >
+                              <button
+                                title="Delete Product"
+                                style={{
+                                  width: 28,
+                                  height: 28,
+                                  borderRadius: 8,
+                                  border: '1px solid transparent',
+                                  background: 'transparent',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: '#94a3b8',
+                                  transition: 'all 0.15s ease'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = '#fee2e2'
+                                  e.currentTarget.style.color = '#ef4444'
+                                  e.currentTarget.style.borderColor = '#fca5a5'
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = 'transparent'
+                                  e.currentTarget.style.color = '#94a3b8'
+                                  e.currentTarget.style.borderColor = 'transparent'
+                                }}
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </Popconfirm>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+
+                  {filteredProducts.length === 0 && (
+                    <tr>
+                      <td colSpan={7} style={{ padding: '60px 20px', textAlign: 'center' }}>
+                        <div
                           style={{
-                            padding: '7px 16px',
-                            borderRadius: 8,
-                            border: '1px solid var(--border)',
-                            background: '#ffffff',
-                            color: 'var(--primary)',
-                            fontWeight: 700,
-                            fontSize: 12,
-                            cursor: 'pointer'
+                            width: 56,
+                            height: 56,
+                            borderRadius: 16,
+                            background: '#f1f5f9',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            margin: '0 auto 12px',
+                            color: '#94a3b8'
                           }}
                         >
-                          Clear All Filters
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                          <Package2 size={28} />
+                        </div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+                          No Products Found
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, maxWidth: 360, margin: '4px auto 16px' }}>
+                          {searchQuery
+                            ? `No items matching "${searchQuery}". Try searching with a different term.`
+                            : 'No products in this category yet. Click "Add New Product" to create one.'}
+                        </div>
+                        {searchQuery && (
+                          <button
+                            onClick={() => {
+                              setSearchQuery('')
+                              setSelectedCategory('all')
+                              setStockFilter('all')
+                            }}
+                            style={{
+                              padding: '7px 16px',
+                              borderRadius: 8,
+                              border: '1px solid var(--border)',
+                              background: '#ffffff',
+                              color: 'var(--primary)',
+                              fontWeight: 700,
+                              fontSize: 12,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Clear All Filters
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-      </div>
       )}
 
       {/* ── Add / Edit Product Modal ── */}

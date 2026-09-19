@@ -646,7 +646,7 @@ export const InventoryPage: React.FC = () => {
                           <div style={{ minWidth: 0 }}>
                             <div
                               style={{
-                                color: 'var(--text-primary)',
+                                color: '#64748b',
                                 fontWeight: 600,
                                 fontSize: 13.5,
                                 lineHeight: 1.3
