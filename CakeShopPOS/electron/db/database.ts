@@ -266,7 +266,50 @@ export const seedInitialLocalData = (db: any) => {
       ('536a3768-5597-4c7c-ad09-c877796aff54', 'Beverages & Coffee', 'BEV', '#10b981', 'coffee', 8, 1);
   `)
 
-  // 4. Products & Inventory
-  // Products are managed via the Product Management UI (no default seed products)
-  // Add your actual products through the app's product management interface.
+  // 4. Seed Products (Ritzbury) & Inventory
+  db.run(`
+    INSERT OR REPLACE INTO products (id, category_id, item_code, name, description, price, cost_price, barcode, unit, track_inventory, is_active, sync_status)
+    VALUES
+      ('e21d1c04-aafd-4f21-8913-1a01662dff22', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-001', 'Choco-La Kiddies Milk 20g', 'Ritzbury Choco-La Kiddies Milk 20g', 50.00, 0, 'SWT-001', 'pcs', 1, 1, 'synced'),
+      ('d56678ff-22b0-48c9-921f-949fea55b7b0', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-002', 'Choco-La Milk Sweet 20g', 'Ritzbury Choco-La Milk Sweet 20g', 50.00, 0, 'SWT-002', 'pcs', 1, 1, 'synced'),
+      ('2f4e7115-75b5-4d93-85e5-c7fab78e7b31', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-003', 'Choco-La Milk 45g', 'Ritzbury Choco-La Milk 45g', 100.00, 0, 'SWT-003', 'pcs', 1, 1, 'synced'),
+      ('36fa3d50-2557-4a5b-9a64-66327817545c', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-004', 'Choco-La Peanut 45g', 'Ritzbury Choco-La Peanut 45g', 120.00, 0, 'SWT-004', 'pcs', 1, 1, 'synced'),
+      ('94d1daa7-54a5-47dc-9193-300a7343ef46', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-005', 'Choco-La Milk 90g', 'Ritzbury Choco-La Milk 90g', 200.00, 0, 'SWT-005', 'pcs', 1, 1, 'synced'),
+      ('1da3b3c5-3358-485e-a366-8e3409364358', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-006', 'Roccoa Milk IBB 25g', 'Ritzbury Roccoa Milk IBB 25g', 170.00, 0, 'SWT-006', 'pcs', 1, 1, 'synced'),
+      ('b6ac1022-21bb-443e-9d5d-5fbaa74a252b', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-007', 'Roccoa Milk IBB 45g', 'Ritzbury Roccoa Milk IBB 45g', 280.00, 0, 'SWT-007', 'pcs', 1, 1, 'synced'),
+      ('6ce55cf9-77db-4d51-9191-b854a79ccf3f', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-008', 'Roccoa Milk IBB 90g', 'Ritzbury Roccoa Milk IBB 90g', 570.00, 0, 'SWT-008', 'pcs', 1, 1, 'synced'),
+      ('02578d5b-3cc9-4f43-8ccb-c634d3f39ad2', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-009', 'Ritzbury Milk 45g', 'Ritzbury Ritzbury Milk 45g', 140.00, 0, 'SWT-009', 'pcs', 1, 1, 'synced'),
+      ('778f1a0a-da41-4aec-b6ef-c4e81745c356', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-010', 'Ritzbury Milk Sweet 93g', 'Ritzbury Ritzbury Milk Sweet 93g', 230.00, 0, 'SWT-010', 'pcs', 1, 1, 'synced'),
+      ('3382985e-25a2-4dd4-9476-b31c5505d3f3', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-011', 'Ritzbury Cashew 93g', 'Ritzbury Ritzbury Cashew 93g', 380.00, 0, 'SWT-011', 'pcs', 1, 1, 'synced'),
+      ('f93696b5-e2cf-40f2-aba9-41e1afb606e9', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-012', 'Ritzbury Milk 170g', 'Ritzbury Ritzbury Milk 170g', 530.00, 0, 'SWT-012', 'pcs', 1, 1, 'synced'),
+      ('94618602-0332-4c5e-a72f-f27e23c4bed7', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-013', 'Bubbles 30g', 'Ritzbury Bubbles 30g', 100.00, 0, 'SWT-013', 'pcs', 1, 1, 'synced'),
+      ('5f0622ba-a560-47b6-82f3-775eca57cdf3', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-014', 'Bubbles 100g', 'Ritzbury Bubbles 100g', 250.00, 0, 'SWT-014', 'pcs', 1, 1, 'synced'),
+      ('776aedc9-6766-437a-974f-7b0f5658f8ba', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-015', 'Bubbles 170g', 'Ritzbury Bubbles 170g', 450.00, 0, 'SWT-015', 'pcs', 1, 1, 'synced'),
+      ('163de812-8386-4eff-8bf8-f859846e59a4', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-016', 'Revello Milk 50g', 'Ritzbury Revello Milk 50g', 350.00, 0, 'SWT-016', 'pcs', 1, 1, 'synced'),
+      ('64f3ae02-f174-41b4-b40a-50c8de4ac6eb', '48685b8b-b44d-4caa-b9c1-490155e87ea3', 'BIS-001', 'Chocolate Fingers 18g', 'Ritzbury Chocolate Fingers 18g', 40.00, 0, 'BIS-001', 'pcs', 1, 1, 'synced'),
+      ('343a4b16-bfb2-44f0-ac4c-b2ab1ea5d4b4', '48685b8b-b44d-4caa-b9c1-490155e87ea3', 'BIS-002', 'Chocolate Fingers 40g', 'Ritzbury Chocolate Fingers 40g', 100.00, 0, 'BIS-002', 'pcs', 1, 1, 'synced');
+  `)
+
+  db.run(`
+    INSERT OR REPLACE INTO inventory (id, product_id, quantity, min_quantity, updated_at)
+    VALUES
+      ('6afd7a0e-fa59-4dbb-809c-ab07ae70b1be', 'e21d1c04-aafd-4f21-8913-1a01662dff22', 50, 5, datetime('now')),
+      ('be3928d9-39ad-424a-b1c3-8fce54e1a65e', 'd56678ff-22b0-48c9-921f-949fea55b7b0', 50, 5, datetime('now')),
+      ('34840227-9dd4-4e88-a3d0-f56dc5cdc718', '2f4e7115-75b5-4d93-85e5-c7fab78e7b31', 50, 5, datetime('now')),
+      ('ca0d438c-ac8d-4067-b3ec-7223a16825b5', '36fa3d50-2557-4a5b-9a64-66327817545c', 50, 5, datetime('now')),
+      ('a896837d-9d74-407f-99ad-11c1ecd1c27e', '94d1daa7-54a5-47dc-9193-300a7343ef46', 50, 5, datetime('now')),
+      ('d96ca519-2962-4af2-9961-5647dcd8d012', '1da3b3c5-3358-485e-a366-8e3409364358', 50, 5, datetime('now')),
+      ('b444aaf0-fd78-4f6b-86f5-1799b7b7adb0', 'b6ac1022-21bb-443e-9d5d-5fbaa74a252b', 50, 5, datetime('now')),
+      ('ffe5af74-32e4-4469-87c8-7916adf68c57', '6ce55cf9-77db-4d51-9191-b854a79ccf3f', 50, 5, datetime('now')),
+      ('24dbbfc3-84e2-4a6e-a196-d93ee0764a02', '02578d5b-3cc9-4f43-8ccb-c634d3f39ad2', 50, 5, datetime('now')),
+      ('5db79c47-bfcb-40e7-a823-866534892729', '778f1a0a-da41-4aec-b6ef-c4e81745c356', 50, 5, datetime('now')),
+      ('fb7fecb0-1957-4f7a-bdc0-ef9d4c567171', '3382985e-25a2-4dd4-9476-b31c5505d3f3', 50, 5, datetime('now')),
+      ('cd6e8731-8bae-432b-aba2-8dab7fca88df', 'f93696b5-e2cf-40f2-aba9-41e1afb606e9', 50, 5, datetime('now')),
+      ('8099bc9a-fb29-41d1-b08b-b270f071fd7a', '94618602-0332-4c5e-a72f-f27e23c4bed7', 50, 5, datetime('now')),
+      ('49fd5159-ca4b-4380-bac4-1410af4d3cd7', '5f0622ba-a560-47b6-82f3-775eca57cdf3', 50, 5, datetime('now')),
+      ('4dab1960-4596-4a6c-979a-1b96f061f66b', '776aedc9-6766-437a-974f-7b0f5658f8ba', 50, 5, datetime('now')),
+      ('adaf0eea-13e3-4596-b025-236580890e5f', '163de812-8386-4eff-8bf8-f859846e59a4', 50, 5, datetime('now')),
+      ('2ee8a2bd-e3fe-456e-9687-1612b051f636', '64f3ae02-f174-41b4-b40a-50c8de4ac6eb', 50, 5, datetime('now')),
+      ('b3a18b55-f93a-417f-a396-141569029047', '343a4b16-bfb2-44f0-ac4c-b2ab1ea5d4b4', 50, 5, datetime('now'));
+  `)
 }

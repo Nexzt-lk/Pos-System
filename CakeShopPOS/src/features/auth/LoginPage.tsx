@@ -5,6 +5,7 @@ import {
   Package, BarChart3, Users, Settings
 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
+import { authApi } from '../../api/authApi'
 import loginBgImage from '../../assets/nexzt-login-bg.jpg'
 import nexztBrandWhite from '../../assets/nexzt-brand-white.png'
 import nexztStackedLogo from '../../assets/nexzt-logo-stacked.png'
@@ -74,6 +75,8 @@ export const LoginPage: React.FC = () => {
     setError(null)
     try {
       let loggedInUser: any = null
+
+      // 1. Electron IPC (Desktop App)
       if (window.electronAPI) {
         try {
           const result = await window.electronAPI.dbQuery('auth:verify-pin', {
@@ -92,8 +95,27 @@ export const LoginPage: React.FC = () => {
         }
       }
 
-      // Offline fallback verification
-      if (!loggedInUser && (code === '123456' || code === '112233')) {
+      // 2. REST API (Web browser / any device connecting to backend / cloud)
+      if (!loggedInUser) {
+        try {
+          const apiRes = await authApi.verifyPin({
+            pin: code,
+            userId: selectedOperator?.id
+          })
+          if (apiRes?.success && apiRes.user) {
+            loggedInUser = {
+              ...apiRes.user,
+              tenant_id: currentShop?.tenant_id || 'a0000000-0000-0000-0000-000000000001',
+              shop_id: currentShop?.id || 'b0000000-0000-0000-0000-000000000001'
+            }
+          }
+        } catch (apiErr) {
+          console.warn('REST API PIN verify attempt:', apiErr)
+        }
+      }
+
+      // 3. Offline fallback verification (Current PIN: 843522 & default 123456)
+      if (!loggedInUser && (code === '843522' || code === '123456' || code === '112233')) {
         const targetOp = selectedOperator || PRESET_OPERATORS[0]
         loggedInUser = {
           id: targetOp.id,
@@ -175,6 +197,8 @@ export const LoginPage: React.FC = () => {
     setIsLoading(true)
     try {
       let loggedInUser: any = null
+
+      // 1. Electron IPC (Desktop App)
       if (window.electronAPI) {
         try {
           const result = await window.electronAPI.dbQuery('auth:login-email', {
@@ -192,7 +216,26 @@ export const LoginPage: React.FC = () => {
         }
       }
 
-      // Offline fallback login
+      // 2. REST API (Web browser / any device connecting to backend / cloud)
+      if (!loggedInUser) {
+        try {
+          const apiRes = await authApi.login({
+            email: cleanEmail,
+            password: cleanPassword
+          })
+          if (apiRes?.success && apiRes.user) {
+            loggedInUser = {
+              ...apiRes.user,
+              tenant_id: currentShop?.tenant_id || 'a0000000-0000-0000-0000-000000000001',
+              shop_id: currentShop?.id || 'b0000000-0000-0000-0000-000000000001'
+            }
+          }
+        } catch (apiErr) {
+          console.warn('REST API login attempt:', apiErr)
+        }
+      }
+
+      // 3. Offline fallback login
       if (!loggedInUser) {
         const foundOp = PRESET_OPERATORS.find(
           (o) =>
@@ -201,7 +244,19 @@ export const LoginPage: React.FC = () => {
             cleanEmail.includes(o.name.toLowerCase().split(' ')[0])
         )
 
-        if (foundOp && (cleanPassword === '123456' || cleanPassword === `${foundOp.role}123`)) {
+        const validRolePasswords: Record<string, string[]> = {
+          owner: ['JanakaW@2024!', 'owner123', '843522', '123456'],
+          manager: ['manager123', '843522', '123456'],
+          cashier: ['WB_Cash1#2024', 'WB_Cash2#2024', 'cashier123', '843522', '123456']
+        }
+
+        const isAllowed = foundOp && (
+          (validRolePasswords[foundOp.role] && validRolePasswords[foundOp.role].includes(cleanPassword)) ||
+          cleanPassword === '843522' ||
+          cleanPassword === '123456'
+        )
+
+        if (foundOp && isAllowed) {
           loggedInUser = {
             id: foundOp.id,
             tenant_id: currentShop?.tenant_id || 'a0000000-0000-0000-0000-000000000001',

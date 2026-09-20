@@ -329,38 +329,70 @@ END $$;
 -- 19. INITIAL SEED / DEMO DATA (Optional default starter records)
 -- ============================================================================
 INSERT INTO tenants (id, name, plan)
-VALUES ('a0000000-0000-0000-0000-000000000001', 'Rasa Cake House', 'pro')
+VALUES ('a0000000-0000-0000-0000-000000000001', 'Wasana Cake', 'pro')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO shops (id, tenant_id, name, branch_code, address, phone, currency, receipt_footer)
 VALUES (
     'b0000000-0000-0000-0000-000000000001',
     'a0000000-0000-0000-0000-000000000001',
-    'Rasa Cake House - Main Branch',
+    'Wasana Cake - Katugastota',
     'B1',
-    'No. 45, Peradeniya Road, Kandy',
-    '081-2233445',
+    'Katugastota, Kandy',
+    '+94 81 223 4567',
     'LKR',
-    'Thank you for visiting Rasa Cake House! 🎂'
+    'Thank you for visiting Wasana Cake - Katugastota! 🎂'
 )
 ON CONFLICT (id) DO NOTHING;
 
+-- 8 Core Categories
 INSERT INTO categories (id, tenant_id, shop_id, name, code_prefix, color, icon, sort_order)
 VALUES 
-    ('c0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Signature Cakes', 'CAK', '#f43f5e', 'cake', 1),
-    ('c0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Pastries & Buns', 'PAS', '#f59e0b', 'croissant', 2),
-    ('c0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Beverages & Coffee', 'BEV', '#06b6d4', 'coffee', 3),
-    ('c0000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Desserts & Sweets', 'DES', '#8b5cf6', 'cookie', 4)
+    ('10eb67e2-985f-4ed6-9339-4504e9ada336', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Cakes & Gateaux', 'CAK', '#ec4899', 'cake', 1),
+    ('50990b73-4919-460f-85f1-848b8f0838f7', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Sweet Items & Desserts', 'SWT', '#a855f7', 'cookie', 2),
+    ('48685b8b-b44d-4caa-b9c1-490155e87ea3', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Biscuits & Cookies', 'BIS', '#f59e0b', 'cookie', 3),
+    ('0e801936-12bf-4872-a59d-e3ae989c2ce0', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Birthday Deco & Party Items', 'BDY', '#3b82f6', 'party-popper', 4),
+    ('56187eec-97ca-41b4-9d11-171e664a79af', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Ice Cream & Frozen Treats', 'ICE', '#06b6d4', 'ice-cream', 5),
+    ('6b9be91b-1297-425c-9395-27cf952c8358', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Pastries & Savories', 'PAS', '#e11d48', 'croissant', 6),
+    ('c40fc4e3-9a5b-477b-aa4d-b256f0a74267', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Breads & Buns', 'BRD', '#d97706', 'package', 7),
+    ('536a3768-5597-4c7c-ad09-c877796aff54', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Beverages & Coffee', 'BEV', '#10b981', 'coffee', 8)
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO users (id, tenant_id, shop_id, name, email, pin_hash, role)
-VALUES (
-    'd0000000-0000-0000-0000-000000000001',
-    'a0000000-0000-0000-0000-000000000001',
-    'b0000000-0000-0000-0000-000000000001',
-    'Admin User',
-    'admin@rasacake.com',
-    '123456', -- Default PIN (Change in production)
-    'admin'
-)
+-- Staff Users (PIN: 843522)
+INSERT INTO users (id, tenant_id, shop_id, name, email, pin_hash, password_hash, role)
+VALUES 
+    ('d0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Janaka Ariyarathna (Owner)', 'owner@wasanabakes.lk', '843522', 'JanakaW@2024!', 'owner'),
+    ('d0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Sunil Jayasinghe (Manager)', 'manager@wasanabakes.lk', '843522', 'manager123', 'manager'),
+    ('d0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Cashier 01', 'cashier1@wasanabakes.lk', '843522', 'WB_Cash1#2024', 'cashier'),
+    ('d0000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Cashier 02', 'cashier2@wasanabakes.lk', '843522', 'WB_Cash2#2024', 'cashier')
 ON CONFLICT (id) DO NOTHING;
+
+-- Initial Products (Ritzbury)
+INSERT INTO products (id, tenant_id, shop_id, category_id, item_code, name, description, price, cost_price, barcode, unit, track_inventory, is_active, sync_status)
+VALUES
+    ('e21d1c04-aafd-4f21-8913-1a01662dff22', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-001', 'Choco-La Kiddies Milk 20g', 'Ritzbury Choco-La Kiddies Milk 20g', 50.00, 0, 'SWT-001', 'pcs', true, true, 'synced'),
+    ('d56678ff-22b0-48c9-921f-949fea55b7b0', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-002', 'Choco-La Milk Sweet 20g', 'Ritzbury Choco-La Milk Sweet 20g', 50.00, 0, 'SWT-002', 'pcs', true, true, 'synced'),
+    ('2f4e7115-75b5-4d93-85e5-c7fab78e7b31', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-003', 'Choco-La Milk 45g', 'Ritzbury Choco-La Milk 45g', 100.00, 0, 'SWT-003', 'pcs', true, true, 'synced'),
+    ('36fa3d50-2557-4a5b-9a64-66327817545c', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-004', 'Choco-La Peanut 45g', 'Ritzbury Choco-La Peanut 45g', 120.00, 0, 'SWT-004', 'pcs', true, true, 'synced'),
+    ('94d1daa7-54a5-47dc-9193-300a7343ef46', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-005', 'Choco-La Milk 90g', 'Ritzbury Choco-La Milk 90g', 200.00, 0, 'SWT-005', 'pcs', true, true, 'synced'),
+    ('1da3b3c5-3358-485e-a366-8e3409364358', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-006', 'Roccoa Milk IBB 25g', 'Ritzbury Roccoa Milk IBB 25g', 170.00, 0, 'SWT-006', 'pcs', true, true, 'synced'),
+    ('b6ac1022-21bb-443e-9d5d-5fbaa74a252b', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-007', 'Roccoa Milk IBB 45g', 'Ritzbury Roccoa Milk IBB 45g', 280.00, 0, 'SWT-007', 'pcs', true, true, 'synced'),
+    ('6ce55cf9-77db-4d51-9191-b854a79ccf3f', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-008', 'Roccoa Milk IBB 90g', 'Ritzbury Roccoa Milk IBB 90g', 570.00, 0, 'SWT-008', 'pcs', true, true, 'synced'),
+    ('02578d5b-3cc9-4f43-8ccb-c634d3f39ad2', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-009', 'Ritzbury Milk 45g', 'Ritzbury Ritzbury Milk 45g', 140.00, 0, 'SWT-009', 'pcs', true, true, 'synced'),
+    ('778f1a0a-da41-4aec-b6ef-c4e81745c356', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-010', 'Ritzbury Milk Sweet 93g', 'Ritzbury Ritzbury Milk Sweet 93g', 230.00, 0, 'SWT-010', 'pcs', true, true, 'synced'),
+    ('3382985e-25a2-4dd4-9476-b31c5505d3f3', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-011', 'Ritzbury Cashew 93g', 'Ritzbury Ritzbury Cashew 93g', 380.00, 0, 'SWT-011', 'pcs', true, true, 'synced'),
+    ('f93696b5-e2cf-40f2-aba9-41e1afb606e9', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-012', 'Ritzbury Milk 170g', 'Ritzbury Ritzbury Milk 170g', 530.00, 0, 'SWT-012', 'pcs', true, true, 'synced'),
+    ('94618602-0332-4c5e-a72f-f27e23c4bed7', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-013', 'Bubbles 30g', 'Ritzbury Bubbles 30g', 100.00, 0, 'SWT-013', 'pcs', true, true, 'synced'),
+    ('5f0622ba-a560-47b6-82f3-775eca57cdf3', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-014', 'Bubbles 100g', 'Ritzbury Bubbles 100g', 250.00, 0, 'SWT-014', 'pcs', true, true, 'synced'),
+    ('776aedc9-6766-437a-974f-7b0f5658f8ba', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-015', 'Bubbles 170g', 'Ritzbury Bubbles 170g', 450.00, 0, 'SWT-015', 'pcs', true, true, 'synced'),
+    ('163de812-8386-4eff-8bf8-f859846e59a4', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-016', 'Revello Milk 50g', 'Ritzbury Revello Milk 50g', 350.00, 0, 'SWT-016', 'pcs', true, true, 'synced'),
+    ('64f3ae02-f174-41b4-b40a-50c8de4ac6eb', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', '48685b8b-b44d-4caa-b9c1-490155e87ea3', 'BIS-001', 'Chocolate Fingers 18g', 'Ritzbury Chocolate Fingers 18g', 40.00, 0, 'BIS-001', 'pcs', true, true, 'synced'),
+    ('343a4b16-bfb2-44f0-ac4c-b2ab1ea5d4b4', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', '48685b8b-b44d-4caa-b9c1-490155e87ea3', 'BIS-002', 'Chocolate Fingers 40g', 'Ritzbury Chocolate Fingers 40g', 100.00, 0, 'BIS-002', 'pcs', true, true, 'synced')
+ON CONFLICT (id) DO NOTHING;
+
+-- Initial Inventory (Stock: 50 each)
+INSERT INTO inventory (shop_id, product_id, quantity, min_quantity)
+SELECT 'b0000000-0000-0000-0000-000000000001', p.id, 50, 5
+FROM products p
+WHERE p.shop_id = 'b0000000-0000-0000-0000-000000000001'
+ON CONFLICT (shop_id, product_id) DO NOTHING;
