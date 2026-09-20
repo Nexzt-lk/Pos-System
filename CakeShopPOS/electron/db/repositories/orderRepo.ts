@@ -239,8 +239,8 @@ export const orderRepo = {
         COALESCE(sum(tax_amount), 0) as total_tax,
         COALESCE(avg(total_amount), 0) as avg_order_value
       FROM orders
-      WHERE substr(created_at, 1, 10) >= ? 
-        AND substr(created_at, 1, 10) <= ? 
+      WHERE COALESCE(strftime('%Y-%m-%d', created_at, 'localtime'), substr(created_at, 1, 10)) >= ? 
+        AND COALESCE(strftime('%Y-%m-%d', created_at, 'localtime'), substr(created_at, 1, 10)) <= ? 
         AND (LOWER(status) = 'completed' OR status IS NULL OR status = '')
     `,
       [startDateStr, endDateStr]
@@ -256,8 +256,8 @@ export const orderRepo = {
         count(*) as total_orders,
         COALESCE(sum(total_amount), 0) as total_revenue
       FROM orders
-      WHERE substr(created_at, 1, 10) >= ? 
-        AND substr(created_at, 1, 10) <= ? 
+      WHERE COALESCE(strftime('%Y-%m-%d', created_at, 'localtime'), substr(created_at, 1, 10)) >= ? 
+        AND COALESCE(strftime('%Y-%m-%d', created_at, 'localtime'), substr(created_at, 1, 10)) <= ? 
         AND (LOWER(status) = 'completed' OR status IS NULL OR status = '')
     `,
       [prevStartDateStr, prevEndDateStr]
@@ -274,8 +274,8 @@ export const orderRepo = {
         COALESCE(sum(oi.quantity * COALESCE(oi.cost_price, 0)), 0) as total_cost
       FROM order_items oi
       JOIN orders o ON oi.order_id = o.id
-      WHERE substr(o.created_at, 1, 10) >= ? 
-        AND substr(o.created_at, 1, 10) <= ? 
+      WHERE COALESCE(strftime('%Y-%m-%d', o.created_at, 'localtime'), substr(o.created_at, 1, 10)) >= ? 
+        AND COALESCE(strftime('%Y-%m-%d', o.created_at, 'localtime'), substr(o.created_at, 1, 10)) <= ? 
         AND (LOWER(o.status) = 'completed' OR o.status IS NULL OR o.status = '')
     `,
       [startDateStr, endDateStr]
@@ -310,7 +310,7 @@ export const orderRepo = {
     }> = []
 
     if (period === 'daily') {
-      // Group by Hour (06:00 to 22:00)
+      // Group by Hour (Local Time)
       const hourlyData = db.query<{
         hour_str: string
         orders_count: number
@@ -319,14 +319,14 @@ export const orderRepo = {
       }>(
         `
         SELECT 
-          COALESCE(strftime('%H', created_at), substr(created_at, 12, 2)) as hour_str,
+          COALESCE(strftime('%H', created_at, 'localtime'), strftime('%H', created_at), substr(created_at, 12, 2)) as hour_str,
           count(*) as orders_count,
           COALESCE(sum(total_amount), 0) as revenue,
           COALESCE(sum(discount_amount), 0) as discount
         FROM orders
-        WHERE substr(created_at, 1, 10) = ? 
+        WHERE COALESCE(strftime('%Y-%m-%d', created_at, 'localtime'), substr(created_at, 1, 10)) = ? 
           AND (LOWER(status) = 'completed' OR status IS NULL OR status = '')
-        GROUP BY COALESCE(strftime('%H', created_at), substr(created_at, 12, 2))
+        GROUP BY COALESCE(strftime('%H', created_at, 'localtime'), strftime('%H', created_at), substr(created_at, 12, 2))
       `,
         [startDateStr]
       )
@@ -343,8 +343,11 @@ export const orderRepo = {
         }
       }
 
-      // Generate 06:00 to 22:00 continuous slots
-      for (let hr = 6; hr <= 22; hr++) {
+      // Generate continuous slots covering standard store hours (06:00 to 22:00) plus any earlier/later recorded hours
+      const recordedHours = Object.keys(hourMap).map(Number).filter((n) => !isNaN(n))
+      const minHour = recordedHours.length > 0 ? Math.min(6, Math.min(...recordedHours)) : 6
+      const maxHour = recordedHours.length > 0 ? Math.max(22, Math.max(...recordedHours)) : 22
+      for (let hr = minHour; hr <= maxHour; hr++) {
         const hrStr = hr.toString().padStart(2, '0')
         const displayLabel = `${hrStr}:00`
         const entry = hourMap[hrStr] || { orders: 0, revenue: 0, discount: 0 }
@@ -367,16 +370,16 @@ export const orderRepo = {
       }>(
         `
         SELECT 
-          substr(created_at, 1, 10) as day_date,
+          COALESCE(strftime('%Y-%m-%d', created_at, 'localtime'), substr(created_at, 1, 10)) as day_date,
           count(*) as orders_count,
           COALESCE(sum(total_amount), 0) as revenue,
           COALESCE(sum(discount_amount), 0) as discount
         FROM orders
-        WHERE substr(created_at, 1, 10) >= ? 
-          AND substr(created_at, 1, 10) <= ? 
+        WHERE COALESCE(strftime('%Y-%m-%d', created_at, 'localtime'), substr(created_at, 1, 10)) >= ? 
+          AND COALESCE(strftime('%Y-%m-%d', created_at, 'localtime'), substr(created_at, 1, 10)) <= ? 
           AND (LOWER(status) = 'completed' OR status IS NULL OR status = '')
-        GROUP BY substr(created_at, 1, 10)
-        ORDER BY substr(created_at, 1, 10) ASC
+        GROUP BY COALESCE(strftime('%Y-%m-%d', created_at, 'localtime'), substr(created_at, 1, 10))
+        ORDER BY day_date ASC
       `,
         [startDateStr, endDateStr]
       )
@@ -435,8 +438,8 @@ export const orderRepo = {
         count(p.id) as payment_count
       FROM payments p
       JOIN orders o ON p.order_id = o.id
-      WHERE substr(o.created_at, 1, 10) >= ? 
-        AND substr(o.created_at, 1, 10) <= ? 
+      WHERE COALESCE(strftime('%Y-%m-%d', o.created_at, 'localtime'), substr(o.created_at, 1, 10)) >= ? 
+        AND COALESCE(strftime('%Y-%m-%d', o.created_at, 'localtime'), substr(o.created_at, 1, 10)) <= ? 
         AND (LOWER(o.status) = 'completed' OR o.status IS NULL OR o.status = '')
       GROUP BY UPPER(COALESCE(p.method, 'CASH'))
       ORDER BY total_amount DESC
@@ -465,8 +468,8 @@ export const orderRepo = {
       FROM order_items oi
       JOIN orders o ON oi.order_id = o.id
       LEFT JOIN products p ON oi.product_id = p.id
-      WHERE substr(o.created_at, 1, 10) >= ? 
-        AND substr(o.created_at, 1, 10) <= ? 
+      WHERE COALESCE(strftime('%Y-%m-%d', o.created_at, 'localtime'), substr(o.created_at, 1, 10)) >= ? 
+        AND COALESCE(strftime('%Y-%m-%d', o.created_at, 'localtime'), substr(o.created_at, 1, 10)) <= ? 
         AND (LOWER(o.status) = 'completed' OR o.status IS NULL OR o.status = '')
       GROUP BY COALESCE(oi.product_name, p.name, 'Unknown Item')
       ORDER BY total_revenue DESC
@@ -492,8 +495,8 @@ export const orderRepo = {
       JOIN orders o ON oi.order_id = o.id
       LEFT JOIN products p ON oi.product_id = p.id
       LEFT JOIN categories c ON p.category_id = c.id
-      WHERE substr(o.created_at, 1, 10) >= ? 
-        AND substr(o.created_at, 1, 10) <= ? 
+      WHERE COALESCE(strftime('%Y-%m-%d', o.created_at, 'localtime'), substr(o.created_at, 1, 10)) >= ? 
+        AND COALESCE(strftime('%Y-%m-%d', o.created_at, 'localtime'), substr(o.created_at, 1, 10)) <= ? 
         AND (LOWER(o.status) = 'completed' OR o.status IS NULL OR o.status = '')
       GROUP BY COALESCE(c.name, 'General')
       ORDER BY total_revenue DESC
@@ -530,14 +533,228 @@ export const orderRepo = {
         COALESCE((SELECT sum(quantity) FROM order_items WHERE order_id = o.id), 1) as items_count,
         COALESCE((SELECT UPPER(method) FROM payments WHERE order_id = o.id LIMIT 1), 'CASH') as payment_method
       FROM orders o
-      WHERE substr(o.created_at, 1, 10) >= ? 
-        AND substr(o.created_at, 1, 10) <= ? 
+      WHERE COALESCE(strftime('%Y-%m-%d', o.created_at, 'localtime'), substr(o.created_at, 1, 10)) >= ? 
+        AND COALESCE(strftime('%Y-%m-%d', o.created_at, 'localtime'), substr(o.created_at, 1, 10)) <= ? 
         AND (LOWER(o.status) = 'completed' OR o.status IS NULL OR o.status = '')
       ORDER BY o.created_at DESC
       LIMIT 25
     `,
       [startDateStr, endDateStr]
     )
+
+    // 8. Item-Wise Sales & Profit Performance Breakdown
+    const itemRows = db.query<{
+      product_id: string
+      product_name: string
+      item_code: string
+      category_name: string
+      avg_unit_price: number
+      avg_cost_price: number
+      total_qty: number
+      total_discount: number
+      total_revenue: number
+      total_cogs: number
+      gross_profit: number
+    }>(
+      `
+      SELECT 
+        COALESCE(oi.product_id, p.id, '') as product_id,
+        COALESCE(oi.product_name, p.name, 'Unknown Item') as product_name,
+        COALESCE(oi.item_code, p.item_code, '-') as item_code,
+        COALESCE(c.name, 'General') as category_name,
+        COALESCE(avg(oi.unit_price), p.price, 0) as avg_unit_price,
+        COALESCE(avg(oi.cost_price), p.cost_price, 0) as avg_cost_price,
+        COALESCE(sum(oi.quantity), 0) as total_qty,
+        COALESCE(sum(oi.discount), 0) as total_discount,
+        COALESCE(sum(oi.subtotal), 0) as total_revenue,
+        COALESCE(sum(oi.quantity * COALESCE(oi.cost_price, p.cost_price, 0)), 0) as total_cogs,
+        COALESCE(sum(oi.subtotal) - sum(oi.quantity * COALESCE(oi.cost_price, p.cost_price, 0)), 0) as gross_profit
+      FROM order_items oi
+      JOIN orders o ON oi.order_id = o.id
+      LEFT JOIN products p ON oi.product_id = p.id
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE COALESCE(strftime('%Y-%m-%d', o.created_at, 'localtime'), substr(o.created_at, 1, 10)) >= ? 
+        AND COALESCE(strftime('%Y-%m-%d', o.created_at, 'localtime'), substr(o.created_at, 1, 10)) <= ? 
+        AND (LOWER(o.status) = 'completed' OR o.status IS NULL OR o.status = '')
+      GROUP BY COALESCE(oi.product_name, p.name, 'Unknown Item'), COALESCE(oi.item_code, p.item_code, '-')
+      ORDER BY total_revenue DESC
+    `,
+      [startDateStr, endDateStr]
+    )
+
+    const itemBreakdown = itemRows.map((item) => {
+      const marginPct = item.total_revenue > 0
+        ? Number(((item.gross_profit / item.total_revenue) * 100).toFixed(1))
+        : 0
+      const revenueSharePct = totalRevenue > 0
+        ? Number(((item.total_revenue / totalRevenue) * 100).toFixed(1))
+        : 0
+      return {
+        ...item,
+        margin_pct: marginPct,
+        revenue_share_pct: revenueSharePct
+      }
+    })
+
+    // 9. Owner's Executive Business Intelligence Metrics
+    // Expenses query
+    const expensesSummary = db.queryOne<{
+      total_expenses: number
+      expense_count: number
+    }>(
+      `
+      SELECT 
+        COALESCE(sum(amount), 0) as total_expenses,
+        count(*) as expense_count
+      FROM expenses
+      WHERE substr(expense_date, 1, 10) >= ? AND substr(expense_date, 1, 10) <= ?
+    `,
+      [startDateStr, endDateStr]
+    )
+
+    const expenseCategories = db.query<{
+      category: string
+      total_amount: number
+      count: number
+    }>(
+      `
+      SELECT 
+        COALESCE(category, 'General') as category,
+        COALESCE(sum(amount), 0) as total_amount,
+        count(*) as count
+      FROM expenses
+      WHERE substr(expense_date, 1, 10) >= ? AND substr(expense_date, 1, 10) <= ?
+      GROUP BY COALESCE(category, 'General')
+      ORDER BY total_amount DESC
+    `,
+      [startDateStr, endDateStr]
+    )
+
+    // Staff / Cashier sales performance
+    const cashierPerformance = db.query<{
+      cashier_name: string
+      orders_count: number
+      total_revenue: number
+      total_discount: number
+      avg_ticket: number
+    }>(
+      `
+      SELECT 
+        COALESCE(o.cashier_name, u.name, 'Cashier') as cashier_name,
+        count(o.id) as orders_count,
+        COALESCE(sum(o.total_amount), 0) as total_revenue,
+        COALESCE(sum(o.discount_amount), 0) as total_discount,
+        COALESCE(avg(o.total_amount), 0) as avg_ticket
+      FROM orders o
+      LEFT JOIN users u ON o.cashier_id = u.id
+      WHERE COALESCE(strftime('%Y-%m-%d', o.created_at, 'localtime'), substr(o.created_at, 1, 10)) >= ? 
+        AND COALESCE(strftime('%Y-%m-%d', o.created_at, 'localtime'), substr(o.created_at, 1, 10)) <= ? 
+        AND (LOWER(o.status) = 'completed' OR o.status IS NULL OR o.status = '')
+      GROUP BY COALESCE(o.cashier_name, u.name, 'Cashier')
+      ORDER BY total_revenue DESC
+    `,
+      [startDateStr, endDateStr]
+    )
+
+    // Terminal Breakdown
+    const terminalPerformance = db.query<{
+      terminal_id: string
+      orders_count: number
+      total_revenue: number
+    }>(
+      `
+      SELECT 
+        COALESCE(terminal_id, 'T1') as terminal_id,
+        count(id) as orders_count,
+        COALESCE(sum(total_amount), 0) as total_revenue
+      FROM orders
+      WHERE COALESCE(strftime('%Y-%m-%d', created_at, 'localtime'), substr(created_at, 1, 10)) >= ? 
+        AND COALESCE(strftime('%Y-%m-%d', created_at, 'localtime'), substr(created_at, 1, 10)) <= ? 
+        AND (LOWER(status) = 'completed' OR status IS NULL OR status = '')
+      GROUP BY COALESCE(terminal_id, 'T1')
+      ORDER BY total_revenue DESC
+    `,
+      [startDateStr, endDateStr]
+    )
+
+    // Inventory Valuation & Capital Health
+    const inventoryValuation = db.queryOne<{
+      total_products: number
+      total_cost_value: number
+      total_retail_value: number
+      low_stock_count: number
+      out_of_stock_count: number
+    }>(
+      `
+      SELECT 
+        count(p.id) as total_products,
+        COALESCE(sum(COALESCE(i.quantity, 0) * COALESCE(p.cost_price, 0)), 0) as total_cost_value,
+        COALESCE(sum(COALESCE(i.quantity, 0) * COALESCE(p.price, 0)), 0) as total_retail_value,
+        sum(CASE WHEN COALESCE(i.quantity, 0) <= COALESCE(i.min_quantity, 5) AND COALESCE(i.quantity, 0) > 0 THEN 1 ELSE 0 END) as low_stock_count,
+        sum(CASE WHEN COALESCE(i.quantity, 0) <= 0 THEN 1 ELSE 0 END) as out_of_stock_count
+      FROM products p
+      LEFT JOIN inventory i ON p.id = i.product_id
+      WHERE p.is_active = 1 OR p.is_active IS NULL
+    `
+    )
+
+    // Damage loss from stock_movements
+    const damageLossRow = db.queryOne<{
+      damage_cost: number
+      damage_qty: number
+      damage_events: number
+    }>(
+      `
+      SELECT 
+        COALESCE(sum(quantity * COALESCE(cost_per_unit, 0)), 0) as damage_cost,
+        COALESCE(sum(quantity), 0) as damage_qty,
+        count(*) as damage_events
+      FROM stock_movements
+      WHERE type = 'DAMAGE' 
+        AND COALESCE(strftime('%Y-%m-%d', created_at, 'localtime'), substr(created_at, 1, 10)) >= ? 
+        AND COALESCE(strftime('%Y-%m-%d', created_at, 'localtime'), substr(created_at, 1, 10)) <= ?
+    `,
+      [startDateStr, endDateStr]
+    )
+
+    const totalExpenses = expensesSummary?.total_expenses || 0
+    const netProfit = estimatedProfit - totalExpenses
+    const netProfitMarginPct = totalRevenue > 0
+      ? Number(((netProfit / totalRevenue) * 100).toFixed(1))
+      : 0
+
+    // Cash in drawer estimation
+    const cashPayments = paymentRows.find(p => p.method === 'CASH')?.total_amount || 0
+    const netCashInDrawer = Math.max(0, cashPayments - totalExpenses)
+
+    const ownerMetrics = {
+      grossProfit: estimatedProfit,
+      grossProfitMargin: Number(profitMargin.toFixed(1)),
+      totalExpenses,
+      netProfit,
+      netProfitMargin: netProfitMarginPct,
+      expenseCategories,
+      cashierPerformance,
+      terminalPerformance,
+      inventoryValuation: {
+        totalProducts: inventoryValuation?.total_products || 0,
+        totalCostValue: inventoryValuation?.total_cost_value || 0,
+        totalRetailValue: inventoryValuation?.total_retail_value || 0,
+        potentialMarginValue: Math.max(0, (inventoryValuation?.total_retail_value || 0) - (inventoryValuation?.total_cost_value || 0)),
+        lowStockCount: inventoryValuation?.low_stock_count || 0,
+        outOfStockCount: inventoryValuation?.out_of_stock_count || 0
+      },
+      damageLoss: {
+        cost: damageLossRow?.damage_cost || 0,
+        quantity: damageLossRow?.damage_qty || 0,
+        events: damageLossRow?.damage_events || 0
+      },
+      cashDrawer: {
+        cashSales: cashPayments,
+        cashExpenses: totalExpenses,
+        netCashEstimated: netCashInDrawer
+      }
+    }
 
     return {
       period,
@@ -564,6 +781,8 @@ export const orderRepo = {
       paymentBreakdown,
       topProducts,
       categoryBreakdown: categoryRows,
+      itemBreakdown,
+      ownerMetrics,
       peakSlot,
       recentOrders
     }

@@ -16,17 +16,19 @@ import fs from 'fs'
 let mainWindow: BrowserWindow | null = null
 let activeApiPort = 5292
 
-// Single instance lock
-const gotTheLock = app.requestSingleInstanceLock()
-if (!gotTheLock) {
-  app.quit()
-} else {
-  app.on('second-instance', () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore()
-      mainWindow.focus()
-    }
-  })
+// Single instance lock (for packaged release; bypassed in dev to avoid lock conflicts)
+if (app.isPackaged) {
+  const gotTheLock = app.requestSingleInstanceLock()
+  if (!gotTheLock) {
+    app.quit()
+  } else {
+    app.on('second-instance', () => {
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore()
+        mainWindow.focus()
+      }
+    })
+  }
 }
 
 const createWindow = async () => {
