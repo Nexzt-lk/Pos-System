@@ -50,6 +50,31 @@ export const getDatabase = async (): Promise<POSDatabase> => {
   const dbPath = path.join(projectDbDir, 'cakeshop_local.db')
   console.log(`[Database] Initializing SQLite database (packaged=${isPackaged}) at: ${dbPath}`)
 
+  // DB version — bump this whenever seed data changes significantly
+  const MASTER_DB_VERSION = 3 // v3: Ritzbury 18 products + PIN 843522 + Cashier 01/02
+
+  // Helper: read product count from a DB buffer
+  const getProductCount = (buf: Buffer): number => {
+    try {
+      const tmpDb = new SQL.Database(buf)
+      const res = tmpDb.exec('SELECT COUNT(*) FROM products')
+      const count = (res?.[0]?.values?.[0]?.[0] as number) || 0
+      tmpDb.close()
+      return count
+    } catch { return 0 }
+  }
+
+  // Helper: read db_version from settings table if it exists
+  const getDbVersion = (buf: Buffer): number => {
+    try {
+      const tmpDb = new SQL.Database(buf)
+      const res = tmpDb.exec("SELECT value FROM settings WHERE key='db_version'")
+      const val = res?.[0]?.values?.[0]?.[0]
+      tmpDb.close()
+      return val ? parseInt(String(val), 10) : 0
+    } catch { return 0 }
+  }
+
   // Search candidate paths for the master bundled template
   const candidateBundledPaths = [
     path.join(process.resourcesPath || '', 'database', 'cakeshop_local.db'),
@@ -69,7 +94,7 @@ export const getDatabase = async (): Promise<POSDatabase> => {
     try {
       if (cp && fs.existsSync(cp)) {
         const stats = fs.statSync(cp)
-        if (stats.size > 50000 && cp !== dbPath) {
+        if (stats.size > 50000 && path.resolve(cp) !== path.resolve(dbPath)) {
           masterTemplatePath = cp
           console.log(`[Database] Found master template database (${stats.size} bytes) at: ${cp}`)
           break
@@ -78,15 +103,24 @@ export const getDatabase = async (): Promise<POSDatabase> => {
     } catch (_) {}
   }
 
-  // Check if destination db needs deployment or replacement
+  // Check if destination db needs deployment or replacement (version-based)
   let needsMasterSeed = false
   if (!fs.existsSync(dbPath)) {
+    console.log('[Database] No existing DB found. Will deploy master template.')
     needsMasterSeed = true
   } else {
     try {
-      const stats = fs.statSync(dbPath)
-      if (stats.size < 50000) {
-        console.warn(`[Database] Existing database is too small (${stats.size} bytes). Resetting from master template...`)
+      const existingBuf = fs.readFileSync(dbPath)
+      const existingProductCount = getProductCount(existingBuf)
+      const existingVersion = getDbVersion(existingBuf)
+
+      console.log(`[Database] Existing DB: ${existingProductCount} products, version=${existingVersion}`)
+
+      if (existingProductCount < 18) {
+        console.warn(`[Database] Existing DB has ${existingProductCount} products (< 18). Force replacing from master template.`)
+        needsMasterSeed = true
+      } else if (existingVersion < MASTER_DB_VERSION) {
+        console.warn(`[Database] DB version (${existingVersion}) < master (${MASTER_DB_VERSION}). Replacing with updated DB...`)
         needsMasterSeed = true
       }
     } catch (_) {
@@ -311,5 +345,11 @@ export const seedInitialLocalData = (db: any) => {
       ('adaf0eea-13e3-4596-b025-236580890e5f', '163de812-8386-4eff-8bf8-f859846e59a4', 50, 5, datetime('now')),
       ('2ee8a2bd-e3fe-456e-9687-1612b051f636', '64f3ae02-f174-41b4-b40a-50c8de4ac6eb', 50, 5, datetime('now')),
       ('b3a18b55-f93a-417f-a396-141569029047', '343a4b16-bfb2-44f0-ac4c-b2ab1ea5d4b4', 50, 5, datetime('now'));
+  `)
+
+  // 5. Seed App Settings (db_version)
+  db.run(`
+    INSERT OR REPLACE INTO settings (key, value)
+    VALUES ('db_version', '3');
   `)
 }

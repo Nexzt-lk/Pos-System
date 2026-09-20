@@ -164,6 +164,13 @@ CREATE TABLE IF NOT EXISTS sync_queue (
     synced_at   TEXT
 );
 
+-- 12. App Settings / Metadata
+CREATE TABLE IF NOT EXISTS settings (
+    key         TEXT PRIMARY KEY,
+    value       TEXT NOT NULL,
+    updated_at  TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
 CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode);
