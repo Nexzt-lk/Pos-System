@@ -38,7 +38,7 @@ export const StockNotificationBell: React.FC<StockNotificationBellProps> = ({ on
                 fontSize: 10.5,
                 fontWeight: 700,
                 color: '#ffffff',
-                background: '#ea580c',
+                background: '#16a34a',
                 padding: '1px 6px',
                 borderRadius: 99
               }}
@@ -192,13 +192,13 @@ export const StockNotificationBell: React.FC<StockNotificationBellProps> = ({ on
           width: 38,
           height: 38,
           borderRadius: 10,
-          border: hasAlerts ? '1.5px solid #fed7aa' : '1px solid var(--border)',
-          background: hasAlerts ? '#fff7ed' : '#ffffff',
-          color: hasAlerts ? '#ea580c' : '#64748b',
+          border: '1px solid #e2e8f0',
+          background: '#ffffff',
+          color: '#334155',
           cursor: 'pointer',
           position: 'relative',
           transition: 'all 0.15s ease',
-          boxShadow: hasAlerts ? '0 2px 8px rgba(234, 88, 12, 0.15)' : '0 1px 2px rgba(0,0,0,0.03)'
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.06)'
         }}
       >
         <Badge
@@ -207,14 +207,14 @@ export const StockNotificationBell: React.FC<StockNotificationBellProps> = ({ on
           size="small"
           offset={[4, -4]}
           style={{
-            backgroundColor: '#ea580c',
+            backgroundColor: '#16a34a',
             color: '#ffffff',
-            boxShadow: '0 0 0 2px #fff',
-            fontWeight: 700,
+            boxShadow: '0 0 0 2px #ffffff',
+            fontWeight: 800,
             fontSize: 10
           }}
         >
-          <Bell size={18} />
+          <Bell size={18} color="#334155" />
         </Badge>
       </button>
     </Popover>

@@ -60,7 +60,9 @@ export const categoriesApi = {
     } catch (err) {
       const api = typeof window !== 'undefined' ? (window as any).electronAPI : undefined
       if (api) {
-        const id = 'cat-' + Date.now()
+        const id = (typeof crypto !== 'undefined' && crypto.randomUUID) 
+          ? crypto.randomUUID() 
+          : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0')
         const payload = {
           id,
           name: data.name,

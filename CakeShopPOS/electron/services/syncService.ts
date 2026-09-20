@@ -3,6 +3,7 @@ import { syncRepo } from '../db/repositories/syncRepo'
 import axios from 'axios'
 import fs from 'fs'
 import path from 'path'
+import crypto from 'crypto'
 
 let syncInterval: NodeJS.Timeout | null = null
 let isSyncInProgress = false
@@ -43,16 +44,25 @@ function getSupabaseConfig(): { url: string; key: string } {
   return { url: url.replace(/\/$/, ''), key }
 }
 
-function toValidUuid(id?: string | null): string | null {
+export function toValidUuid(id?: string | null): string | null {
   if (!id) return null
   const str = String(id).trim()
+  if (!str) return null
   if (str.startsWith('u0000000-')) {
     return 'd' + str.slice(1)
   }
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)) {
     return str.toLowerCase()
   }
-  return null
+  // Deterministically hash any arbitrary ID (e.g. prod-123, cat-456, inv-789) into a valid RFC4122 UUID v4
+  const hash = crypto.createHash('md5').update(str).digest('hex')
+  return (
+    hash.slice(0, 8) + '-' +
+    hash.slice(8, 12) + '-' +
+    '4' + hash.slice(13, 16) + '-' +
+    'a' + hash.slice(17, 20) + '-' +
+    hash.slice(20, 32)
+  )
 }
 
 const defaultTenantId = 'a0000000-0000-0000-0000-000000000001'
@@ -60,16 +70,22 @@ const defaultShopId = 'b0000000-0000-0000-0000-000000000001'
 
 async function postSupabase(endpoint: string, data: any): Promise<boolean> {
   const { url, key } = getSupabaseConfig()
-  const res = await axios.post(`${url}/rest/v1/${endpoint}`, data, {
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/json',
-      Prefer: 'resolution=merge-duplicates'
-    },
-    timeout: 10000
-  })
-  return res.status >= 200 && res.status < 300
+  try {
+    const res = await axios.post(`${url}/rest/v1/${endpoint}`, data, {
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates'
+      },
+      timeout: 10000
+    })
+    return res.status >= 200 && res.status < 300
+  } catch (err: any) {
+    const msg = err.response?.data?.message || err.response?.data?.details || err.response?.data?.hint || err.message
+    console.error(`[AutoSync] ❌ Post error on ${endpoint}:`, msg, err.response?.data)
+    throw new Error(`[Supabase ${endpoint}] ${msg}`)
+  }
 }
 
 async function pullCloudCatalog(): Promise<void> {
@@ -124,49 +140,59 @@ async function pullCloudCatalog(): Promise<void> {
 
     if (prodRes.data && Array.isArray(prodRes.data) && prodRes.data.length > 0) {
       for (const p of prodRes.data) {
-        db.run(
-          `
-          INSERT INTO products (
-            id, category_id, item_code, name, description, price, cost_price,
-            barcode, image_path, unit, track_inventory, is_active, sync_status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced')
-          ON CONFLICT(id) DO UPDATE SET
-            category_id = excluded.category_id,
-            item_code = excluded.item_code,
-            name = excluded.name,
-            description = excluded.description,
-            price = excluded.price,
-            cost_price = excluded.cost_price,
-            barcode = excluded.barcode,
-            image_path = COALESCE(excluded.image_path, products.image_path),
-            unit = excluded.unit,
-            track_inventory = excluded.track_inventory,
-            is_active = excluded.is_active,
-            sync_status = 'synced';
-        `,
-          [
-            p.id,
-            p.category_id || null,
-            p.item_code || p.barcode || 'ITEM',
-            p.name,
-            p.description || '',
-            Number(p.price) || 0,
-            p.cost_price ? Number(p.cost_price) : null,
-            p.barcode || null,
-            p.image_path || null,
-            p.unit || 'pcs',
-            p.track_inventory ? 1 : 0,
-            p.is_active !== false ? 1 : 0
-          ]
-        )
+        try {
+          const itemCode = p.item_code || p.barcode || 'ITEM'
+          // Clean up any stale record with same item_code under a different id
+          db.run(
+            `DELETE FROM products WHERE (item_code = ? AND item_code != '') AND id != ?;`,
+            [itemCode, p.id]
+          )
+          db.run(
+            `
+            INSERT INTO products (
+              id, category_id, item_code, name, description, price, cost_price,
+              barcode, image_path, unit, track_inventory, is_active, sync_status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced')
+            ON CONFLICT(id) DO UPDATE SET
+              category_id = excluded.category_id,
+              item_code = excluded.item_code,
+              name = excluded.name,
+              description = excluded.description,
+              price = excluded.price,
+              cost_price = excluded.cost_price,
+              barcode = excluded.barcode,
+              image_path = COALESCE(excluded.image_path, products.image_path),
+              unit = excluded.unit,
+              track_inventory = excluded.track_inventory,
+              is_active = excluded.is_active,
+              sync_status = 'synced';
+          `,
+            [
+              p.id,
+              p.category_id || null,
+              itemCode,
+              p.name,
+              p.description || '',
+              Number(p.price) || 0,
+              p.cost_price ? Number(p.cost_price) : null,
+              p.barcode || null,
+              p.image_path || null,
+              p.unit || 'pcs',
+              p.track_inventory ? 1 : 0,
+              p.is_active !== false ? 1 : 0
+            ]
+          )
 
-        db.run(
-          `
-          INSERT OR IGNORE INTO inventory (id, product_id, quantity, min_quantity)
-          VALUES (?, ?, 0, 5.0);
-        `,
-          ['inv-' + p.id, p.id]
-        )
+          db.run(
+            `
+            INSERT OR IGNORE INTO inventory (id, product_id, quantity, min_quantity)
+            VALUES (?, ?, 0, 5.0);
+          `,
+            ['inv-' + p.id, p.id]
+          )
+        } catch (itemErr: any) {
+          console.warn(`[AutoSync] Could not pull product ${p.name}:`, itemErr.message)
+        }
       }
     }
 
@@ -368,50 +394,12 @@ export const syncService = {
       let totalSynced = 0
 
       // =========================================================================
-      // 1. DIRECT SYNC: Any pending products in SQLite
-      // =========================================================================
-      const pendingProducts = db.query<any>(
-        `SELECT * FROM products WHERE sync_status = 'pending' OR sync_status IS NULL LIMIT 50;`
-      )
-
-      if (pendingProducts && pendingProducts.length > 0) {
-        const payload = pendingProducts.map((p) => ({
-          id: toValidUuid(p.id) || p.id,
-          tenant_id: defaultTenantId,
-          shop_id: defaultShopId,
-          category_id: toValidUuid(p.category_id),
-          item_code: p.item_code || p.barcode || 'ITEM',
-          name: p.name,
-          description: p.description || '',
-          price: Number(p.price) || 0,
-          cost_price: p.cost_price ? Number(p.cost_price) : null,
-          barcode: p.barcode || null,
-          image_path: p.image_path || null,
-          unit: p.unit || 'pcs',
-          track_inventory: p.track_inventory === 1 || p.track_inventory === true,
-          is_active: p.is_active !== undefined ? (p.is_active ? true : false) : true,
-          sync_status: 'synced'
-        }))
-
-        try {
-          await postSupabase('products', payload)
-          for (const p of pendingProducts) {
-            db.run(`UPDATE products SET sync_status = 'synced', updated_at = datetime('now') WHERE id = ?;`, [p.id])
-          }
-          totalSynced += pendingProducts.length
-          console.log(`[AutoSync] ✅ Mirrored ${pendingProducts.length} pending Products to Supabase Cloud.`)
-        } catch (prodErr: any) {
-          console.warn('[AutoSync] Products sync notice:', prodErr.response?.data?.message || prodErr.message)
-        }
-      }
-
-      // =========================================================================
-      // 2. DIRECT SYNC: Any pending categories in SQLite
+      // 1. DIRECT SYNC: Any pending or all categories in SQLite (Sync FIRST for FKs)
       // =========================================================================
       const allCategories = db.query<any>(`SELECT * FROM categories;`)
       if (allCategories && allCategories.length > 0) {
         const catPayload = allCategories.map((c) => ({
-          id: toValidUuid(c.id) || c.id,
+          id: toValidUuid(c.id)!,
           tenant_id: defaultTenantId,
           shop_id: defaultShopId,
           name: c.name,
@@ -423,7 +411,98 @@ export const syncService = {
         }))
         try {
           await postSupabase('categories', catPayload)
-        } catch (_) {}
+        } catch (catErr: any) {
+          console.warn('[AutoSync] Categories sync notice:', catErr.message)
+        }
+      }
+
+      // =========================================================================
+      // 2. DIRECT SYNC: Any pending products in SQLite
+      // =========================================================================
+      const pendingProducts = db.query<any>(
+        `SELECT * FROM products WHERE sync_status = 'pending' OR sync_status IS NULL LIMIT 50;`
+      )
+
+      if (pendingProducts && pendingProducts.length > 0) {
+        for (const p of pendingProducts) {
+          try {
+            const validId = toValidUuid(p.id)!
+            const row: any = {
+              id: validId,
+              tenant_id: defaultTenantId,
+              shop_id: defaultShopId,
+              category_id: toValidUuid(p.category_id),
+              item_code: p.item_code || p.barcode || ('ITM-' + Date.now().toString().slice(-6)),
+              name: p.name,
+              description: p.description || '',
+              price: Number(p.price) || 0,
+              cost_price: p.cost_price ? Number(p.cost_price) : null,
+              barcode: p.barcode ? String(p.barcode).trim() : null,
+              image_path: p.image_path || null,
+              unit: p.unit || 'pcs',
+              track_inventory: p.track_inventory === 1 || p.track_inventory === true,
+              is_active: p.is_active !== undefined ? (p.is_active ? true : false) : true,
+              sync_status: 'synced'
+            }
+
+            try {
+              await postSupabase('products', [row])
+            } catch (postErr: any) {
+              const errMsg = postErr.message || ''
+              if (errMsg.includes('23503') || errMsg.includes('foreign key') || errMsg.includes('category')) {
+                console.warn(`[AutoSync] Category FK mismatch for product "${row.name}". Retrying with null category...`)
+                row.category_id = null
+                try {
+                  await postSupabase('products', [row])
+                } catch (retryErr2: any) {
+                  const retryMsg2 = retryErr2.message || ''
+                  if (retryMsg2.includes('barcode')) {
+                    row.barcode = null
+                    await postSupabase('products', [row])
+                  } else if (retryMsg2.includes('item_code') || retryMsg2.includes('23505')) {
+                    row.item_code = `${row.item_code}-${Math.floor(100 + Math.random() * 900)}`
+                    await postSupabase('products', [row])
+                    db.run(`UPDATE products SET item_code = ? WHERE id = ?;`, [row.item_code, p.id])
+                  } else {
+                    throw retryErr2
+                  }
+                }
+              } else if (errMsg.includes('barcode')) {
+                console.warn(`[AutoSync] Barcode collision for product "${row.name}". Retrying without barcode...`)
+                row.barcode = null
+                try {
+                  await postSupabase('products', [row])
+                } catch (retryErr2: any) {
+                  if (retryErr2.message?.includes('item_code') || retryErr2.message?.includes('23505')) {
+                    row.item_code = `${row.item_code}-${Math.floor(100 + Math.random() * 900)}`
+                    await postSupabase('products', [row])
+                    db.run(`UPDATE products SET item_code = ? WHERE id = ?;`, [row.item_code, p.id])
+                  } else {
+                    throw retryErr2
+                  }
+                }
+              } else if (errMsg.includes('item_code') || errMsg.includes('23505')) {
+                console.warn(`[AutoSync] Item code collision for "${row.name}". Adjusting item code...`)
+                row.item_code = `${row.item_code}-${Math.floor(100 + Math.random() * 900)}`
+                await postSupabase('products', [row])
+                db.run(`UPDATE products SET item_code = ? WHERE id = ?;`, [row.item_code, p.id])
+              } else {
+                throw postErr
+              }
+            }
+
+            if (p.id !== validId) {
+              db.run(`UPDATE products SET id = ?, sync_status = 'synced', updated_at = datetime('now') WHERE id = ?;`, [validId, p.id])
+              db.run(`UPDATE inventory SET product_id = ? WHERE product_id = ?;`, [validId, p.id])
+            } else {
+              db.run(`UPDATE products SET sync_status = 'synced', updated_at = datetime('now') WHERE id = ?;`, [p.id])
+            }
+            totalSynced++
+            console.log(`[AutoSync] ✅ Mirrored Product "${p.name}" (${row.item_code}) to Supabase Cloud.`)
+          } catch (singleErr: any) {
+            console.error(`[AutoSync] ❌ Could not mirror Product "${p.name}":`, singleErr.message)
+          }
+        }
       }
 
       // =========================================================================
@@ -534,9 +613,13 @@ export const syncService = {
       }
 
       // =========================================================================
-      // 5. DIRECT SYNC: Inventory Stock Levels
+      // 5. DIRECT SYNC: Inventory Stock Levels (Only for synced products to prevent FK violations)
       // =========================================================================
-      const invRecords = db.query<any>(`SELECT * FROM inventory;`)
+      const invRecords = db.query<any>(`
+        SELECT i.* FROM inventory i
+        INNER JOIN products p ON p.id = i.product_id
+        WHERE p.sync_status = 'synced';
+      `)
       if (invRecords && invRecords.length > 0) {
         const invPayload = invRecords
           .map((i) => {
@@ -553,8 +636,10 @@ export const syncService = {
 
         if (invPayload.length > 0) {
           try {
-            await postSupabase('inventory', invPayload)
-          } catch (_) {}
+            await postSupabase('inventory?on_conflict=shop_id,product_id', invPayload)
+          } catch (invErr: any) {
+            console.warn('[AutoSync] Inventory sync notice:', invErr.message)
+          }
         }
       }
 

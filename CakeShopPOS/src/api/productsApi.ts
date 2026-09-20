@@ -30,6 +30,8 @@ export interface ProductDto {
 export interface CreateProductRequest {
   categoryId?: string
   category_id?: string
+  itemCode?: string
+  item_code?: string
   name: string
   description?: string
   price: number
@@ -121,20 +123,25 @@ export const productsApi = {
     } catch (err) {
       const api = typeof window !== 'undefined' ? (window as any).electronAPI : undefined
       if (api) {
-        const id = 'prod-' + Date.now()
+        const id = (typeof crypto !== 'undefined' && crypto.randomUUID) 
+          ? crypto.randomUUID() 
+          : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0')
+        const itemCode = data.barcode ? String(data.barcode).trim() : (data.itemCode || data.item_code || ('ITM-' + Date.now().toString().slice(-6)))
+        const cleanBarcode = data.barcode ? String(data.barcode).trim() : null
         const newProduct = {
           id,
           category_id: data.categoryId || data.category_id,
           name: data.name,
-          description: data.description,
-          price: data.price,
-          cost_price: data.costPrice || data.cost_price,
-          barcode: data.barcode,
-          item_code: data.barcode,
-          unit: data.unit,
+          description: data.description || '',
+          price: Number(data.price) || 0,
+          cost_price: data.costPrice ? Number(data.costPrice) : (data.cost_price ? Number(data.cost_price) : null),
+          barcode: cleanBarcode,
+          item_code: itemCode,
+          unit: data.unit || 'pcs',
           track_inventory: data.trackInventory ? 1 : 0,
           is_active: 1,
-          image_path: data.imagePath
+          image_path: data.imagePath || null,
+          initialStock: data.initialStock || 0
         }
         if (api.upsertProduct) {
           await api.upsertProduct(newProduct)

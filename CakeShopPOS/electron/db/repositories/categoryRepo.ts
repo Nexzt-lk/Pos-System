@@ -1,4 +1,5 @@
 import { getDatabase } from '../database'
+import { v4 as uuidv4 } from 'uuid'
 
 export interface DBCategory {
   id: string
@@ -16,20 +17,7 @@ export const categoryRepo = {
     const db = await getDatabase()
     return db.query<DBCategory>(
       `
-      SELECT id, name, code_prefix, color, icon, sort_order, is_active, created_at
-      FROM categories
-      WHERE is_active = 1
-      ORDER BY sort_order ASC, name ASC
-    `
-    )
-  },
-
-  getAll: async (): Promise<DBCategory[]> => {
-    const db = await getDatabase()
-    return db.query<DBCategory>(
-      `
-      SELECT id, name, code_prefix, color, icon, sort_order, is_active, created_at
-      FROM categories
+      SELECT * FROM categories
       WHERE is_active = 1
       ORDER BY sort_order ASC, name ASC
     `
@@ -38,6 +26,8 @@ export const categoryRepo = {
 
   upsert: async (category: any): Promise<void> => {
     const db = await getDatabase()
+    const catId = category.id || uuidv4()
+
     db.run(
       `
       INSERT INTO categories (id, name, code_prefix, color, icon, sort_order, is_active, created_at)
@@ -51,7 +41,7 @@ export const categoryRepo = {
         is_active = excluded.is_active
     `,
       [
-        category.id,
+        catId,
         category.name,
         category.code_prefix || category.codePrefix || 'CAT',
         category.color || '#6366f1',
@@ -67,10 +57,9 @@ export const categoryRepo = {
       INSERT INTO sync_queue (table_name, operation, record_id, payload, status, created_at)
       VALUES ('categories', 'UPSERT', ?, ?, 'pending', datetime('now'))
     `,
-      [category.id, JSON.stringify(category)]
+      [catId, JSON.stringify({ ...category, id: catId })]
     )
 
     db.save()
   }
 }
-
