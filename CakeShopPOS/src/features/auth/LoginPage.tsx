@@ -22,29 +22,29 @@ interface OperatorProfile {
 const PRESET_OPERATORS: OperatorProfile[] = [
   {
     id: 'u0000000-0000-0000-0000-000000000003',
-    name: 'Kasun Bandara',
-    email: 'cashier1@rasacakes.lk',
+    name: 'Cashier 01',
+    email: 'cashier1@wasanabakes.lk',
     role: 'cashier',
     roleTitle: 'Cashier 01'
   },
   {
     id: 'u0000000-0000-0000-0000-000000000004',
-    name: 'Dilani Silva',
-    email: 'cashier2@rasacakes.lk',
+    name: 'Cashier 02',
+    email: 'cashier2@wasanabakes.lk',
     role: 'cashier',
     roleTitle: 'Cashier 02'
   },
   {
     id: 'u0000000-0000-0000-0000-000000000002',
     name: 'Sunil Jayasinghe',
-    email: 'manager@rasacakes.lk',
+    email: 'manager@wasanabakes.lk',
     role: 'manager',
     roleTitle: 'Branch Manager'
   },
   {
     id: 'u0000000-0000-0000-0000-000000000001',
-    name: 'Nimal Perera',
-    email: 'owner@rasacakes.lk',
+    name: 'Janaka Ariyarathna',
+    email: 'owner@wasanabakes.lk',
     role: 'owner',
     roleTitle: 'Store Owner'
   }
@@ -53,7 +53,7 @@ const PRESET_OPERATORS: OperatorProfile[] = [
 export const LoginPage: React.FC = () => {
   const [mode, setMode] = useState<AuthMode>('credentials')
   const [selectedOperator] = useState<OperatorProfile | null>(PRESET_OPERATORS[0])
-  const [email, setEmail] = useState('cashier1@rasacakes.lk')
+  const [email, setEmail] = useState('cashier1@wasanabakes.lk')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)

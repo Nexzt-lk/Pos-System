@@ -52,10 +52,10 @@ public class DatabaseInitializer
 
         var defaultUsers = new (string Id, string Name, string Email, string Role, string Pin, string Password)[]
         {
-            ("u0000000-0000-0000-0000-000000000001", "Nimal Perera (Owner)", "owner@rasacakes.lk", "owner", "123456", "owner123"),
-            ("u0000000-0000-0000-0000-000000000002", "Sunil Jayasinghe (Manager)", "manager@rasacakes.lk", "manager", "123456", "manager123"),
-            ("u0000000-0000-0000-0000-000000000003", "Kasun Bandara (Cashier 1)", "cashier1@rasacakes.lk", "cashier", "123456", "cashier123"),
-            ("u0000000-0000-0000-0000-000000000004", "Dilani Silva (Cashier 2)", "cashier2@rasacakes.lk", "cashier", "123456", "cashier123")
+            ("u0000000-0000-0000-0000-000000000001", "Janaka Ariyarathna (Owner)", "owner@wasanabakes.lk", "owner", "123456", "JanakaW@2024!"),
+            ("u0000000-0000-0000-0000-000000000002", "Sunil Jayasinghe (Manager)", "manager@wasanabakes.lk", "manager", "123456", "manager123"),
+            ("u0000000-0000-0000-0000-000000000003", "Cashier 01", "cashier1@wasanabakes.lk", "cashier", "123456", "WB_Cash1#2024"),
+            ("u0000000-0000-0000-0000-000000000004", "Cashier 02", "cashier2@wasanabakes.lk", "cashier", "123456", "WB_Cash2#2024")
         };
 
         foreach (var u in defaultUsers)

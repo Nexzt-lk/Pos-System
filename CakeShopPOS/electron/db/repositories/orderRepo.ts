@@ -24,6 +24,12 @@ export const orderRepo = {
     const createdAt = orderData.created_at || new Date().toISOString()
     const terminalId = orderData.terminal_id || 'T1'
 
+    // Ensure clean sequential order number (e.g. T1-20260920-0008) instead of random fallback
+    let orderNo = orderData.order_no
+    if (!orderNo || orderNo.startsWith('B1-T1-') || orderNo.startsWith('TEMP-')) {
+      orderNo = await orderRepo.getNextOrderNumber(orderData.shop_id, orderData.branch_code, terminalId)
+    }
+
     // 1. Insert Order
     db.run(
       `
@@ -35,7 +41,7 @@ export const orderRepo = {
     `,
       [
         orderId,
-        orderData.order_no,
+        orderNo,
         terminalId,
         orderData.subtotal,
         orderData.discount_type || null,
@@ -104,7 +110,7 @@ export const orderRepo = {
           qtyBefore,
           qtyAfter,
           orderId,
-          `Sale #${orderData.order_no}`,
+          `Sale #${orderNo}`,
           item.cost_price || null,
           createdAt
         ]
@@ -139,11 +145,11 @@ export const orderRepo = {
       INSERT INTO sync_queue (table_name, operation, record_id, payload, status, created_at)
       VALUES ('orders', 'INSERT', ?, ?, 'pending', datetime('now'))
     `,
-      [localId, JSON.stringify({ ...orderData, id: orderId, local_id: localId, created_at: createdAt })]
+      [localId, JSON.stringify({ ...orderData, id: orderId, order_no: orderNo, local_id: localId, created_at: createdAt })]
     )
 
     db.save()
-    return { success: true, orderId, orderNo: orderData.order_no }
+    return { success: true, orderId, orderNo }
   },
 
   getDailySummary: async (_shopId?: string, dateStr?: string) => {

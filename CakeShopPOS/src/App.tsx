@@ -36,9 +36,9 @@ export const App: React.FC = () => {
 
   // Role Permissions Matrix
   const rolePermissions: Record<string, string[]> = {
-    owner: ['pos', 'products', 'inventory', 'reports', 'expenses', 'settings'],
-    admin: ['pos', 'products', 'inventory', 'reports', 'expenses', 'settings'],
-    manager: ['pos', 'products', 'inventory', 'reports', 'expenses'],
+    owner: ['pos', 'products', 'inventory', 'reports', 'settings'],
+    admin: ['pos', 'products', 'inventory', 'reports', 'settings'],
+    manager: ['pos', 'products', 'inventory', 'reports'],
     cashier: ['pos', 'products', 'inventory']
   }
 

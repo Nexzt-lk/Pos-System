@@ -145,9 +145,19 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onO
     }
 
     try {
-      // 1. Direct local SQLite database insert & inventory decrement (Offline-First POS)
       if (window.electronAPI?.dbQuery) {
+        // 1. Direct local SQLite database insert & inventory decrement (Offline-First POS)
         try {
+          // Fetch real sequential order number from local DB (e.g. T1-20260920-0008)
+          const nextOrderNo = await window.electronAPI.dbQuery('db:get-next-order-no', {
+            shopId: currentShop.id,
+            branchCode: currentShop.branch_code,
+            terminalId: currentTerminalId || 'T1'
+          })
+          if (nextOrderNo) {
+            orderPayload.order_no = nextOrderNo
+          }
+
           const res = await window.electronAPI.dbQuery('db:create-order', orderPayload)
           if (res && res.orderNo) {
             orderPayload.order_no = res.orderNo
@@ -156,35 +166,35 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onO
         } catch (dbErr) {
           console.warn('Local electron db save error:', dbErr)
         }
-      }
-
-      // 2. Also notify Backend API if connected
-      const saleRequest: CreateSaleRequest = {
-        idempotencyKey,
-        localId: orderId,
-        cashierId: currentUser?.id,
-        terminalId: currentTerminalId || 'T1',
-        items: items.map((i) => ({
-          productId: i.product_id,
-          quantity: i.quantity,
-          discount: i.discount || 0
-        })),
-        discountType: discountType || undefined,
-        discountAmount: getDiscountAmount(),
-        taxAmount: 0,
-        paymentMethod: paymentMethod,
-        cashGiven: paymentMethod === 'CASH' ? numCashTendered : undefined,
-        cardReferenceNo: referenceNo || undefined
-      }
-
-      try {
-        const backendOrder = await ordersApi.createSale(saleRequest, idempotencyKey)
-        if (backendOrder && backendOrder.orderNo) {
-          orderPayload.order_no = backendOrder.orderNo
-          orderPayload.id = backendOrder.id
+      } else {
+        // 2. Fallback to Backend REST API ONLY when running in Web Browser (without Electron)
+        const saleRequest: CreateSaleRequest = {
+          idempotencyKey,
+          localId: orderId,
+          cashierId: currentUser?.id,
+          terminalId: currentTerminalId || 'T1',
+          items: items.map((i) => ({
+            productId: i.product_id,
+            quantity: i.quantity,
+            discount: i.discount || 0
+          })),
+          discountType: discountType || undefined,
+          discountAmount: getDiscountAmount(),
+          taxAmount: 0,
+          paymentMethod: paymentMethod,
+          cashGiven: paymentMethod === 'CASH' ? numCashTendered : undefined,
+          cardReferenceNo: referenceNo || undefined
         }
-      } catch (apiErr) {
-        console.warn('Backend API sale notification skipped (Offline mode):', apiErr)
+
+        try {
+          const backendOrder = await ordersApi.createSale(saleRequest, idempotencyKey)
+          if (backendOrder && backendOrder.orderNo) {
+            orderPayload.order_no = backendOrder.orderNo
+            orderPayload.id = backendOrder.id
+          }
+        } catch (apiErr) {
+          console.warn('Backend API sale notification skipped (Offline mode):', apiErr)
+        }
       }
     } finally {
       window.dispatchEvent(new CustomEvent('pos:order-completed', { detail: orderPayload }))

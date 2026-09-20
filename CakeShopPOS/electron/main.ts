@@ -159,7 +159,7 @@ function setupIpcHandlers() {
         return { success: false, message: 'Please enter both Email and Password.' }
       }
 
-      // Match by exact email, email prefix (e.g. 'owner' matches 'owner@rasacakes.lk'), or role name
+      // Match by exact email, email prefix (e.g. 'owner' matches 'owner@wasanabakes.lk'), or role name
       const users = db.query<any>(
         `SELECT * FROM users WHERE (LOWER(email) = ? OR LOWER(email) LIKE ? OR LOWER(role) = ?) AND is_active = 1`,
         [input, `${input}%`, input]
@@ -174,12 +174,8 @@ function setupIpcHandlers() {
                             (user.password_hash && user.password_hash.startsWith('$2') && bcrypt.compareSync(cleanPass, user.password_hash))
       const pinMatch = user.pin_hash === cleanPass || 
                        (user.pin_hash && user.pin_hash.startsWith('$2') && bcrypt.compareSync(cleanPass, user.pin_hash))
-      const directMatch = cleanPass === '123456' || 
-                          (user.role === 'owner' && cleanPass === 'owner123') || 
-                          (user.role === 'manager' && cleanPass === 'manager123') || 
-                          (user.role === 'cashier' && cleanPass === 'cashier123')
 
-      if (passwordMatch || pinMatch || directMatch) {
+      if (passwordMatch || pinMatch) {
         // Update last login
         try {
           db.run(`UPDATE users SET last_login = datetime('now') WHERE id = ?`, [user.id])
