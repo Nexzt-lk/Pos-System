@@ -266,30 +266,7 @@ export const seedInitialLocalData = (db: any) => {
       ('536a3768-5597-4c7c-ad09-c877796aff54', 'Beverages & Coffee', 'BEV', '#10b981', 'coffee', 8, 1);
   `)
 
-  // 4. Seed Products
-  db.run(`
-    INSERT OR REPLACE INTO products (id, category_id, item_code, name, description, price, cost_price, barcode, image_path, unit, track_inventory, is_active, sync_status)
-    VALUES 
-      ('4e89a724-6f34-489c-964b-0d3544fbaa7c', '10eb67e2-985f-4ed6-9339-4504e9ada336', 'CAK-001', 'Chocolate Fudge Cake 1kg', 'Decadent chocolate sponge layered with ganache', 3800.00, 2400.00, '4790001001', 'products/chocolate_cake.jpg', 'pcs', 1, 1, 'synced'),
-      ('79ce1b98-75ee-4b42-8760-6aed0be7b6dd', '10eb67e2-985f-4ed6-9339-4504e9ada336', 'CAK-002', 'Black Forest Gateau 1kg', 'Layered sponge with cherries and whipped cream', 4200.00, 2600.00, '4790001002', 'products/black_forest.jpg', 'pcs', 1, 1, 'synced'),
-      ('b73855d3-0036-4ee4-b572-47aa9b5287bf', '10eb67e2-985f-4ed6-9339-4504e9ada336', 'CAK-003', 'Red Velvet Gateau', 'Classic red velvet sponge with cream cheese frosting', 4500.00, 2800.00, '4790001003', 'products/red_velvet.jpg', 'pcs', 1, 1, 'synced'),
-      ('7fca8a47-10a2-4faf-8afa-32f6a9df0b2a', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-001', 'Choco Fudge Cupcake', 'Rich chocolate cupcake topped with swirl frosting', 300.00, 150.00, 'DS-001', 'products/choco_fudge_cupcake.jpg', 'pcs', 1, 1, 'synced'),
-      ('2ca83b5e-4f82-48a3-a26c-98272a3d5f74', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-002', 'Strawberry Cheesecake Slice', 'Creamy New York cheesecake with strawberry glaze', 1050.00, 600.00, 'SWT-002', 'products/strawberry_cheesecake.jpg', 'pcs', 1, 1, 'synced'),
-      ('f87603f1-3488-4824-8128-960eba992810', '6b9be91b-1297-425c-9395-27cf952c8358', 'PAS-001', 'Spicy Chicken Pastry', 'Flaky pastry stuffed with devilled chicken', 200.00, 100.00, 'PAS-001', 'products/spicy_chicken.jpg', 'pcs', 1, 1, 'synced'),
-      ('79d47822-fe9a-459b-b45d-37be8f4e585e', '6b9be91b-1297-425c-9395-27cf952c8358', 'PAS-002', 'Savoury Puff Pastry Trio', 'Crisp puff pastry baked to golden perfection', 900.00, 450.00, 'PAS-002', 'products/savoury_pastries.jpg', 'pcs', 1, 1, 'synced'),
-      ('4b90d909-c839-4689-af7f-df5e317c3551', '48685b8b-b44d-4caa-b9c1-490155e87ea3', 'BIS-001', 'Butter Cookies Assortment', 'Freshly baked artisanal butter cookies', 890.00, 480.00, 'BIS-001', 'products/cookies_biscuits.jpg', 'pcs', 1, 1, 'synced'),
-      ('p0000000-0000-0000-0000-000000000009', '48685b8b-b44d-4caa-b9c1-490155e87ea3', 'CK-009', 'Chocolate Chip Cookies (Pack)', 'Crispy choco chip baked cookies', 450.00, 240.00, 'CK-009', 'products/cookies_biscuits.jpg', 'pcs', 1, 1, 'synced'),
-      ('df15e093-a20a-4518-83f0-6271411bea2a', '0e801936-12bf-4872-a59d-e3ae989c2ce0', 'BDY-001', 'Birthday Candle & Topper Set', 'Celebration cake topper set with candles', 90.00, 40.00, 'BDY-001', 'products/party_deco.jpg', 'pcs', 1, 1, 'synced'),
-      ('d9611f00-bcad-40d0-be4e-a2b5be850226', '0e801936-12bf-4872-a59d-e3ae989c2ce0', 'BDY-002', 'Party Balloons & Ribbon Pack', 'Metallic birthday party celebration set', 80.00, 35.00, 'BDY-002', 'products/party_deco.jpg', 'pcs', 1, 1, 'synced'),
-      ('p0000000-0000-0000-0000-000000000011', '56187eec-97ca-41b4-9d11-171e664a79af', 'IC-011', 'Ice Cream Sundae Cup', 'Rich creamy ice cream cup', 380.00, 190.00, 'IC-011', 'products/ice_cream.jpg', 'pcs', 1, 1, 'synced'),
-      ('p0000000-0000-0000-0000-000000000012', 'c40fc4e3-9a5b-477b-aa4d-b256f0a74267', 'BR-012', 'Bakery White Bread Loaf', 'Soft freshly baked sandwich bread', 180.00, 95.00, 'BR-012', 'products/fish_bun.jpg', 'pcs', 1, 1, 'synced'),
-      ('55555555-5555-5555-5555-555555555555', '10eb67e2-985f-4ed6-9339-4504e9ada336', 'CAK-004', 'Ribbon Butter Cake 500g', 'Traditional Sri Lankan three-color butter cake', 1850.00, 1100.00, 'CAK-004', 'products/ribbon_butter.jpg', 'pcs', 1, 1, 'synced'),
-      ('p0000000-0000-0000-0000-000000000008', '536a3768-5597-4c7c-ad09-c877796aff54', 'BEV-001', 'Iced Caramel Latte', 'Espresso with fresh chilled milk and salted caramel', 750.00, 320.00, 'BEV-001', 'products/iced_caramel_latte.jpg', 'pcs', 0, 1, 'synced');
-  `)
-
-  // 5. Seed Inventory
-  db.run(`
-    INSERT OR REPLACE INTO inventory (id, product_id, quantity, min_quantity)
-    SELECT 'inv-' || id, id, 25.0, 5.0 FROM products;
-  `)
+  // 4. Products & Inventory
+  // Products are managed via the Product Management UI (no default seed products)
+  // Add your actual products through the app's product management interface.
 }
