@@ -26,8 +26,8 @@ const DEFAULT_SHOP: Shop = {
   tenant_id: 'a0000000-0000-0000-0000-000000000001',
   name: 'Wasana Cake - Katugastota',
   branch_code: 'B1',
-  address: 'Katugastota, Kandy',
-  phone: '+94 81 223 4567',
+  address: 'Horana Wasana Bakers Galagedara Road Katugastota',
+  phone: '071-1172201',
   currency: 'LKR',
   is_active: true
 }
@@ -35,14 +35,17 @@ const DEFAULT_SHOP: Shop = {
 export const useAppStore = create<AppState>((set) => ({
   currentTenantId: 'a0000000-0000-0000-0000-000000000001',
   currentShop: DEFAULT_SHOP,
-  currentTerminalId: 'T1',
+  currentTerminalId: localStorage.getItem('pos_terminal_id') || 'T1',
   currentUser: null,
   apiUrl: 'http://127.0.0.1:5292',
   isOnline: navigator.onLine,
   isApiHealthy: true,
 
   setShop: (shop) => set({ currentShop: shop }),
-  setTerminalId: (terminalId) => set({ currentTerminalId: terminalId }),
+  setTerminalId: (terminalId) => {
+    localStorage.setItem('pos_terminal_id', terminalId)
+    set({ currentTerminalId: terminalId })
+  },
   setUser: (user) => set({ currentUser: user }),
   setApiUrl: (apiUrl) => set({ apiUrl }),
   setIsOnline: (isOnline) => set({ isOnline }),

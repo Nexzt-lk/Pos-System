@@ -266,78 +266,72 @@ async function pullCloudCatalog(): Promise<void> {
           )
         }
       }
-    } catch (_) {}
-
-    // 5. Seed historical orders & order items if new device has empty order history
+    } catch (_) {}    // 5. Sync recent cloud orders & order items so multiple terminals stay synchronized
     try {
-      const orderCountRes = db.query<any>(`SELECT count(*) as count FROM orders;`)
-      const localCount = orderCountRes?.[0]?.count ?? 0
-      if (localCount === 0) {
-        const cloudOrders = await axios.get(`${url}/rest/v1/orders?select=*&order=created_at.desc&limit=100`, {
-          headers: { apikey: key, Authorization: `Bearer ${key}` },
-          timeout: 6000
-        })
-        if (cloudOrders.data && Array.isArray(cloudOrders.data)) {
-          for (const ord of cloudOrders.data) {
-            db.run(
-              `
-              INSERT OR IGNORE INTO orders (
-                id, shop_id, order_no, terminal_id, cashier_id, cashier_name,
-                subtotal, discount_type, discount_amount, tax_amount, total_amount,
-                status, note, local_id, sync_status, created_at
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?);
-            `,
-              [
-                ord.id,
-                ord.shop_id || defaultShopId,
-                ord.order_no,
-                ord.terminal_id || 'T1',
-                ord.cashier_id || null,
-                ord.cashier_name || 'Cashier',
-                Number(ord.subtotal) || 0,
-                ord.discount_type || 'fixed',
-                Number(ord.discount_amount) || 0,
-                Number(ord.tax_amount) || 0,
-                Number(ord.total_amount) || 0,
-                ord.status || 'completed',
-                ord.note || null,
-                ord.local_id || ord.id,
-                ord.created_at || new Date().toISOString()
-              ]
-            )
-          }
-
-          const cloudItems = await axios.get(`${url}/rest/v1/order_items?select=*&limit=500`, {
-            headers: { apikey: key, Authorization: `Bearer ${key}` },
-            timeout: 6000
-          })
-          if (cloudItems.data && Array.isArray(cloudItems.data)) {
-            for (const item of cloudItems.data) {
-              db.run(
-                `
-                INSERT OR IGNORE INTO order_items (
-                  id, order_id, product_id, product_name, item_code,
-                  unit_price, cost_price, quantity, discount, subtotal
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-              `,
-                [
-                  item.id,
-                  item.order_id,
-                  item.product_id,
-                  item.product_name,
-                  item.item_code || null,
-                  Number(item.unit_price) || 0,
-                  item.cost_price ? Number(item.cost_price) : null,
-                  Number(item.quantity) || 1,
-                  Number(item.discount) || 0,
-                  Number(item.subtotal) || 0
-                ]
-              )
-            }
-          }
+      const cloudOrders = await axios.get(`${url}/rest/v1/orders?select=*&order=created_at.desc&limit=100`, {
+        headers: { apikey: key, Authorization: `Bearer ${key}` },
+        timeout: 6000
+      })
+      if (cloudOrders.data && Array.isArray(cloudOrders.data)) {
+        for (const ord of cloudOrders.data) {
+          db.run(
+            `
+            INSERT OR IGNORE INTO orders (
+              id, shop_id, order_no, terminal_id, cashier_id, cashier_name,
+              subtotal, discount_type, discount_amount, tax_amount, total_amount,
+              status, note, local_id, sync_status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?);
+          `,
+            [
+              ord.id,
+              ord.shop_id || defaultShopId,
+              ord.order_no,
+              ord.terminal_id || 'T1',
+              ord.cashier_id || null,
+              ord.cashier_name || 'Cashier',
+              Number(ord.subtotal) || 0,
+              ord.discount_type || 'fixed',
+              Number(ord.discount_amount) || 0,
+              Number(ord.tax_amount) || 0,
+              Number(ord.total_amount) || 0,
+              ord.status || 'completed',
+              ord.note || null,
+              ord.local_id || ord.id,
+              ord.created_at || new Date().toISOString()
+            ]
+          )
         }
       }
-    } catch (_) {}
+
+      const cloudItems = await axios.get(`${url}/rest/v1/order_items?select=*&limit=500`, {
+        headers: { apikey: key, Authorization: `Bearer ${key}` },
+        timeout: 6000
+      })
+      if (cloudItems.data && Array.isArray(cloudItems.data)) {
+        for (const item of cloudItems.data) {
+          db.run(
+            `
+            INSERT OR IGNORE INTO order_items (
+              id, order_id, product_id, product_name, item_code,
+              unit_price, cost_price, quantity, discount, subtotal
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          `,
+            [
+              item.id,
+              item.order_id,
+              item.product_id || null,
+              item.product_name || 'Item',
+              item.item_code || null,
+              Number(item.unit_price) || 0,
+              item.cost_price ? Number(item.cost_price) : null,
+              Number(item.quantity) || 1,
+              Number(item.discount) || 0,
+              Number(item.subtotal) || 0
+            ]
+          )
+        }
+      }
+    } catch (_) {}{}
 
     db.save()
     console.log(`[AutoSync] 📥 Synchronized catalog & inventory from Supabase Cloud: ${prodRes.data?.length || 0} products verified.`)
@@ -535,9 +529,29 @@ export const syncService = {
               created_at: o.created_at || new Date().toISOString()
             }
 
-            await postSupabase('orders', [orderRow])
+            // 1. Post Order to Supabase Cloud with collision auto-resolution
+            try {
+              await postSupabase('orders', [orderRow])
+            } catch (postErr: any) {
+              const errMsg = postErr.message || ''
+              if (errMsg.includes('orders_shop_id_order_no_key') || errMsg.includes('23505') || errMsg.includes('duplicate key')) {
+                // Multi-device collision: another device already placed an order with this order_no.
+                // Disambiguate with unique suffix so the order is safely preserved in Supabase!
+                const disambiguatedOrderNo = `${orderRow.order_no}-${Math.floor(100 + Math.random() * 900)}`
+                console.warn(`[AutoSync] Order number collision for "${orderRow.order_no}". Renaming to "${disambiguatedOrderNo}" and retrying...`)
+                orderRow.order_no = disambiguatedOrderNo
+                db.run(`UPDATE orders SET order_no = ? WHERE id = ?;`, [disambiguatedOrderNo, o.id])
+                await postSupabase('orders', [orderRow])
+              } else if (errMsg.includes('cashier') || errMsg.includes('23503') || errMsg.includes('foreign key')) {
+                console.warn(`[AutoSync] Cashier FK mismatch for order "${orderRow.order_no}". Retrying with null cashier_id...`)
+                orderRow.cashier_id = null
+                await postSupabase('orders', [orderRow])
+              } else {
+                throw postErr
+              }
+            }
 
-            // Sync items for this order
+            // 2. Sync items for this order with product FK fallback
             const orderItems = db.query<any>(`SELECT * FROM order_items WHERE order_id = ?;`, [o.id])
             if (orderItems && orderItems.length > 0) {
               const itemPayload = orderItems.map((i) => ({
@@ -553,28 +567,45 @@ export const syncService = {
                 discount: Number(i.discount) || 0,
                 subtotal: Number(i.subtotal) || 0
               }))
-              await postSupabase('order_items', itemPayload)
+
+              try {
+                await postSupabase('order_items', itemPayload)
+              } catch (itemErr: any) {
+                if (itemErr.message?.includes('23503') || itemErr.message?.includes('foreign key')) {
+                  console.warn(`[AutoSync] Product FK notice in order_items. Retrying with null product_id...`)
+                  const fallbackItems = itemPayload.map((it) => ({ ...it, product_id: null }))
+                  await postSupabase('order_items', fallbackItems)
+                } else {
+                  console.warn('[AutoSync] Notice on order_items sync:', itemErr.message)
+                }
+              }
             }
 
-            // Sync payments for this order
+            // 3. Sync payments for this order
             const payments = db.query<any>(`SELECT * FROM payments WHERE order_id = ?;`, [o.id])
             if (payments && payments.length > 0) {
               const payPayload = payments.map((p) => ({
                 id: toValidUuid(p.id) || undefined,
                 shop_id: defaultShopId,
                 order_id: orderId,
-                method: p.method || 'CASH',
+                method: (p.method || 'CASH').toUpperCase(),
                 amount: Number(p.amount) || 0,
                 cash_given: p.cash_given ? Number(p.cash_given) : null,
                 change_given: p.change_given ? Number(p.change_given) : null,
                 reference_no: p.reference_no || null,
                 created_at: p.created_at || new Date().toISOString()
               }))
-              await postSupabase('payments', payPayload)
+              try {
+                await postSupabase('payments', payPayload)
+              } catch (payErr: any) {
+                console.warn('[AutoSync] Notice on payments sync:', payErr.message)
+              }
             }
 
             db.run(`UPDATE orders SET sync_status = 'synced' WHERE id = ?;`, [o.id])
+            db.run(`UPDATE sync_queue SET status = 'synced', synced_at = datetime('now') WHERE record_id = ? OR record_id = ?;`, [o.id, o.local_id])
             totalSynced++
+            console.log(`[AutoSync] 🚀 Successfully synced Order #${orderRow.order_no} to Supabase Cloud!`)
           } catch (ordErr: any) {
             console.warn('[AutoSync] Order sync notice:', ordErr.response?.data?.message || ordErr.message)
           }

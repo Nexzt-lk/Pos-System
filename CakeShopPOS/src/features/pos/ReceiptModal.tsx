@@ -34,8 +34,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, ord
         const preferredPrinter = localStorage.getItem('selected_printer') || undefined
         await window.electronAPI.printReceipt({
           shopName: currentShop?.name || 'Wasana Cake - Katugastota',
-          address: currentShop?.address,
-          phone: currentShop?.phone,
+          address: currentShop?.address || 'Horana Wasana Bakers Galagedara Road Katugastota',
+          phone: currentShop?.phone || '071-1172201',
           orderNo: orderData.order_no,
           cashierName: orderData.cashier_name,
           dateTime: formatDateTime(orderData.created_at),
@@ -203,8 +203,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, ord
               {currentShop?.name || 'Wasana Cake - Katugastota'}
             </div>
             <div style={{ textAlign: 'center', fontSize: 11, color: '#64748b', marginBottom: 12, lineHeight: 1.4 }}>
-              {currentShop?.address || 'Katugastota, Kandy'}<br />
-              Tel: {currentShop?.phone || '+94 81 223 4567'}
+              {currentShop?.address || 'Horana Wasana Bakers Galagedara Road Katugastota'}<br />
+              Tel: {currentShop?.phone || '071-1172201'}
             </div>
             
             <div style={{ borderTop: '1.5px dashed #cbd5e1', margin: '10px 0' }} />

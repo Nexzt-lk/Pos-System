@@ -37,8 +37,8 @@ export const shopsApi = {
         id: 'b0000000-0000-0000-0000-000000000001',
         name: 'Wasana Cake - Katugastota',
         branchCode: 'B1',
-        address: 'Katugastota, Kandy',
-        phone: '+94 81 223 4567',
+        address: 'Horana Wasana Bakers Galagedara Road Katugastota',
+        phone: '071-1172201',
         email: 'wasana@cakes.lk',
         currency: 'LKR',
         receiptFooter: 'Thank you for visiting Wasana Cake - Katugastota! 🎂'

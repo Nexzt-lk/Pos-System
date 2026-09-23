@@ -5,16 +5,30 @@ import dayjs from 'dayjs'
 export const orderRepo = {
   getNextOrderNumber: async (_shopId: string, branchCode: string, terminalId: string): Promise<string> => {
     const db = await getDatabase()
-    const prefix = `${terminalId || branchCode || 'T1'}-${dayjs().format('YYYYMMDD')}-%`
+    const term = terminalId || branchCode || 'T1'
+    const todayStr = dayjs().format('YYYYMMDD')
+    const prefix = `${term}-${todayStr}-%`
 
-    const row = db.queryOne<{ count: number }>(
-      `SELECT count(*) as count FROM orders WHERE order_no LIKE ?`,
+    const rows = db.queryAll<{ order_no: string }>(
+      `SELECT order_no FROM orders WHERE order_no LIKE ?`,
       [prefix]
     )
 
-    const seq = (row?.count || 0) + 1
-    const seqPadded = seq.toString().padStart(4, '0')
-    return `${terminalId || branchCode || 'T1'}-${dayjs().format('YYYYMMDD')}-${seqPadded}`
+    let maxSeq = 0
+    const regex = new RegExp(`^${term}-${todayStr}-(\\d+)`)
+    for (const r of rows) {
+      const match = r.order_no ? r.order_no.match(regex) : null
+      if (match && match[1]) {
+        const num = parseInt(match[1], 10)
+        if (!isNaN(num) && num > maxSeq) {
+          maxSeq = num
+        }
+      }
+    }
+
+    const nextSeq = Math.max(rows.length, maxSeq) + 1
+    const seqPadded = nextSeq.toString().padStart(4, '0')
+    return `${term}-${todayStr}-${seqPadded}`
   },
 
   createOrderTransaction: async (orderData: any): Promise<{ success: boolean; orderId: string; orderNo: string }> => {

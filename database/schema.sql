@@ -338,8 +338,8 @@ VALUES (
     'a0000000-0000-0000-0000-000000000001',
     'Wasana Cake - Katugastota',
     'B1',
-    'Katugastota, Kandy',
-    '+94 81 223 4567',
+    'Horana Wasana Bakers Galagedara Road Katugastota',
+    '071-1172201',
     'LKR',
     'Thank you for visiting Wasana Cake - Katugastota! 🎂'
 )

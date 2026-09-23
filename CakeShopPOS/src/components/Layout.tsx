@@ -8,6 +8,7 @@ import { useStockAlertStore } from '../store/stockAlertStore'
 import { SyncIndicator } from './SyncIndicator'
 import { StockNotificationBell } from './StockNotificationBell'
 import { LowStockAlertModal } from './LowStockAlertModal'
+import { shopsApi } from '../api/shopsApi'
 import dayjs from 'dayjs'
 
 import nexztLogo from '../assets/nexzt-logo.png'
@@ -34,6 +35,24 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
     const t = setInterval(() => setCurrentTime(dayjs().format('hh:mm:ss A')), 1000)
     return () => clearInterval(t)
   }, [])
+
+  // Auto-fetch latest shop info from DB on mount
+  useEffect(() => {
+    shopsApi.getCurrent().then((shop) => {
+      if (shop && shop.id) {
+        setShop({
+          id: shop.id,
+          tenant_id: 'a0000000-0000-0000-0000-000000000001',
+          name: shop.name || 'Wasana Cake - Katugastota',
+          branch_code: shop.branchCode || 'B1',
+          address: shop.address || 'Horana Wasana Bakers Galagedara Road Katugastota',
+          phone: shop.phone || '071-1172201',
+          currency: shop.currency || 'LKR',
+          is_active: true
+        })
+      }
+    }).catch(() => {})
+  }, [setShop])
 
   // Auto-fetch stock alerts on login / mount and poll every 30 seconds
   useEffect(() => {
@@ -72,7 +91,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
     if (currentShop?.branch_code === 'B1') {
       setShop({ id: 'b0000000-0000-0000-0000-000000000002', tenant_id: 'a0000000-0000-0000-0000-000000000001', name: 'Rasa Cake House - Colombo Branch', branch_code: 'B2', address: 'No. 120, Galle Road, Colombo 03', phone: '+94 11 258 9101', currency: 'LKR', is_active: true })
     } else {
-      setShop({ id: 'b0000000-0000-0000-0000-000000000001', tenant_id: 'a0000000-0000-0000-0000-000000000001', name: 'Wasana Cake - Katugastota', branch_code: 'B1', address: 'Katugastota, Kandy', phone: '+94 81 223 4567', currency: 'LKR', is_active: true })
+      setShop({ id: 'b0000000-0000-0000-0000-000000000001', tenant_id: 'a0000000-0000-0000-0000-000000000001', name: 'Wasana Cake - Katugastota', branch_code: 'B1', address: 'Horana Wasana Bakers Galagedara Road Katugastota', phone: '071-1172201', currency: 'LKR', is_active: true })
     }
   }
 

@@ -51,7 +51,7 @@ export const getDatabase = async (): Promise<POSDatabase> => {
   console.log(`[Database] Initializing SQLite database (packaged=${isPackaged}) at: ${dbPath}`)
 
   // DB version — bump this whenever seed data changes significantly
-  const MASTER_DB_VERSION = 3 // v3: Ritzbury 18 products + PIN 843522 + Cashier 01/02
+  const MASTER_DB_VERSION = 4 // v4: Updated shop address & phone number
 
   // Helper: read product count from a DB buffer
   const getProductCount = (buf: Buffer): number => {
@@ -194,6 +194,21 @@ export const getDatabase = async (): Promise<POSDatabase> => {
     }
   }
 
+  // Ensure shop address and phone are always updated to official details
+  try {
+    rawDb.run(`
+      UPDATE shops 
+      SET address = 'Horana Wasana Bakers Galagedara Road Katugastota',
+          phone = '071-1172201'
+      WHERE id = 'b0000000-0000-0000-0000-000000000001';
+    `)
+    const data = rawDb.export()
+    fs.writeFileSync(dbPath, Buffer.from(data))
+    lastMtime = fs.statSync(dbPath).mtimeMs
+  } catch (shopErr) {
+    console.warn('[Database] Notice on shop details update:', shopErr)
+  }
+
   const reloadFromDiskIfNeeded = () => {
     try {
       if (fs.existsSync(dbPath)) {
@@ -268,8 +283,8 @@ export const seedInitialLocalData = (db: any) => {
       'b0000000-0000-0000-0000-000000000001',
       'Wasana Cake - Katugastota',
       'B1',
-      'Katugastota, Kandy',
-      '+94 81 223 4567',
+      'Horana Wasana Bakers Galagedara Road Katugastota',
+      '071-1172201',
       'wasana@cakes.lk',
       'LKR',
       'Thank you for visiting Wasana Cake - Katugastota! 🎂'

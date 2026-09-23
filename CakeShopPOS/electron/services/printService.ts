@@ -169,8 +169,8 @@ export const printService = {
           <div class="text-center">
             <div class="title">${(data.shopName || 'Wasana Cake - Katugastota').toUpperCase()}</div>
             ${data.branchName ? `<div class="subtitle">${data.branchName}</div>` : ''}
-            ${data.address ? `<div class="subtitle">${data.address}</div>` : '<div class="subtitle">Katugastota, Kandy</div>'}
-            ${data.phone ? `<div class="subtitle">Tel: ${data.phone}</div>` : '<div class="subtitle">Tel: +94 81 223 4567</div>'}
+            ${data.address ? `<div class="subtitle">${data.address}</div>` : '<div class="subtitle">Horana Wasana Bakers Galagedara Road Katugastota</div>'}
+            ${data.phone ? `<div class="subtitle">Tel: ${data.phone}</div>` : '<div class="subtitle">Tel: 071-1172201</div>'}
           </div>
 
           <div class="divider"></div>
