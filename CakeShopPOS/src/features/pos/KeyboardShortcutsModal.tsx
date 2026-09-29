@@ -13,17 +13,17 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
     {
       title: 'POS Billing & Actions',
       shortcuts: [
-        { key: 'F4', desc: 'Pay & Print Bill (Checkout)' },
-        { key: 'F3 / Ctrl+D', desc: 'Open Order Discount Dialog' },
-        { key: 'F2 or /', desc: 'Search Products & Catalog' },
-        { key: 'F9 / Ctrl+Del', desc: 'Clear Active Cart' },
-        { key: 'F1', desc: 'Show this Keyboard Shortcuts Guide' }
+        { key: 'F4 / Alt+P / Ctrl+Enter', desc: 'Pay & Print Bill (Checkout)' },
+        { key: 'F3 / Ctrl+D / Alt+D', desc: 'Open Order Discount Dialog' },
+        { key: 'F2 / / / Ctrl+K', desc: 'Search Products & Catalog' },
+        { key: 'F9 / Ctrl+Del / Alt+X', desc: 'Clear Active Cart' },
+        { key: 'F1 / Ctrl+H / ?', desc: 'Show this Keyboard Shortcuts Guide' }
       ]
     },
     {
       title: 'Product Catalog & Navigation',
       shortcuts: [
-        { key: '↓ / ↑', desc: 'Navigate products in grid' },
+        { key: '↑ / ↓ / ← / →', desc: 'Navigate products in grid' },
         { key: 'Enter', desc: 'Select focused product (open weight/qty dialog)' },
         { key: 'Alt + 1', desc: 'Filter: All Items' },
         { key: 'Alt + 2..9', desc: 'Filter: Select Category by number' },
@@ -48,8 +48,8 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
         { key: 'F1 / Alt+1', desc: 'Select Cash payment' },
         { key: 'F2 / Alt+2', desc: 'Select Card payment' },
         { key: 'F3 / Alt+3', desc: 'Select Bank Transfer' },
-        { key: 'F5 .. F8', desc: 'Select Quick Cash Presets' },
-        { key: 'Enter / F10', desc: 'Complete Sale & Print Receipt' },
+        { key: 'F5..F8 / Alt+5..8', desc: 'Select Quick Cash Presets' },
+        { key: 'F10 / Enter / Alt+S', desc: 'Complete Sale & Print Receipt' },
         { key: 'Esc', desc: 'Close Payment Dialog' }
       ]
     }

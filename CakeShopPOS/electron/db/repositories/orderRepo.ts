@@ -9,7 +9,7 @@ export const orderRepo = {
     const todayStr = dayjs().format('YYYYMMDD')
     const prefix = `${term}-${todayStr}-%`
 
-    const rows = db.queryAll<{ order_no: string }>(
+    const rows = db.query<{ order_no: string }>(
       `SELECT order_no FROM orders WHERE order_no LIKE ?`,
       [prefix]
     )

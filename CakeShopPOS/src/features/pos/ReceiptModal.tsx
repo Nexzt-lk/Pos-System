@@ -71,7 +71,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, ord
       if (e.key === 'Escape') {
         e.preventDefault()
         if (!isPrinting) onClose()
-      } else if (e.key === 'Enter' || e.key === 'p' || e.key === 'P') {
+      } else if (e.key === 'Enter' || e.key === 'p' || e.key === 'P' || e.key === 'F10' || (e.ctrlKey && e.key === 'Enter')) {
         e.preventDefault()
         if (!isPrinting && !hasPrinted) {
           handlePrint()

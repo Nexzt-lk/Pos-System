@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu } from 'electron'
 import path from 'path'
 import detectPort from 'detect-port'
 import { getDatabase } from './db/database'
@@ -15,6 +15,9 @@ import fs from 'fs'
 
 let mainWindow: BrowserWindow | null = null
 let activeApiPort = 5292
+
+// Completely disable Electron default application menu bar to prevent F10 / Alt from capturing focus
+Menu.setApplicationMenu(null)
 
 // Single instance lock (for packaged release; bypassed in dev to avoid lock conflicts)
 if (app.isPackaged) {
@@ -59,6 +62,20 @@ const createWindow = async () => {
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false
+    }
+  })
+
+  // Ensure window menu is stripped so F10 doesn't focus menu bar on Windows
+  mainWindow.setMenu(null)
+  if (mainWindow.removeMenu) {
+    mainWindow.removeMenu()
+  }
+
+  // Prevent Windows default F1 (Windows Help) and F10 (Focus Menu Bar) hijacking in POS
+  mainWindow.webContents.on('before-input-event', (_event, input) => {
+    // If cashier presses F10 or F1, let renderer receive it without OS menu hijacking
+    if (input.key === 'F10' || input.key === 'F1') {
+      // Nothing needed, menu is null
     }
   })
 

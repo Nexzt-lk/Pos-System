@@ -39,11 +39,21 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
     setFocusedIndex(-1)
   }, [searchQuery, selectedCategory])
 
+  // Listen for global custom search focus event
+  useEffect(() => {
+    const handleFocusSearch = () => {
+      searchInputRef.current?.focus()
+      searchInputRef.current?.select()
+    }
+    window.addEventListener('pos:focus-search', handleFocusSearch)
+    return () => window.removeEventListener('pos:focus-search', handleFocusSearch)
+  }, [])
+
   // Keyboard shortcut listener (F2 / '/' to search, Arrow keys to navigate, Enter to select, Alt+1..9 for categories)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Focus search: F2, '/', or Ctrl+F
-      if ((e.key === 'F2' || e.key === '/' || (e.ctrlKey && e.key === 'f')) && document.activeElement !== searchInputRef.current) {
+      // Focus search: F2, '/', Ctrl+F, or Ctrl+K
+      if (e.key === 'F2' || (e.ctrlKey && (e.key === 'f' || e.key === 'F' || e.key === 'k' || e.key === 'K')) || (e.key === '/' && document.activeElement !== searchInputRef.current)) {
         e.preventDefault()
         searchInputRef.current?.focus()
         searchInputRef.current?.select()
@@ -62,12 +72,14 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
         return
       }
 
-      // Arrow navigation across products
+      // Arrow navigation across products (Up/Down/Left/Right)
       if (filteredProducts.length > 0) {
-        if (e.key === 'ArrowDown') {
+        const isSearchFocused = document.activeElement === searchInputRef.current
+        
+        if (e.key === 'ArrowDown' || (!isSearchFocused && e.key === 'ArrowRight')) {
           e.preventDefault()
           setFocusedIndex((prev) => (prev + 1 < filteredProducts.length ? prev + 1 : 0))
-        } else if (e.key === 'ArrowUp') {
+        } else if (e.key === 'ArrowUp' || (!isSearchFocused && e.key === 'ArrowLeft')) {
           e.preventDefault()
           setFocusedIndex((prev) => (prev - 1 >= 0 ? prev - 1 : filteredProducts.length - 1))
         } else if (e.key === 'Enter') {

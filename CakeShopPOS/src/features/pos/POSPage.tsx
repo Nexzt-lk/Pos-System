@@ -11,6 +11,7 @@ import { productsApi } from '../../api/productsApi'
 import { categoriesApi } from '../../api/categoriesApi'
 import { useCartStore, CartItem as CartItemType } from '../../store/cartStore'
 import { useAppStore } from '../../store/appStore'
+import { message } from 'antd'
 
 export const POSPage: React.FC = () => {
   const currentShop = useAppStore((state) => state.currentShop)
@@ -103,7 +104,7 @@ export const POSPage: React.FC = () => {
     addItem(product, quantity, true)
   }
 
-  // Global POS Keyboard Shortcuts (F1: Help, F3: Discount, F4: Pay, F9: Clear Cart)
+  // Global POS Keyboard Shortcuts (F1: Help, F2: Search, F3: Discount, F4: Pay, F9: Clear Cart)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger global actions if sub-modals are open
@@ -111,21 +112,45 @@ export const POSPage: React.FC = () => {
         return
       }
 
-      if (e.key === 'F1') {
+      const activeTag = (document.activeElement?.tagName || '').toLowerCase()
+      const isInputActive = activeTag === 'input' || activeTag === 'textarea'
+
+      // F1 or Ctrl+H: Help & Shortcuts Guide
+      if (e.key === 'F1' || (e.ctrlKey && (e.key === 'h' || e.key === 'H')) || (!isInputActive && e.key === '?')) {
         e.preventDefault()
         setIsShortcutsOpen(true)
-      } else if (e.key === 'F3' || (e.ctrlKey && (e.key === 'd' || e.key === 'D'))) {
+      } 
+      // F2 or Ctrl+K: Focus Product Search
+      else if (e.key === 'F2' || (e.ctrlKey && (e.key === 'k' || e.key === 'K'))) {
         e.preventDefault()
-        setIsDiscountOpen(true)
-      } else if (e.key === 'F4') {
+        window.dispatchEvent(new CustomEvent('pos:focus-search'))
+      } 
+      // F3 or Ctrl+D or Alt+D: Discount
+      else if (e.key === 'F3' || (e.ctrlKey && (e.key === 'd' || e.key === 'D')) || (e.altKey && (e.key === 'd' || e.key === 'D'))) {
+        e.preventDefault()
+        if (cartItems.length > 0) {
+          setIsDiscountOpen(true)
+        } else {
+          message.warning('Please add items to cart before applying discount.')
+        }
+      } 
+      // F4 or Alt+P or Alt+C or Ctrl+Enter: Pay & Checkout
+      else if (e.key === 'F4' || (e.altKey && (e.key === 'p' || e.key === 'P')) || (e.altKey && (e.key === 'c' || e.key === 'C')) || (e.ctrlKey && e.key === 'Enter')) {
         e.preventDefault()
         if (cartItems.length > 0) {
           setIsPaymentOpen(true)
+        } else {
+          message.warning('Cart is empty. Please select or add items before checkout.')
         }
-      } else if (e.key === 'F9' || (e.ctrlKey && e.key === 'Delete')) {
+      } 
+      // F9 or Ctrl+Delete or Alt+X or Ctrl+Backspace: Clear Cart
+      else if (e.key === 'F9' || (e.ctrlKey && e.key === 'Delete') || (e.altKey && (e.key === 'x' || e.key === 'X')) || (e.ctrlKey && e.key === 'Backspace')) {
         e.preventDefault()
         if (cartItems.length > 0) {
           clearCart()
+          message.info('Cart cleared.')
+        } else {
+          message.info('Cart is already empty.')
         }
       }
     }

@@ -161,10 +161,10 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
       } else if (e.key === 'ArrowDown' || e.key === '-') {
         e.preventDefault()
         handleStep(isWeightBased ? (weightInputMode === 'g' ? -50 : -0.25) : -1)
-      } else if (isWeightBased && (e.key === 'g' || e.key === 'G') && document.activeElement !== inputRef.current) {
+      } else if (isWeightBased && (e.key === 'g' || e.key === 'G')) {
         e.preventDefault()
         handleToggleWeightMode('g')
-      } else if (isWeightBased && (e.key === 'k' || e.key === 'K') && document.activeElement !== inputRef.current) {
+      } else if (isWeightBased && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault()
         handleToggleWeightMode('kg')
       }

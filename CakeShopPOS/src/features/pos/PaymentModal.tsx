@@ -6,6 +6,7 @@ import { formatCurrency, generateOrderNumber } from '../../lib/formatters'
 import { PaymentMethod } from '../../types/order'
 import { ordersApi, CreateSaleRequest } from '../../api/ordersApi'
 import { v4 as uuidv4 } from 'uuid'
+import { message } from 'antd'
 
 interface PaymentModalProps {
   isOpen: boolean
@@ -57,7 +58,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onO
     }
   }, [isOpen, totalAmount])
 
-  // Keyboard Shortcuts (Enter / F10 to complete, Esc to cancel, F1/F2/F3 for methods)
+// Keyboard Shortcuts (Enter / F10 to complete, Esc to cancel, F1/F2/F3 for methods)
   useEffect(() => {
     if (!isOpen) return
 
@@ -65,32 +66,36 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onO
       if (e.key === 'Escape') {
         e.preventDefault()
         onClose()
-      } else if (e.key === 'Enter' || e.key === 'F10') {
+      } else if (e.key === 'Enter' || e.key === 'F10' || (e.ctrlKey && e.key === 'Enter') || (e.altKey && (e.key === 's' || e.key === 'S'))) {
         e.preventDefault()
         if (isValid && !isProcessing) {
           handleComplete()
+        } else if (!isValid) {
+          message.warning(`Please enter at least ${formatCurrency(totalAmount)} for Cash payment`)
+          cashInputRef.current?.focus()
+          cashInputRef.current?.select()
         }
-      } else if (e.key === 'F1') {
+      } else if (e.key === 'F1' || (e.altKey && e.key === '1')) {
         e.preventDefault()
         setPaymentMethod('CASH')
         cashInputRef.current?.focus()
         cashInputRef.current?.select()
-      } else if (e.key === 'F2') {
+      } else if (e.key === 'F2' || (e.altKey && e.key === '2')) {
         e.preventDefault()
         setPaymentMethod('CARD')
-      } else if (e.key === 'F3') {
+      } else if (e.key === 'F3' || (e.altKey && e.key === '3')) {
         e.preventDefault()
         setPaymentMethod('TRANSFER')
-      } else if (e.key === 'F5' && quickPresets[0]) {
+      } else if ((e.key === 'F5' || (e.altKey && e.key === '5')) && quickPresets[0]) {
         e.preventDefault()
         setCashTendered(String(quickPresets[0]))
-      } else if (e.key === 'F6' && quickPresets[1]) {
+      } else if ((e.key === 'F6' || (e.altKey && e.key === '6')) && quickPresets[1]) {
         e.preventDefault()
         setCashTendered(String(quickPresets[1]))
-      } else if (e.key === 'F7' && quickPresets[2]) {
+      } else if ((e.key === 'F7' || (e.altKey && e.key === '7')) && quickPresets[2]) {
         e.preventDefault()
         setCashTendered(String(quickPresets[2]))
-      } else if (e.key === 'F8' && quickPresets[3]) {
+      } else if ((e.key === 'F8' || (e.altKey && e.key === '8')) && quickPresets[3]) {
         e.preventDefault()
         setCashTendered(String(quickPresets[3]))
       }
