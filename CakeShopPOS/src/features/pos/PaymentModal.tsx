@@ -107,6 +107,19 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onO
 
   const handleComplete = async () => {
     if (!currentShop || !isValid) return
+
+    // Stock validation
+    const stockErrors = items.filter(
+      (item) => item.track_inventory && item.current_stock !== undefined && item.quantity > item.current_stock
+    )
+    if (stockErrors.length > 0) {
+      const errorMsg = stockErrors
+        .map((i) => `"${i.product_name}" store එකේ ඇත්තේ ${i.current_stock} ${i.unit || 'pcs'} පමණි!`)
+        .join(', ')
+      message.error(`Order එක දැමිය නොහැක: ${errorMsg}`)
+      return
+    }
+
     setIsProcessing(true)
 
     const orderId = uuidv4()

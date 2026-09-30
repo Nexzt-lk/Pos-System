@@ -1,5 +1,5 @@
 import React from 'react'
-import { Trash2, CreditCard, ShoppingCart, Percent, Tag, ArrowRight } from 'lucide-react'
+import { Trash2, CreditCard, ShoppingCart, Percent, Tag, ArrowRight, AlertTriangle } from 'lucide-react'
 import { useCartStore } from '../../store/cartStore'
 import { CartItem } from './CartItem'
 import { formatCurrency } from '../../lib/formatters'
@@ -28,6 +28,11 @@ export const Cart: React.FC<CartProps> = ({ onOpenPaymentModal, onOpenDiscountMo
   const discount = getDiscountAmount()
   const total = getTotalAmount()
   const itemCount = getItemCount()
+
+  const stockViolations = items.filter(
+    (item) => item.track_inventory && item.current_stock !== undefined && item.quantity > item.current_stock
+  )
+  const hasStockViolations = stockViolations.length > 0
 
   return (
     <div className="cart-panel">
@@ -154,14 +159,37 @@ export const Cart: React.FC<CartProps> = ({ onOpenPaymentModal, onOpenDiscountMo
           </button>
         </div>
 
+        {hasStockViolations && (
+          <div
+            style={{
+              padding: '10px 12px',
+              borderRadius: 10,
+              background: '#fef2f2',
+              border: '1.5px solid #fecaca',
+              color: '#b91c1c',
+              fontSize: 12,
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8
+            }}
+          >
+            <AlertTriangle size={18} color="#dc2626" style={{ flexShrink: 0 }} />
+            <span>
+              Store එකේ තොගයට වඩා වැඩි භාණ්ඩ cart එකේ ඇත. කරුණාකර ප්‍රමාණය අඩු කරන්න.
+            </span>
+          </div>
+        )}
+
         <button
           type="button"
           className="pay-btn"
           onClick={onOpenPaymentModal}
-          disabled={items.length === 0}
+          disabled={items.length === 0 || hasStockViolations}
+          style={hasStockViolations ? { background: '#94a3b8', cursor: 'not-allowed', boxShadow: 'none' } : undefined}
         >
           <CreditCard size={18} />
-          <span>Pay & Print Bill (F4)</span>
+          <span>{hasStockViolations ? 'Stock Exceeded (තොග ඉක්මවා ඇත)' : 'Pay & Print Bill (F4)'}</span>
           <ArrowRight size={16} />
         </button>
       </div>

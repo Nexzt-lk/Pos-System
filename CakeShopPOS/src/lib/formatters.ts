@@ -76,12 +76,28 @@ export const formatStockQty = (qty: number | undefined | null, unit: string = 'p
 export const formatQuantityWithUnit = (qty: number, unit?: string): string => {
   const u = unit?.toLowerCase() || 'pcs'
   if (u === 'kg') {
-    if (qty < 1) {
+    if (qty < 1 && qty > 0) {
       return `${Math.round(qty * 1000)}g`
     }
-    return `${parseFloat(qty.toFixed(3))} kg`
+    const wholeKg = Math.floor(qty)
+    const remG = Math.round((qty - wholeKg) * 1000)
+    if (remG > 0 && wholeKg > 0) {
+      return `${wholeKg}kg ${remG}g`
+    }
+    if (wholeKg > 0) {
+      return `${wholeKg} kg`
+    }
+    return `${qty} kg`
   }
   if (u === 'g') {
+    if (qty >= 1000) {
+      const wholeKg = Math.floor(qty / 1000)
+      const remG = Math.round(qty % 1000)
+      if (remG > 0) {
+        return `${wholeKg}kg ${remG}g`
+      }
+      return `${wholeKg} kg`
+    }
     return `${Math.round(qty)}g`
   }
   return `${qty} ${unit || 'pcs'}`

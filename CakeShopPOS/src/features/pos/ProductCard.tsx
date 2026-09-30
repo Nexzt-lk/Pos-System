@@ -56,7 +56,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
         {/* Stock Status Badge */}
         {product.track_inventory && (
           <span className={`stock-badge ${isOutOfStock ? 'out' : isLow ? 'low' : 'ok'}`}>
-            {isOutOfStock ? 'Out of Stock' : isLow ? `Low: ${product.current_stock}` : `${product.current_stock}`}
+            {isOutOfStock 
+              ? 'Out of Stock' 
+              : isLow 
+              ? `Low: ${product.current_stock} ${product.unit || 'pcs'}` 
+              : `Stock: ${product.current_stock} ${product.unit || 'pcs'}`}
           </span>
         )}
       </div>
@@ -85,6 +89,26 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
             </span>
           </div>
 
+          {product.track_inventory ? (
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                padding: '2px 8px',
+                borderRadius: 6,
+                background: isOutOfStock ? '#fee2e2' : isLow ? '#fef3c7' : '#f0fdf4',
+                color: isOutOfStock ? '#b91c1c' : isLow ? '#b45309' : '#15803d',
+                border: `1px solid ${isOutOfStock ? '#fca5a5' : isLow ? '#fde68a' : '#bbf7d0'}`,
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {isOutOfStock ? 'තොග අවසන්' : `Store: ${product.current_stock} ${product.unit || 'pcs'}`}
+            </span>
+          ) : (
+            <span style={{ fontSize: 10.5, color: '#94a3b8', fontWeight: 600 }}>
+              Unmetered
+            </span>
+          )}
         </div>
       </div>
     </div>

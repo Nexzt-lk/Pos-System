@@ -26,19 +26,43 @@ export const CartItem: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRe
   // Formatted display string for quantity (e.g., 250g, 500g, 1.5kg, 3 pcs)
   const displayQty = React.useMemo(() => {
     if (isKg) {
-      if (item.quantity < 1) {
+      if (item.quantity < 1 && item.quantity > 0) {
         return `${Math.round(item.quantity * 1000)}g`
       }
-      return `${parseFloat(item.quantity.toFixed(3))}kg`
+      const wholeKg = Math.floor(item.quantity)
+      const remG = Math.round((item.quantity - wholeKg) * 1000)
+      if (remG > 0 && wholeKg > 0) {
+        return `${wholeKg}kg ${remG}g`
+      }
+      if (wholeKg > 0) {
+        return `${wholeKg}kg`
+      }
+      return `${item.quantity}kg`
     }
     if (isGram) {
+      if (item.quantity >= 1000) {
+        const wholeKg = Math.floor(item.quantity / 1000)
+        const remG = Math.round(item.quantity % 1000)
+        if (remG > 0) {
+          return `${wholeKg}kg ${remG}g`
+        }
+        return `${wholeKg}kg`
+      }
       return `${Math.round(item.quantity)}g`
     }
     return `${item.quantity}`
   }, [item.quantity, isKg, isGram])
 
+  const isTracked = Boolean(item.track_inventory)
+  const availableStock = item.current_stock !== undefined ? item.current_stock : Infinity
+  const isAtMaxStock = isTracked && item.quantity >= availableStock
+  const isExceedingStock = isTracked && item.quantity > availableStock
+
   return (
-    <div className="cart-item">
+    <div
+      className="cart-item"
+      style={isExceedingStock ? { border: '1.5px solid #fca5a5', background: '#fef2f2' } : undefined}
+    >
       {/* 🖼️ High Quality Mini Image Thumbnail */}
       <div
         className="cart-item-thumb"
@@ -66,13 +90,28 @@ export const CartItem: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRe
       <div className="cart-item-body">
         {/* Top: Name & Remove Button */}
         <div className="cart-item-header">
-          <span
-            className="cart-item-name"
-            title={item.product_name}
-            onClick={() => onEditItem?.(item)}
-          >
-            {item.product_name}
-          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span
+              className="cart-item-name"
+              title={item.product_name}
+              onClick={() => onEditItem?.(item)}
+            >
+              {item.product_name}
+            </span>
+            {isTracked && (
+              <span
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  color: isExceedingStock ? '#dc2626' : availableStock <= 5 ? '#d97706' : '#16a34a'
+                }}
+              >
+                {isExceedingStock
+                  ? `⚠️ Store එකේ ඇත්තේ ${availableStock} ${item.unit || 'pcs'} පමණි!`
+                  : `Store: ${availableStock} ${item.unit || 'pcs'}`}
+              </span>
+            )}
+          </div>
           <button
             type="button"
             className="cart-item-remove"
@@ -114,7 +153,12 @@ export const CartItem: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRe
               </button>
               <span
                 className="qty-num"
-                style={{ cursor: onEditItem ? 'pointer' : 'default', minWidth: 32 }}
+                style={{
+                  cursor: onEditItem ? 'pointer' : 'default',
+                  minWidth: 32,
+                  color: isExceedingStock ? '#dc2626' : undefined,
+                  fontWeight: isExceedingStock ? 900 : undefined
+                }}
                 onClick={(e) => {
                   e.stopPropagation()
                   onEditItem?.(item)
@@ -126,10 +170,20 @@ export const CartItem: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRe
               <button
                 type="button"
                 className="qty-btn"
-                title={`Increase by ${isWeight ? (isGram ? '50g' : `${stepDelta}kg`) : '1'}`}
+                disabled={isAtMaxStock}
+                style={isAtMaxStock ? { opacity: 0.35, cursor: 'not-allowed' } : undefined}
+                title={
+                  isAtMaxStock
+                    ? `Cannot increase: Store has only ${availableStock} ${item.unit || 'pcs'}`
+                    : `Increase by ${isWeight ? (isGram ? '50g' : `${stepDelta}kg`) : '1'}`
+                }
                 onClick={(e) => {
                   e.stopPropagation()
-                  const nextQty = Math.round((item.quantity + stepDelta) * 1000) / 1000
+                  if (isAtMaxStock) return
+                  const nextQty = Math.min(
+                    availableStock,
+                    Math.round((item.quantity + stepDelta) * 1000) / 1000
+                  )
                   onUpdateQuantity(item.product_id, nextQty)
                 }}
               >

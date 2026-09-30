@@ -118,6 +118,8 @@ export const ProductsPage: React.FC = () => {
         price: 0,
         cost_price: 0,
         initial_stock: 10,
+        initial_stock_kg: 1,
+        initial_stock_g: 0,
         image_path: undefined
       })
     }
@@ -150,7 +152,11 @@ export const ProductsPage: React.FC = () => {
       const isBaseGram = values.unit?.toLowerCase() === 'g'
       let finalInitialStock = Number(values.initial_stock) || 0
       if (isWeight) {
-        if (isBaseGram) {
+        if (values.initial_stock_kg !== undefined || values.initial_stock_g !== undefined) {
+          const kg = Number(values.initial_stock_kg) || 0
+          const g = Number(values.initial_stock_g) || 0
+          finalInitialStock = isBaseGram ? (kg * 1000 + g) : (kg + g / 1000)
+        } else if (isBaseGram) {
           finalInitialStock = prodStockWeightMode === 'kg' ? finalInitialStock * 1000 : finalInitialStock
         } else {
           finalInitialStock = prodStockWeightMode === 'g' ? Math.round((finalInitialStock / 1000) * 1000) / 1000 : finalInitialStock
@@ -1379,128 +1385,199 @@ export const ProductsPage: React.FC = () => {
                 if (!getFieldValue('track_inventory')) return null
                 const curUnit = getFieldValue('unit') || 'pcs'
                 const isWeight = curUnit === 'kg' || curUnit === 'g'
-                const currentQty = Number(getFieldValue('initial_stock')) || 0
 
                 return (
                   <div style={{ marginTop: 12 }}>
-                    <Form.Item
-                      name="initial_stock"
-                      label={
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                          <span style={{ fontWeight: 600, fontSize: 12.5, color: '#334155' }}>Initial Stock on Hand</span>
-                          {isWeight && (
-                            <div style={{ display: 'flex', background: '#f1f5f9', padding: 2, borderRadius: 5 }}>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (prodStockWeightMode !== 'g') {
-                                    setProdStockWeightMode('g')
-                                    form.setFieldsValue({ initial_stock: Math.round(currentQty * 1000) })
+                    {isWeight ? (
+                      <div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                          <Form.Item
+                            name="initial_stock_kg"
+                            label={<span style={{ fontWeight: 600, fontSize: 12.5, color: '#334155' }}>Weight (Kilograms / kg)</span>}
+                            initialValue={1}
+                            rules={[
+                              {
+                                validator: (_, val) => {
+                                  if (val !== undefined && val !== null && val !== '') {
+                                    if (Number(val) < 0) return Promise.reject(new Error('kg cannot be negative'))
+                                    if (Number(val) > 10000) return Promise.reject(new Error('kg too large'))
                                   }
-                                }}
-                                style={{
-                                  padding: '1px 6px',
-                                  borderRadius: 4,
-                                  fontSize: 10,
-                                  fontWeight: 700,
-                                  border: 'none',
-                                  cursor: 'pointer',
-                                  background: prodStockWeightMode === 'g' ? '#db2777' : 'transparent',
-                                  color: prodStockWeightMode === 'g' ? '#fff' : '#64748b'
-                                }}
-                              >
-                                g
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (prodStockWeightMode !== 'kg') {
-                                    setProdStockWeightMode('kg')
-                                    form.setFieldsValue({ initial_stock: Math.max(0.1, Math.round((currentQty / 1000) * 100) / 100) })
-                                  }
-                                }}
-                                style={{
-                                  padding: '1px 6px',
-                                  borderRadius: 4,
-                                  fontSize: 10,
-                                  fontWeight: 700,
-                                  border: 'none',
-                                  cursor: 'pointer',
-                                  background: prodStockWeightMode === 'kg' ? '#db2777' : 'transparent',
-                                  color: prodStockWeightMode === 'kg' ? '#fff' : '#64748b'
-                                }}
-                              >
-                                kg
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      }
-                      initialValue={isWeight ? (prodStockWeightMode === 'g' ? 500 : 1) : 10}
-                      rules={[
-                        { required: true, message: 'Please enter initial stock quantity' },
-                        {
-                          validator: (_, val) => {
-                            if (val === undefined || val === null || val === '') {
-                              return Promise.reject(new Error('Initial stock quantity is required'))
-                            }
-                            if (Number(val) < 0) {
-                              return Promise.reject(new Error('Initial stock cannot be negative'))
-                            }
-                            if (Number(val) > 1000000) {
-                              return Promise.reject(new Error('Initial stock quantity is too large'))
-                            }
-                            return Promise.resolve()
-                          }
-                        }
-                      ]}
-                      style={{ marginBottom: 6 }}
-                    >
-                      <InputNumber
-                        min={0}
-                        step={isWeight ? (prodStockWeightMode === 'g' ? 50 : 0.25) : 1}
-                        size="large"
-                        style={{ width: '100%', borderRadius: 8, fontWeight: 600 }}
-                      />
-                    </Form.Item>
-
-                    {/* Quick Presets */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>Quick Presets:</span>
-                      {isWeight ? (
-                        prodStockWeightMode === 'g' ? (
-                          [250, 500, 1000, 2000, 5000].map((g) => (
-                            <span
-                              key={g}
-                              className="form-quick-chip"
-                              onClick={() => form.setFieldsValue({ initial_stock: g })}
-                            >
-                              {g < 1000 ? `${g}g` : `${g / 1000}kg`}
-                            </span>
-                          ))
-                        ) : (
-                          [0.5, 1, 2, 5, 10].map((k) => (
-                            <span
-                              key={k}
-                              className="form-quick-chip"
-                              onClick={() => form.setFieldsValue({ initial_stock: k })}
-                            >
-                              {k} kg
-                            </span>
-                          ))
-                        )
-                      ) : (
-                        [5, 10, 20, 50, 100].map((q) => (
-                          <span
-                            key={q}
-                            className="form-quick-chip"
-                            onClick={() => form.setFieldsValue({ initial_stock: q })}
+                                  return Promise.resolve()
+                                }
+                              }
+                            ]}
+                            style={{ marginBottom: 0 }}
                           >
-                            {q} pcs
-                          </span>
-                        ))
-                      )}
-                    </div>
+                            <InputNumber
+                              min={0}
+                              step={1}
+                              placeholder="0"
+                              size="large"
+                              addonAfter="kg"
+                              style={{ width: '100%', borderRadius: 8, fontWeight: 700 }}
+                              onChange={(val) => {
+                                const k = Number(val) || 0
+                                const g = Number(form.getFieldValue('initial_stock_g')) || 0
+                                const isBaseGram = curUnit === 'g'
+                                form.setFieldsValue({ initial_stock: isBaseGram ? (k * 1000 + g) : (k + g / 1000) })
+                              }}
+                            />
+                          </Form.Item>
+
+                          <Form.Item
+                            name="initial_stock_g"
+                            label={<span style={{ fontWeight: 600, fontSize: 12.5, color: '#334155' }}>Weight (Grams / g)</span>}
+                            initialValue={0}
+                            rules={[
+                              {
+                                validator: (_, val) => {
+                                  if (val !== undefined && val !== null && val !== '') {
+                                    if (Number(val) < 0) return Promise.reject(new Error('g cannot be negative'))
+                                    if (Number(val) >= 1000) return Promise.reject(new Error('g must be < 1000'))
+                                  }
+                                  return Promise.resolve()
+                                }
+                              }
+                            ]}
+                            style={{ marginBottom: 0 }}
+                          >
+                            <InputNumber
+                              min={0}
+                              max={999}
+                              step={50}
+                              placeholder="0"
+                              size="large"
+                              addonAfter="g"
+                              style={{ width: '100%', borderRadius: 8, fontWeight: 700 }}
+                              onChange={(val) => {
+                                const g = Number(val) || 0
+                                const k = Number(form.getFieldValue('initial_stock_kg')) || 0
+                                const isBaseGram = curUnit === 'g'
+                                form.setFieldsValue({ initial_stock: isBaseGram ? (k * 1000 + g) : (k + g / 1000) })
+                              }}
+                            />
+                          </Form.Item>
+                        </div>
+
+                        <Form.Item name="initial_stock" hidden initialValue={curUnit === 'g' ? 1000 : 1}>
+                          <Input />
+                        </Form.Item>
+
+                        {/* Quick Presets for weight */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>Quick Presets:</span>
+                          {[
+                            { label: '250g', kg: 0, g: 250 },
+                            { label: '500g', kg: 0, g: 500 },
+                            { label: '1 kg', kg: 1, g: 0 },
+                            { label: '1.5 kg', kg: 1, g: 500 },
+                            { label: '2 kg', kg: 2, g: 0 },
+                            { label: '5 kg', kg: 5, g: 0 },
+                            { label: '10 kg', kg: 10, g: 0 },
+                            { label: '25 kg', kg: 25, g: 0 }
+                          ].map((p) => (
+                            <span
+                              key={p.label}
+                              className="form-quick-chip"
+                              onClick={() => {
+                                form.setFieldsValue({
+                                  initial_stock_kg: p.kg,
+                                  initial_stock_g: p.g,
+                                  initial_stock: curUnit === 'g' ? (p.kg * 1000 + p.g) : (p.kg + p.g / 1000)
+                                })
+                              }}
+                            >
+                              {p.label}
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* Quick By Money Value Calculation for Initial Stock */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: '#15803d' }}>💵 By Money Amount:</span>
+                          {[1000, 2000, 2500, 5000, 7500, 10000, 20000].map((amt) => (
+                            <span
+                              key={amt}
+                              className="form-quick-chip"
+                              style={{ background: '#f0fdf4', borderColor: '#bbf7d0', color: '#15803d', fontWeight: 700 }}
+                              onClick={() => {
+                                const effectivePrice = Number(form.getFieldValue('price')) || Number(form.getFieldValue('cost_price')) || 0
+                                if (effectivePrice <= 0) {
+                                  message.info('Please enter selling price first to calculate stock by money amount')
+                                  return
+                                }
+                                const isBaseGram = curUnit === 'g'
+                                if (isBaseGram) {
+                                  const totalG = Math.round(amt / effectivePrice)
+                                  form.setFieldsValue({
+                                    initial_stock_kg: Math.floor(totalG / 1000),
+                                    initial_stock_g: Math.round(totalG % 1000),
+                                    initial_stock: totalG
+                                  })
+                                } else {
+                                  const totalKg = amt / effectivePrice
+                                  const totalG = Math.round(totalKg * 1000)
+                                  form.setFieldsValue({
+                                    initial_stock_kg: Math.floor(totalG / 1000),
+                                    initial_stock_g: Math.round(totalG % 1000),
+                                    initial_stock: Math.round(totalKg * 1000) / 1000
+                                  })
+                                }
+                              }}
+                            >
+                              Rs. {amt >= 1000 ? `${amt / 1000}k` : amt}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <Form.Item
+                          name="initial_stock"
+                          label={<span style={{ fontWeight: 600, fontSize: 12.5, color: '#334155' }}>Initial Stock on Hand ({curUnit})</span>}
+                          initialValue={10}
+                          rules={[
+                            { required: true, message: 'Please enter initial stock quantity' },
+                            {
+                              validator: (_, val) => {
+                                if (val === undefined || val === null || val === '') {
+                                  return Promise.reject(new Error('Initial stock quantity is required'))
+                                }
+                                if (Number(val) < 0) {
+                                  return Promise.reject(new Error('Initial stock cannot be negative'))
+                                }
+                                if (Number(val) > 1000000) {
+                                  return Promise.reject(new Error('Initial stock quantity is too large'))
+                                }
+                                return Promise.resolve()
+                              }
+                            }
+                          ]}
+                          style={{ marginBottom: 6 }}
+                        >
+                          <InputNumber
+                            min={0}
+                            step={1}
+                            size="large"
+                            style={{ width: '100%', borderRadius: 8, fontWeight: 600 }}
+                          />
+                        </Form.Item>
+
+                        {/* Quick Presets */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>Quick Presets:</span>
+                          {[5, 10, 20, 50, 100].map((q) => (
+                            <span
+                              key={q}
+                              className="form-quick-chip"
+                              onClick={() => form.setFieldsValue({ initial_stock: q })}
+                            >
+                              {q} pcs
+                            </span>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )
               }}

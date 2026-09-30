@@ -72,6 +72,10 @@ export const POSPage: React.FC = () => {
 
   // Open quantity/weight selection dialog when user clicks or scans an item
   const handleProductSelect = (product: Product) => {
+    if (product.track_inventory && (product.current_stock ?? 0) <= 0) {
+      message.error(`"${product.name}" store එකේ තොග අවසන් (Out of stock)!`)
+      return
+    }
     const existingInCart = cartItems.find((i) => i.product_id === product.id)
     setSelectedProduct(product)
     setSelectedInitialQty(existingInCart ? existingInCart.quantity : 0)
@@ -87,7 +91,7 @@ export const POSPage: React.FC = () => {
       price: item.unit_price,
       cost_price: item.cost_price,
       unit: item.unit || 'pcs',
-      track_inventory: false,
+      track_inventory: item.track_inventory ?? false,
       is_active: true,
       current_stock: item.current_stock,
       image_path: item.image_path,
@@ -98,10 +102,10 @@ export const POSPage: React.FC = () => {
     setIsQtyModalOpen(true)
   }
 
-  // On quantity/weight confirmed from modal
-  const handleConfirmQuantity = (product: Product, quantity: number) => {
-    // Replace quantity in cart with the confirmed value
-    addItem(product, quantity, true)
+  // On quantity/weight/price confirmed from modal
+  const handleConfirmQuantity = (product: Product, quantity: number, customSubtotal?: number) => {
+    // Replace quantity in cart with the confirmed value and optional exact subtotal
+    addItem(product, quantity, true, customSubtotal)
   }
 
   // Global POS Keyboard Shortcuts (F1: Help, F2: Search, F3: Discount, F4: Pay, F9: Clear Cart)
@@ -138,6 +142,13 @@ export const POSPage: React.FC = () => {
       else if (e.key === 'F4' || (e.altKey && (e.key === 'p' || e.key === 'P')) || (e.altKey && (e.key === 'c' || e.key === 'C')) || (e.ctrlKey && e.key === 'Enter')) {
         e.preventDefault()
         if (cartItems.length > 0) {
+          const stockViolations = cartItems.filter(
+            (i) => i.track_inventory && i.current_stock !== undefined && i.quantity > i.current_stock
+          )
+          if (stockViolations.length > 0) {
+            message.error('Store එකේ තොගයට වඩා වැඩි භාණ්ඩ cart එකේ ඇති බැවින් checkout කළ නොහැක!')
+            return
+          }
           setIsPaymentOpen(true)
         } else {
           message.warning('Cart is empty. Please select or add items before checkout.')
