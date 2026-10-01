@@ -8,6 +8,7 @@ import { orderRepo } from './db/repositories/orderRepo'
 import { inventoryRepo } from './db/repositories/inventoryRepo'
 import { syncRepo } from './db/repositories/syncRepo'
 import { expenseRepo } from './db/repositories/expenseRepo'
+import { cashSessionRepo } from './db/repositories/cashSessionRepo'
 import { printService } from './services/printService'
 import { imageService, setupImageProtocol } from './services/imageService'
 import { syncService } from './services/syncService'
@@ -186,6 +187,20 @@ function setupIpcHandlers() {
     return { success: true }
   })
   ipcMain.handle('db:get-expense-summary', async (_, params) => await expenseRepo.getSummary(params))
+
+  // Cash Session (Opening Float) IPC Handlers
+  ipcMain.handle('db:get-today-cash-session', async (_, terminalId?: string) =>
+    await cashSessionRepo.getTodaySession(terminalId || 'T1')
+  )
+  ipcMain.handle('db:get-cash-session-by-date', async (_, { date, terminalId }) =>
+    await cashSessionRepo.getByDate(date, terminalId || 'T1')
+  )
+  ipcMain.handle('db:create-cash-session', async (_, data) =>
+    await cashSessionRepo.create(data)
+  )
+  ipcMain.handle('db:get-recent-cash-sessions', async (_, limit?: number) =>
+    await cashSessionRepo.getRecent(limit || 30)
+  )
 
   ipcMain.handle('auth:login-email', async (_, { email, password }: { email: string; password: string; shopId?: string }) => {
     try {

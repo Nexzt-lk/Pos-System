@@ -344,7 +344,7 @@ export const ExpensesPage: React.FC = () => {
 
   const handleAdd = async (values: any) => {
     try {
-      const created = await expensesApi.create({
+      await expensesApi.create({
         category: values.category,
         description: values.description,
         amount: Number(values.amount),
@@ -403,17 +403,7 @@ export const ExpensesPage: React.FC = () => {
     }
   }
 
-  const applyPreset = (preset: { category: string; description: string; amount: number }) => {
-    addForm.setFieldsValue({
-      category: preset.category,
-      description: preset.description,
-      amount: preset.amount,
-      expenseDate: dayjs(),
-      addedBy: currentUser?.name || 'Cashier',
-      printVoucher: true
-    })
-    setIsAddModalOpen(true)
-  }
+
 
   const handleExportCSV = () => {
     if (filtered.length === 0) {
@@ -454,7 +444,7 @@ export const ExpensesPage: React.FC = () => {
 
   // ─── Modal Form Markup ──────────────────────────────────────────────────────
 
-  const renderFormFields = (isEdit: boolean = false) => (
+  const renderFormFields = () => (
     <>
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 12 }}>
         <Form.Item

@@ -9,13 +9,17 @@ import { ReportsPage } from './features/reports/ReportsPage'
 import { ExpensesPage } from './features/expenses/ExpensesPage'
 import { OrdersPage } from './features/orders/OrdersPage'
 import { SettingsPage } from './features/settings/SettingsPage'
+import { OpeningFloatModal } from './components/OpeningFloatModal'
 import { useAppStore } from './store/appStore'
 
 import { ShieldAlert } from 'lucide-react'
 
 export const App: React.FC = () => {
   const currentUser = useAppStore((s) => s.currentUser)
+  const currentTerminalId = useAppStore((s) => s.currentTerminalId)
   const [activeTab, setActiveTab] = useState<string>('pos')
+  const [floatRequired, setFloatRequired] = useState(false)
+  const [floatChecked, setFloatChecked] = useState(false)
 
   // Continuous background cloud auto-sync timer
   useEffect(() => {
@@ -24,14 +28,67 @@ export const App: React.FC = () => {
         (window as any).electronAPI.triggerSync().catch(() => {})
       }
     }
-
-    // Run on startup
     runAutoSync()
     const timer = setInterval(runAutoSync, 10000)
     return () => clearInterval(timer)
   }, [])
 
+  // Check if today's opening float has been entered (runs on login)
+  useEffect(() => {
+    if (!currentUser) {
+      setFloatChecked(false)
+      setFloatRequired(false)
+      return
+    }
+
+    const checkFloat = async () => {
+      try {
+        const api = (window as any).electronAPI
+        if (!api?.getTodayCashSession) {
+          // Not in Electron (web/dev mode) — skip check
+          setFloatChecked(true)
+          setFloatRequired(false)
+          return
+        }
+        const terminalId = currentTerminalId || 'T1'
+        const session = await api.getTodayCashSession(terminalId)
+        setFloatRequired(!session)
+        setFloatChecked(true)
+      } catch {
+        // If check fails, don't block access
+        setFloatChecked(true)
+        setFloatRequired(false)
+      }
+    }
+
+    checkFloat()
+  }, [currentUser?.id])
+
+  const handleFloatConfirm = async (amount: number, notes: string) => {
+    const api = (window as any).electronAPI
+    const terminalId = currentTerminalId || 'T1'
+    await api.createCashSession({
+      openingFloat: amount,
+      cashierId: currentUser?.id,
+      cashierName: currentUser?.name,
+      terminalId,
+      notes: notes || undefined
+    })
+    setFloatRequired(false)
+  }
+
   if (!currentUser) return <LoginPage />
+
+  // Show opening float modal — mandatory, no skip
+  if (floatChecked && floatRequired) {
+    return (
+      <OpeningFloatModal
+        cashierName={currentUser.name || 'Cashier'}
+        terminalId={currentTerminalId || 'T1'}
+        onConfirm={handleFloatConfirm}
+      />
+    )
+  }
 
   const userRole = currentUser.role || 'cashier'
 
@@ -46,7 +103,6 @@ export const App: React.FC = () => {
   const allowedTabs = rolePermissions[userRole] || ['pos']
 
   const renderView = () => {
-    // If user role is not authorized for activeTab, fallback to POS or show Access Denied
     if (!allowedTabs.includes(activeTab)) {
       return (
         <div style={{

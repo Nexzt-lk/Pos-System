@@ -50,8 +50,10 @@ export const getDatabase = async (): Promise<POSDatabase> => {
   const dbPath = path.join(projectDbDir, 'cakeshop_local.db')
   console.log(`[Database] Initializing SQLite database (packaged=${isPackaged}) at: ${dbPath}`)
 
-  // DB version — bump this whenever seed data changes significantly
-  const MASTER_DB_VERSION = 4 // v4: Updated shop address & phone number
+  // DB version — bump this whenever a new migration is added
+  // IMPORTANT: Only bump this number when adding a new entry in runMigrations() below.
+  // Do NOT use version bump to overwrite existing data.
+  const MASTER_DB_VERSION = 5 // v5: Migration-based schema updates (data-safe)
 
   // Helper: read product count from a DB buffer
   const getProductCount = (buf: Buffer): number => {
@@ -103,10 +105,10 @@ export const getDatabase = async (): Promise<POSDatabase> => {
     } catch (_) {}
   }
 
-  // Check if destination db needs deployment or replacement (version-based)
+  // Check if destination db needs first-time deployment (fresh install only)
   let needsMasterSeed = false
   if (!fs.existsSync(dbPath)) {
-    console.log('[Database] No existing DB found. Will deploy master template.')
+    console.log('[Database] No existing DB found. Will deploy master template for first install.')
     needsMasterSeed = true
   } else {
     try {
@@ -116,13 +118,14 @@ export const getDatabase = async (): Promise<POSDatabase> => {
 
       console.log(`[Database] Existing DB: ${existingProductCount} products, version=${existingVersion}`)
 
-      if (existingProductCount < 18) {
-        console.warn(`[Database] Existing DB has ${existingProductCount} products (< 18). Force replacing from master template.`)
-        needsMasterSeed = true
-      } else if (existingVersion < MASTER_DB_VERSION) {
-        console.warn(`[Database] DB version (${existingVersion}) < master (${MASTER_DB_VERSION}). Replacing with updated DB...`)
+      if (existingProductCount < 5) {
+        // Only replace if this looks like a brand-new/empty DB (< 5 products)
+        // This protects shops that removed products intentionally from being reset
+        console.warn(`[Database] Existing DB appears empty (${existingProductCount} products). Deploying from master template.`)
         needsMasterSeed = true
       }
+      // NOTE: We no longer replace based on version mismatch.
+      // Migrations are applied safely below to update schema without data loss.
     } catch (_) {
       needsMasterSeed = true
     }
@@ -194,7 +197,69 @@ export const getDatabase = async (): Promise<POSDatabase> => {
     }
   }
 
-  // Ensure shop address and phone are always updated to official details
+  // ─────────────────────────────────────────────────────────────────────────
+  // SAFE MIGRATION SYSTEM
+  // Add new migrations here. Never overwrite/replace the DB for schema changes.
+  // Each migration is idempotent (CREATE TABLE IF NOT EXISTS / ALTER TABLE).
+  // ─────────────────────────────────────────────────────────────────────────
+  const runMigrations = (db: any) => {
+    // Migration 1: Ensure expenses table exists
+    try {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS expenses (
+          id              TEXT PRIMARY KEY,
+          category        TEXT,
+          description     TEXT NOT NULL,
+          amount          REAL NOT NULL,
+          expense_date    TEXT NOT NULL,
+          linked_product_id TEXT REFERENCES products(id) ON DELETE SET NULL,
+          linked_stock_movement_id TEXT REFERENCES stock_movements(id) ON DELETE SET NULL,
+          added_by        TEXT,
+          created_at      TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+          local_id        TEXT NOT NULL,
+          sync_status     TEXT DEFAULT 'pending' CHECK (sync_status IN ('pending','synced','conflict')),
+          UNIQUE(local_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date);
+      `)
+    } catch (e) { console.warn('[Migration-1] expenses table:', e) }
+
+    // Migration 2: Ensure cash_sessions table exists
+    try {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS cash_sessions (
+          id              TEXT PRIMARY KEY,
+          session_date    TEXT NOT NULL,
+          terminal_id     TEXT NOT NULL DEFAULT 'T1',
+          cashier_id      TEXT,
+          cashier_name    TEXT,
+          opening_float   REAL NOT NULL DEFAULT 0,
+          notes           TEXT,
+          created_at      TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+          UNIQUE(session_date, terminal_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_cash_sessions_date ON cash_sessions(session_date);
+      `)
+    } catch (e) { console.warn('[Migration-2] cash_sessions table:', e) }
+
+    // Migration 3: Ensure settings table exists and update db_version
+    try {
+      db.run(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')));`)
+      db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('db_version', '${MASTER_DB_VERSION}');`)
+    } catch (e) { console.warn('[Migration-3] settings/version:', e) }
+
+    // ── Add future migrations below this line ──
+    // Migration 4: Example — add a new column safely
+    // try {
+    //   db.run(`ALTER TABLE orders ADD COLUMN customer_name TEXT;`)
+    // } catch (_) { /* column already exists — safe to ignore */ }
+
+    console.log(`[Migration] All migrations applied. DB version set to ${MASTER_DB_VERSION}.`)
+  }
+
+  runMigrations(rawDb)
+
+  // Update shop address and phone to official details (safe update, never deletes data)
   try {
     rawDb.run(`
       UPDATE shops 
@@ -202,34 +267,18 @@ export const getDatabase = async (): Promise<POSDatabase> => {
           phone = '071-1172201'
       WHERE id = 'b0000000-0000-0000-0000-000000000001';
     `)
-    const data = rawDb.export()
-    fs.writeFileSync(dbPath, Buffer.from(data))
-    lastMtime = fs.statSync(dbPath).mtimeMs
   } catch (shopErr) {
     console.warn('[Database] Notice on shop details update:', shopErr)
   }
 
-  // Ensure expenses table and indexes exist
+  // Save all migration changes to disk
   try {
-    rawDb.run(`
-      CREATE TABLE IF NOT EXISTS expenses (
-        id              TEXT PRIMARY KEY,
-        category        TEXT,
-        description     TEXT NOT NULL,
-        amount          REAL NOT NULL,
-        expense_date    TEXT NOT NULL,
-        linked_product_id TEXT REFERENCES products(id) ON DELETE SET NULL,
-        linked_stock_movement_id TEXT REFERENCES stock_movements(id) ON DELETE SET NULL,
-        added_by        TEXT,
-        created_at      TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-        local_id        TEXT NOT NULL,
-        sync_status     TEXT DEFAULT 'pending' CHECK (sync_status IN ('pending','synced','conflict')),
-        UNIQUE(local_id)
-      );
-      CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date);
-    `)
-  } catch (expErr) {
-    console.warn('[Database] Notice on expenses table check:', expErr)
+    const migratedData = rawDb.export()
+    fs.writeFileSync(dbPath, Buffer.from(migratedData))
+    lastMtime = fs.statSync(dbPath).mtimeMs
+    console.log(`[Database] Migration changes saved to disk.`)
+  } catch (saveErr) {
+    console.warn('[Database] Failed to save migration changes:', saveErr)
   }
 
   const reloadFromDiskIfNeeded = () => {

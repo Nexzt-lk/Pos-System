@@ -19,6 +19,12 @@ export interface ElectronAPI {
   getExpenseSummary: (params?: any) => Promise<any>
   printExpenseVoucher: (data: any, printerName?: string) => Promise<{ success: boolean; message?: string; printerUsed?: string }>
 
+  // Cash Session (Opening Float)
+  getTodayCashSession: (terminalId?: string) => Promise<any | null>
+  getCashSessionByDate: (date: string, terminalId?: string) => Promise<any | null>
+  createCashSession: (data: { openingFloat: number; cashierId?: string; cashierName?: string; terminalId?: string; notes?: string }) => Promise<any>
+  getRecentCashSessions: (limit?: number) => Promise<any[]>
+
   // Hardware & Printing
   getPrinters: () => Promise<any[]>
   printReceipt: (receiptData: any, printerName?: string) => Promise<{ success: boolean; message?: string; printerUsed?: string }>
@@ -53,6 +59,12 @@ const electronAPI: ElectronAPI = {
   deleteExpense: (id) => ipcRenderer.invoke('db:delete-expense', id),
   getExpenseSummary: (params) => ipcRenderer.invoke('db:get-expense-summary', params),
   printExpenseVoucher: (data, printerName) => ipcRenderer.invoke('printer:print-expense-voucher', { data, printerName }),
+
+  // Cash Sessions
+  getTodayCashSession: (terminalId) => ipcRenderer.invoke('db:get-today-cash-session', terminalId),
+  getCashSessionByDate: (date, terminalId) => ipcRenderer.invoke('db:get-cash-session-by-date', { date, terminalId }),
+  createCashSession: (data) => ipcRenderer.invoke('db:create-cash-session', data),
+  getRecentCashSessions: (limit) => ipcRenderer.invoke('db:get-recent-cash-sessions', limit),
 
   getPrinters: () => ipcRenderer.invoke('printer:get-printers'),
   printReceipt: (receiptData, printerName) => ipcRenderer.invoke('printer:print-receipt', { data: receiptData, printerName }),
