@@ -61,7 +61,9 @@ export const ordersApi = {
 
   getById: (id: string): Promise<OrderDto> => apiClient.get<OrderDto>(`/orders/${id}`),
 
-  getAll: (limit: number = 100): Promise<OrderDto[]> => apiClient.get<OrderDto[]>('/orders', { params: { limit } })
+  getAll: (limit: number = 100): Promise<OrderDto[]> => apiClient.get<OrderDto[]>('/orders', { params: { limit } }),
+
+  getByDateRange: (from: string, to: string): Promise<OrderDto[]> => apiClient.get<OrderDto[]>('/orders', { params: { from, to } })
 }
 
 export default ordersApi

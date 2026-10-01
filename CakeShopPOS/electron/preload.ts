@@ -10,6 +10,15 @@ export interface ElectronAPI {
   getCategories: (shopId?: string) => Promise<any[]>
   upsertCategory: (category: any) => Promise<void>
   
+  // Expenses Management
+  getExpenses: (params?: any) => Promise<any[]>
+  getExpenseById: (id: string) => Promise<any>
+  createExpense: (expense: any) => Promise<any>
+  updateExpense: (id: string, expense: any) => Promise<any>
+  deleteExpense: (id: string) => Promise<{ success: boolean }>
+  getExpenseSummary: (params?: any) => Promise<any>
+  printExpenseVoucher: (data: any, printerName?: string) => Promise<{ success: boolean; message?: string; printerUsed?: string }>
+
   // Hardware & Printing
   getPrinters: () => Promise<any[]>
   printReceipt: (receiptData: any, printerName?: string) => Promise<{ success: boolean; message?: string; printerUsed?: string }>
@@ -35,6 +44,16 @@ const electronAPI: ElectronAPI = {
   upsertProduct: (product) => ipcRenderer.invoke('db:upsert-product', product),
   getCategories: (shopId) => ipcRenderer.invoke('db:get-categories', shopId),
   upsertCategory: (category) => ipcRenderer.invoke('db:upsert-category', category),
+
+  // Expenses
+  getExpenses: (params) => ipcRenderer.invoke('db:get-expenses', params),
+  getExpenseById: (id) => ipcRenderer.invoke('db:get-expense-by-id', id),
+  createExpense: (expense) => ipcRenderer.invoke('db:create-expense', expense),
+  updateExpense: (id, expense) => ipcRenderer.invoke('db:update-expense', { id, data: expense }),
+  deleteExpense: (id) => ipcRenderer.invoke('db:delete-expense', id),
+  getExpenseSummary: (params) => ipcRenderer.invoke('db:get-expense-summary', params),
+  printExpenseVoucher: (data, printerName) => ipcRenderer.invoke('printer:print-expense-voucher', { data, printerName }),
+
   getPrinters: () => ipcRenderer.invoke('printer:get-printers'),
   printReceipt: (receiptData, printerName) => ipcRenderer.invoke('printer:print-receipt', { data: receiptData, printerName }),
   testPrint: (printerName) => ipcRenderer.invoke('printer:test-print', printerName),

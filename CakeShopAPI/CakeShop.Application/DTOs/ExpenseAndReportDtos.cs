@@ -9,6 +9,14 @@ public class CreateExpenseRequest
     public string? LinkedProductId { get; set; }  // set when this expense is a restock cost
 }
 
+public class UpdateExpenseRequest
+{
+    public string? Category { get; set; }
+    public string Description { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public DateOnly ExpenseDate { get; set; }
+}
+
 public class ExpenseDto
 {
     public string Id { get; set; } = string.Empty;

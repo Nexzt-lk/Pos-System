@@ -157,7 +157,7 @@ public class OrderRepository : IOrderRepository
 
         using (var cmd = connection.CreateCommand())
         {
-            cmd.CommandText = "SELECT * FROM orders WHERE created_at BETWEEN $from AND $to ORDER BY created_at;";
+            cmd.CommandText = "SELECT * FROM orders WHERE created_at BETWEEN $from AND $to ORDER BY created_at DESC;";
             cmd.Parameters.AddWithValue("$from", fromUtc.ToString("o"));
             cmd.Parameters.AddWithValue("$to", toUtc.ToString("o"));
             using var reader = await cmd.ExecuteReaderAsync();

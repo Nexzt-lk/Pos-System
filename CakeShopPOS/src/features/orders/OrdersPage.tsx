@@ -1,0 +1,1056 @@
+import React, { useState, useEffect, useMemo } from 'react'
+import {
+  DatePicker,
+  Table,
+  Tag,
+  Button,
+  Input,
+  Select,
+  Modal,
+  Space,
+  Empty,
+  Tooltip,
+  message
+} from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import {
+  ReceiptText,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  RotateCw,
+  Printer,
+  Eye,
+  Banknote,
+  CreditCard,
+  Package,
+  Clock,
+  TrendingUp,
+  Lock,
+  ShieldCheck
+} from 'lucide-react'
+import dayjs, { Dayjs } from 'dayjs'
+import { ordersApi, OrderDto, OrderItemDto } from '../../api/ordersApi'
+import { useAppStore } from '../../store/appStore'
+import { formatCurrency, formatDateTime } from '../../lib/formatters'
+import { ReceiptModal } from '../pos/ReceiptModal'
+
+export const OrdersPage: React.FC = () => {
+  const currentShop = useAppStore((state) => state.currentShop)
+  const currentUser = useAppStore((state) => state.currentUser)
+
+  // Date selection state - defaults to today
+  const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs())
+  const [orders, setOrders] = useState<OrderDto[]>([])
+  const [loading, setLoading] = useState<boolean>(false)
+  const [searchQuery, setSearchQuery] = useState<string>('')
+  const [paymentFilter, setPaymentFilter] = useState<string>('all')
+
+  // Modal / Receipt preview state
+  const [selectedOrder, setSelectedOrder] = useState<OrderDto | null>(null)
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState<boolean>(false)
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState<boolean>(false)
+
+  // Fetch orders for the chosen date
+  const loadOrdersForDate = async (targetDate: Dayjs) => {
+    setLoading(true)
+    try {
+      const fromStr = targetDate.startOf('day').toISOString()
+      const toStr = targetDate.endOf('day').toISOString()
+
+      // Fetch from API with date range, or fallback to getAll and filter
+      let fetchedOrders: OrderDto[] = []
+      try {
+        fetchedOrders = await ordersApi.getByDateRange(fromStr, toStr)
+      } catch {
+        // Fallback: fetch latest orders and filter client-side
+        const all = await ordersApi.getAll(500)
+        const dateKey = targetDate.format('YYYY-MM-DD')
+        fetchedOrders = all.filter((o) => {
+          if (!o.createdAt) return false
+          return dayjs(o.createdAt).format('YYYY-MM-DD') === dateKey
+        })
+      }
+
+      // Sort descending (latest first)
+      fetchedOrders.sort((a, b) => {
+        return dayjs(b.createdAt).valueOf() - dayjs(a.createdAt).valueOf()
+      })
+
+      setOrders(fetchedOrders)
+    } catch (err) {
+      console.error('Failed to load daily orders:', err)
+      message.error('Failed to load orders for the selected date.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Load when selectedDate changes
+  useEffect(() => {
+    loadOrdersForDate(selectedDate)
+  }, [selectedDate])
+
+  // Listen to POS order completion events to automatically update in real-time
+  useEffect(() => {
+    const handleNewOrder = () => {
+      // If currently viewing today, reload list
+      if (selectedDate.isSame(dayjs(), 'day')) {
+        loadOrdersForDate(selectedDate)
+      }
+    }
+
+    window.addEventListener('pos:order-completed', handleNewOrder)
+    return () => {
+      window.removeEventListener('pos:order-completed', handleNewOrder)
+    }
+  }, [selectedDate])
+
+  // Quick Date Navigation Handlers
+  const handlePrevDay = () => setSelectedDate((prev) => prev.subtract(1, 'day'))
+  const handleNextDay = () => {
+    if (selectedDate.isSame(dayjs(), 'day')) return
+    setSelectedDate((prev) => prev.add(1, 'day'))
+  }
+  const handleSetToday = () => setSelectedDate(dayjs())
+  const handleSetYesterday = () => setSelectedDate(dayjs().subtract(1, 'day'))
+
+  // Filtered orders list based on search and payment method
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order) => {
+      // Payment filter
+      if (paymentFilter !== 'all') {
+        const primaryPayment = order.payments?.[0]?.method?.toUpperCase() || 'CASH'
+        if (primaryPayment !== paymentFilter.toUpperCase()) return false
+      }
+
+      // Search query filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim()
+        const matchesOrderNo = order.orderNo?.toLowerCase().includes(q)
+        const matchesItem = order.items?.some((item) =>
+          item.productName?.toLowerCase().includes(q) || item.itemCode?.toLowerCase().includes(q)
+        )
+        const matchesCashier = order.cashierId?.toLowerCase().includes(q)
+        if (!matchesOrderNo && !matchesItem && !matchesCashier) {
+          return false
+        }
+      }
+
+      return true
+    })
+  }, [orders, paymentFilter, searchQuery])
+
+  // Calculate day metrics
+  const metrics = useMemo(() => {
+    let totalRevenue = 0
+    let totalCash = 0
+    let totalCard = 0
+    let totalDiscounts = 0
+    let totalItemsSold = 0
+
+    orders.forEach((o) => {
+      totalRevenue += Number(o.totalAmount || 0)
+      totalDiscounts += Number(o.discountAmount || 0)
+
+      o.items?.forEach((item) => {
+        totalItemsSold += Number(item.quantity || 0)
+      })
+
+      const method = o.payments?.[0]?.method?.toUpperCase()
+      const amt = Number(o.payments?.[0]?.amount ?? o.totalAmount ?? 0)
+      if (method === 'CARD') {
+        totalCard += amt
+      } else {
+        totalCash += amt
+      }
+    })
+
+    return {
+      orderCount: orders.length,
+      totalRevenue,
+      totalCash,
+      totalCard,
+      totalDiscounts,
+      totalItemsSold,
+      avgOrderValue: orders.length > 0 ? totalRevenue / orders.length : 0
+    }
+  }, [orders])
+
+  // Action: Open Details Modal
+  const handleViewOrder = (order: OrderDto) => {
+    setSelectedOrder(order)
+    setIsDetailsModalOpen(true)
+  }
+
+  // Action: Open Receipt Modal (for reprinting)
+  const handlePrintOrder = (order: OrderDto) => {
+    setSelectedOrder(order)
+    setIsReceiptModalOpen(true)
+  }
+
+  // Quick Direct Print
+  const handleDirectPrint = async (order: OrderDto) => {
+    if (!window.electronAPI) {
+      handlePrintOrder(order)
+      return
+    }
+
+    try {
+      const preferredPrinter = localStorage.getItem('selected_printer') || undefined
+      await window.electronAPI.printReceipt(
+        {
+          shopName: currentShop?.name || 'Wasana Cake - Katugastota',
+          address: currentShop?.address || 'Horana Wasana Bakers Galagedara Road Katugastota',
+          phone: currentShop?.phone || '071-1172201',
+          orderNo: order.orderNo,
+          cashierName: order.cashierId || currentUser?.name || 'Staff',
+          dateTime: formatDateTime(order.createdAt),
+          items: order.items.map((i) => ({
+            name: i.productName,
+            quantity: `${i.quantity} pcs`,
+            unitPrice: i.unitPrice,
+            subtotal: i.subtotal
+          })),
+          subtotal: order.subtotal,
+          discountAmount: order.discountAmount,
+          taxAmount: order.taxAmount,
+          totalAmount: order.totalAmount,
+          paymentMethod: order.payments?.[0]?.method || 'CASH',
+          cashGiven: order.payments?.[0]?.cashGiven,
+          changeGiven: order.payments?.[0]?.changeGiven
+        },
+        preferredPrinter
+      )
+      message.success(`Receipt printed for ${order.orderNo}`)
+    } catch (err) {
+      console.error('Print failed:', err)
+      handlePrintOrder(order)
+    }
+  }
+
+  // Table Columns Definition
+  const columns: ColumnsType<OrderDto> = [
+    {
+      title: 'Time & Order #',
+      dataIndex: 'orderNo',
+      key: 'orderNo',
+      width: 220,
+      render: (_, record) => {
+        const timeFormatted = dayjs(record.createdAt).format('hh:mm A')
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span
+                style={{
+                  fontWeight: 700,
+                  fontSize: 13,
+                  color: 'var(--text-primary)',
+                  letterSpacing: '0.3px'
+                }}
+              >
+                {record.orderNo}
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#64748b' }}>
+              <Clock size={12} color="#94a3b8" />
+              <span>{timeFormatted}</span>
+            </div>
+          </div>
+        )
+      }
+    },
+    {
+      title: 'Items Breakdown',
+      dataIndex: 'items',
+      key: 'items',
+      render: (items: OrderItemDto[]) => {
+        if (!items || items.length === 0) return <span style={{ color: '#94a3b8' }}>-</span>
+
+        const totalQty = items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <Tag
+                color="blue"
+                style={{
+                  borderRadius: 12,
+                  fontWeight: 600,
+                  fontSize: 11,
+                  padding: '1px 8px',
+                  margin: 0
+                }}
+              >
+                {totalQty} {totalQty === 1 ? 'item' : 'items'}
+              </Tag>
+              <span
+                style={{
+                  fontSize: 12,
+                  color: 'var(--text-primary)',
+                  fontWeight: 500,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  maxWidth: 340
+                }}
+                title={items.map((i) => `${i.productName} (${i.quantity})`).join(', ')}
+              >
+                {items
+                  .map((i) => `${i.productName} × ${i.quantity}`)
+                  .slice(0, 3)
+                  .join(', ')}
+                {items.length > 3 ? ` +${items.length - 3} more` : ''}
+              </span>
+            </div>
+          </div>
+        )
+      }
+    },
+    {
+      title: 'Payment Method',
+      dataIndex: 'payments',
+      key: 'payments',
+      width: 140,
+      render: (payments) => {
+        const method = (payments?.[0]?.method || 'CASH').toUpperCase()
+        const isCash = method === 'CASH'
+        return (
+          <Tag
+            color={isCash ? 'success' : 'processing'}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              borderRadius: 6,
+              fontWeight: 600,
+              fontSize: 11,
+              padding: '2px 8px'
+            }}
+          >
+            {isCash ? <Banknote size={13} /> : <CreditCard size={13} />}
+            {method}
+          </Tag>
+        )
+      }
+    },
+    {
+      title: 'Discount',
+      dataIndex: 'discountAmount',
+      key: 'discountAmount',
+      width: 110,
+      align: 'right',
+      render: (discount) => {
+        if (!discount || discount <= 0) return <span style={{ color: '#cbd5e1' }}>—</span>
+        return (
+          <span style={{ fontSize: 12, color: '#e11d48', fontWeight: 600 }}>
+            -{formatCurrency(discount)}
+          </span>
+        )
+      }
+    },
+    {
+      title: 'Total Amount',
+      dataIndex: 'totalAmount',
+      key: 'totalAmount',
+      width: 150,
+      align: 'right',
+      render: (amount) => (
+        <span
+          style={{
+            fontWeight: 800,
+            fontSize: 14,
+            color: '#16a34a',
+            letterSpacing: '-0.3px'
+          }}
+        >
+          {formatCurrency(amount)}
+        </span>
+      )
+    },
+    {
+      title: 'Audit / Print',
+      key: 'actions',
+      width: 130,
+      align: 'center',
+      render: (_, record) => (
+        <Space size={6}>
+          <Tooltip title="View Read-Only Details">
+            <Button
+              type="text"
+              size="small"
+              icon={<Eye size={15} color="#3b82f6" />}
+              onClick={() => handleViewOrder(record)}
+              style={{
+                borderRadius: 6,
+                backgroundColor: '#eff6ff'
+              }}
+            />
+          </Tooltip>
+          <Tooltip title="Reprint Thermal Receipt">
+            <Button
+              type="text"
+              size="small"
+              icon={<Printer size={15} color="#16a34a" />}
+              onClick={() => handleDirectPrint(record)}
+              style={{
+                borderRadius: 6,
+                backgroundColor: '#f0fdf4'
+              }}
+            />
+          </Tooltip>
+        </Space>
+      )
+    }
+  ]
+
+  // Receipt Modal Data Adapter
+  const receiptOrderData = useMemo(() => {
+    if (!selectedOrder) return null
+    return {
+      order_no: selectedOrder.orderNo,
+      cashier_name: selectedOrder.cashierId || currentUser?.name || 'Cashier',
+      created_at: selectedOrder.createdAt,
+      items: selectedOrder.items?.map((i) => ({
+        product_name: i.productName,
+        quantity: i.quantity,
+        unit: 'pcs',
+        unit_price: i.unitPrice,
+        subtotal: i.subtotal
+      })) || [],
+      subtotal: selectedOrder.subtotal,
+      discount_amount: selectedOrder.discountAmount,
+      tax_amount: selectedOrder.taxAmount,
+      total_amount: selectedOrder.totalAmount,
+      payments: selectedOrder.payments?.map((p) => ({
+        method: p.method,
+        cash_given: p.cashGiven,
+        change_given: p.changeGiven,
+        amount: p.amount
+      })) || []
+    }
+  }, [selectedOrder, currentUser])
+
+  return (
+    <div
+      style={{
+        padding: '16px 24px 28px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 16,
+        maxWidth: 1600,
+        margin: '0 auto',
+        height: '100%',
+        overflowY: 'auto'
+      }}
+    >
+      {/* ───── Top Header & Date Navigation ───── */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 12,
+          backgroundColor: '#ffffff',
+          padding: '14px 20px',
+          borderRadius: 12,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+          border: '1px solid #f1f5f9'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 10,
+              backgroundColor: '#ecfdf5',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#16a34a'
+            }}
+          >
+            <ReceiptText size={24} />
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h1
+                style={{
+                  fontSize: 20,
+                  fontWeight: 800,
+                  color: '#0f172a',
+                  margin: 0,
+                  letterSpacing: '-0.3px'
+                }}
+              >
+                Daily Orders History
+              </h1>
+              <Tag
+                style={{
+                  borderRadius: 12,
+                  fontWeight: 600,
+                  backgroundColor: '#f1f5f9',
+                  color: '#475569',
+                  border: '1px solid #cbd5e1',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}
+              >
+                <Lock size={12} color="#64748b" />
+                Strictly Read-Only
+              </Tag>
+            </div>
+            <p style={{ margin: '2px 0 0', fontSize: 13, color: '#64748b' }}>
+              Inspect and reprint orders placed on {selectedDate.format('dddd, DD MMMM YYYY')}
+            </p>
+          </div>
+        </div>
+
+        {/* Date Selector Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <Space.Compact>
+            <Button
+              icon={<ChevronLeft size={16} />}
+              onClick={handlePrevDay}
+              title="Previous Day"
+              style={{ borderRadius: '8px 0 0 8px' }}
+            />
+            <DatePicker
+              value={selectedDate}
+              onChange={(date) => date && setSelectedDate(date)}
+              format="YYYY-MM-DD (dddd)"
+              allowClear={false}
+              disabledDate={(current) => current && current > dayjs().endOf('day')}
+              style={{ width: 200, textAlign: 'center', fontWeight: 600 }}
+            />
+            <Button
+              icon={<ChevronRight size={16} />}
+              onClick={handleNextDay}
+              disabled={selectedDate.isSame(dayjs(), 'day')}
+              title="Next Day"
+              style={{ borderRadius: '0 8px 8px 0' }}
+            />
+          </Space.Compact>
+
+          <Button
+            type={selectedDate.isSame(dayjs(), 'day') ? 'primary' : 'default'}
+            onClick={handleSetToday}
+            style={{
+              fontWeight: 600,
+              borderRadius: 8,
+              backgroundColor: selectedDate.isSame(dayjs(), 'day') ? '#16a34a' : undefined,
+              borderColor: selectedDate.isSame(dayjs(), 'day') ? '#16a34a' : undefined
+            }}
+          >
+            Today
+          </Button>
+
+          <Button
+            type={selectedDate.isSame(dayjs().subtract(1, 'day'), 'day') ? 'primary' : 'default'}
+            onClick={handleSetYesterday}
+            style={{
+              fontWeight: 600,
+              borderRadius: 8,
+              backgroundColor: selectedDate.isSame(dayjs().subtract(1, 'day'), 'day') ? '#16a34a' : undefined,
+              borderColor: selectedDate.isSame(dayjs().subtract(1, 'day'), 'day') ? '#16a34a' : undefined
+            }}
+          >
+            Yesterday
+          </Button>
+
+          <Button
+            icon={<RotateCw size={14} className={loading ? 'animate-spin' : ''} />}
+            onClick={() => loadOrdersForDate(selectedDate)}
+            loading={loading}
+            style={{ borderRadius: 8 }}
+          >
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {/* ───── Daily KPI Metrics Summary ───── */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: 14
+        }}
+      >
+        {/* Total Orders Card */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: 12,
+            padding: '16px 18px',
+            border: '1px solid #f1f5f9',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Total Orders</span>
+            <div
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 8,
+                backgroundColor: '#eff6ff',
+                color: '#3b82f6',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <ReceiptText size={16} />
+            </div>
+          </div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a' }}>
+            {metrics.orderCount}
+          </div>
+          <span style={{ fontSize: 11, color: '#94a3b8' }}>Completed sales today</span>
+        </div>
+
+        {/* Total Net Revenue Card */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: 12,
+            padding: '16px 18px',
+            border: '1px solid #f1f5f9',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Total Revenue</span>
+            <div
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 8,
+                backgroundColor: '#ecfdf5',
+                color: '#16a34a',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <TrendingUp size={16} />
+            </div>
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#16a34a' }}>
+            {formatCurrency(metrics.totalRevenue)}
+          </div>
+          <span style={{ fontSize: 11, color: '#94a3b8' }}>
+            Avg. Ticket: {formatCurrency(metrics.avgOrderValue)}
+          </span>
+        </div>
+
+        {/* Cash Sales Card */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: 12,
+            padding: '16px 18px',
+            border: '1px solid #f1f5f9',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Cash Collected</span>
+            <div
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 8,
+                backgroundColor: '#f0fdf4',
+                color: '#22c55e',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <Banknote size={16} />
+            </div>
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a' }}>
+            {formatCurrency(metrics.totalCash)}
+          </div>
+          <span style={{ fontSize: 11, color: '#94a3b8' }}>Direct cash payments</span>
+        </div>
+
+        {/* Card Sales Card */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: 12,
+            padding: '16px 18px',
+            border: '1px solid #f1f5f9',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Card / Digital</span>
+            <div
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 8,
+                backgroundColor: '#f5f3ff',
+                color: '#8b5cf6',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <CreditCard size={16} />
+            </div>
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a' }}>
+            {formatCurrency(metrics.totalCard)}
+          </div>
+          <span style={{ fontSize: 11, color: '#94a3b8' }}>POS Terminal swipes</span>
+        </div>
+
+        {/* Total Items Sold Card */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: 12,
+            padding: '16px 18px',
+            border: '1px solid #f1f5f9',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Items Sold</span>
+            <div
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 8,
+                backgroundColor: '#fffbeb',
+                color: '#f59e0b',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <Package size={16} />
+            </div>
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a' }}>
+            {metrics.totalItemsSold} pcs
+          </div>
+          <span style={{ fontSize: 11, color: '#94a3b8' }}>
+            Discounts: {formatCurrency(metrics.totalDiscounts)}
+          </span>
+        </div>
+      </div>
+
+      {/* ───── Table Toolbar: Search & Filters ───── */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+          flexWrap: 'wrap',
+          backgroundColor: '#ffffff',
+          padding: '12px 16px',
+          borderRadius: 10,
+          border: '1px solid #f1f5f9'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 260 }}>
+          <Input
+            prefix={<Search size={16} color="#94a3b8" />}
+            placeholder="Search by Order # or Product name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            allowClear
+            style={{ borderRadius: 8, maxWidth: 380 }}
+          />
+
+          <Select
+            value={paymentFilter}
+            onChange={setPaymentFilter}
+            style={{ width: 150 }}
+            options={[
+              { value: 'all', label: 'All Payments' },
+              { value: 'cash', label: 'Cash Only' },
+              { value: 'card', label: 'Card Only' }
+            ]}
+          />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>
+            Showing <strong>{filteredOrders.length}</strong> of <strong>{orders.length}</strong> orders
+          </span>
+        </div>
+      </div>
+
+      {/* ───── Orders Table ───── */}
+      <div
+        style={{
+          backgroundColor: '#ffffff',
+          borderRadius: 12,
+          border: '1px solid #f1f5f9',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+          overflow: 'hidden'
+        }}
+      >
+        <Table
+          rowKey="id"
+          columns={columns}
+          dataSource={filteredOrders}
+          loading={loading}
+          pagination={{
+            pageSize: 15,
+            showSizeChanger: true,
+            pageSizeOptions: ['15', '30', '50', '100'],
+            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} orders`
+          }}
+          locale={{
+            emptyText: (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  <div style={{ padding: '16px 0' }}>
+                    <p style={{ margin: 0, fontWeight: 600, color: '#475569' }}>
+                      No orders found for {selectedDate.format('DD MMMM YYYY')}
+                    </p>
+                    <p style={{ margin: '4px 0 0', fontSize: 12, color: '#94a3b8' }}>
+                      Orders placed on this day through the Counter POS will appear here.
+                    </p>
+                  </div>
+                }
+              />
+            )
+          }}
+        />
+      </div>
+
+      {/* ───── Order Breakdown Details Modal ───── */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ReceiptText size={20} color="#16a34a" />
+            <div>
+              <span style={{ fontSize: 16, fontWeight: 800 }}>Order Details: {selectedOrder?.orderNo}</span>
+              <div style={{ fontSize: 11, fontWeight: 500, color: '#64748b' }}>
+                {selectedOrder?.createdAt && formatDateTime(selectedOrder.createdAt)}
+              </div>
+            </div>
+          </div>
+        }
+        open={isDetailsModalOpen}
+        onCancel={() => setIsDetailsModalOpen(false)}
+        footer={[
+          <Button key="close" onClick={() => setIsDetailsModalOpen(false)} style={{ borderRadius: 8 }}>
+            Close
+          </Button>,
+          <Button
+            key="print"
+            type="primary"
+            icon={<Printer size={15} />}
+            onClick={() => {
+              setIsDetailsModalOpen(false)
+              if (selectedOrder) handlePrintOrder(selectedOrder)
+            }}
+            style={{ borderRadius: 8, backgroundColor: '#16a34a', borderColor: '#16a34a' }}
+          >
+            Reprint Receipt
+          </Button>
+        ]}
+        width={650}
+      >
+        {selectedOrder && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 10 }}>
+            {/* Security Audit Read-Only Banner */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                backgroundColor: '#f8fafc',
+                padding: '9px 14px',
+                borderRadius: 8,
+                border: '1px solid #e2e8f0',
+                color: '#475569',
+                fontSize: 12
+              }}
+            >
+              <ShieldCheck size={18} color="#16a34a" style={{ flexShrink: 0 }} />
+              <div>
+                <strong>Protected Audit Record (Strictly Read-Only):</strong> All details of this transaction are permanent and cannot be modified.
+              </div>
+            </div>
+
+            {/* Header Info */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 10,
+                backgroundColor: '#f8fafc',
+                padding: '12px 14px',
+                borderRadius: 8,
+                fontSize: 12
+              }}
+            >
+              <div>
+                <span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Order #</span>
+                <strong>{selectedOrder.orderNo}</strong>
+              </div>
+              <div>
+                <span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Payment</span>
+                <strong style={{ color: '#0f172a' }}>
+                  {selectedOrder.payments?.[0]?.method || 'CASH'}
+                </strong>
+              </div>
+              <div>
+                <span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Cashier</span>
+                <strong>{selectedOrder.cashierId || currentUser?.name || 'Staff'}</strong>
+              </div>
+            </div>
+
+            {/* Line items table */}
+            <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
+                    <th style={{ padding: '8px 12px', fontWeight: 600 }}>Item</th>
+                    <th style={{ padding: '8px 12px', fontWeight: 600, textAlign: 'right' }}>Price</th>
+                    <th style={{ padding: '8px 12px', fontWeight: 600, textAlign: 'center' }}>Qty</th>
+                    <th style={{ padding: '8px 12px', fontWeight: 600, textAlign: 'right' }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedOrder.items?.map((item, idx) => (
+                    <tr
+                      key={idx}
+                      style={{
+                        borderBottom: idx === selectedOrder.items.length - 1 ? 'none' : '1px solid #f1f5f9'
+                      }}
+                    >
+                      <td style={{ padding: '10px 12px' }}>
+                        <div style={{ fontWeight: 600, color: '#0f172a' }}>{item.productName}</div>
+                        {item.itemCode && (
+                          <div style={{ fontSize: 11, color: '#94a3b8' }}>Code: {item.itemCode}</div>
+                        )}
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', color: '#475569' }}>
+                        {formatCurrency(item.unitPrice)}
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 600 }}>
+                        {item.quantity}
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#0f172a' }}>
+                        {formatCurrency(item.subtotal)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Financial Summary */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+                backgroundColor: '#f8fafc',
+                padding: '14px 16px',
+                borderRadius: 8,
+                fontSize: 13
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                <span>Subtotal</span>
+                <span>{formatCurrency(selectedOrder.subtotal)}</span>
+              </div>
+              {selectedOrder.discountAmount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#e11d48' }}>
+                  <span>Discount</span>
+                  <span>-{formatCurrency(selectedOrder.discountAmount)}</span>
+                </div>
+              )}
+              {selectedOrder.taxAmount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                  <span>Tax</span>
+                  <span>+{formatCurrency(selectedOrder.taxAmount)}</span>
+                </div>
+              )}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontWeight: 800,
+                  fontSize: 16,
+                  color: '#16a34a',
+                  borderTop: '1px solid #e2e8f0',
+                  paddingTop: 8,
+                  marginTop: 2
+                }}
+              >
+                <span>Grand Total</span>
+                <span>{formatCurrency(selectedOrder.totalAmount)}</span>
+              </div>
+
+              {selectedOrder.payments?.[0]?.cashGiven && (
+                <>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: 12,
+                      color: '#64748b',
+                      paddingTop: 4
+                    }}
+                  >
+                    <span>Cash Tendered</span>
+                    <span>{formatCurrency(selectedOrder.payments[0].cashGiven)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b' }}>
+                    <span>Change Returned</span>
+                    <span>{formatCurrency(selectedOrder.payments[0].changeGiven)}</span>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* ───── Full Thermal Receipt Preview Modal ───── */}
+      {receiptOrderData && (
+        <ReceiptModal
+          isOpen={isReceiptModalOpen}
+          onClose={() => setIsReceiptModalOpen(false)}
+          orderData={receiptOrderData}
+        />
+      )}
+    </div>
+  )
+}
+
+export default OrdersPage

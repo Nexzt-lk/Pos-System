@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import {
   ShoppingCart, Cake, Package, BarChart3,
-  Settings, LogOut, Clock, Store, Monitor
+  Settings, LogOut, Clock, Store, Monitor, ReceiptText, Receipt
 } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
 import { useStockAlertStore } from '../store/stockAlertStore'
@@ -80,6 +80,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
     { id: 'pos', label: 'Counter POS', icon: ShoppingCart, roles: ['owner', 'admin', 'manager', 'cashier'] },
     { id: 'products', label: 'Products', icon: Cake, roles: ['owner', 'admin', 'manager', 'cashier'] },
     { id: 'inventory', label: 'Inventory', icon: Package, roles: ['owner', 'admin', 'manager', 'cashier'] },
+    { id: 'orders', label: 'Daily Orders', icon: ReceiptText, roles: ['owner', 'admin', 'manager', 'cashier'] },
+    { id: 'expenses', label: 'Expenses', icon: Receipt, roles: ['owner', 'admin', 'manager', 'cashier'] },
     { id: 'reports', label: 'Reports', icon: BarChart3, roles: ['owner', 'admin', 'manager'] },
     { id: 'settings', label: 'Settings', icon: Settings, roles: ['owner', 'admin'] },
   ]

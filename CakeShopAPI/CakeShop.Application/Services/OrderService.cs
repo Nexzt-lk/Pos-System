@@ -157,6 +157,12 @@ public class OrderService
         return orders.Select(MapToDto).ToList();
     }
 
+    public async Task<List<OrderDto>> GetByDateRangeAsync(DateTime fromUtc, DateTime toUtc)
+    {
+        var orders = await _orders.GetByDateRangeAsync(fromUtc, toUtc);
+        return orders.Select(MapToDto).ToList();
+    }
+
     private static OrderDto MapToDto(Order order) => new()
     {
         Id = order.Id,

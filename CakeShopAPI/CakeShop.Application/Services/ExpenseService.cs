@@ -41,16 +41,39 @@ public class ExpenseService
     public async Task<List<ExpenseDto>> GetAllAsync()
     {
         var expenses = await _expenses.GetAllAsync();
-        return expenses.Select(e => new ExpenseDto
-        {
-            Id = e.Id,
-            Category = e.Category,
-            Description = e.Description,
-            Amount = e.Amount,
-            ExpenseDate = e.ExpenseDate,
-            LinkedProductId = e.LinkedProductId
-        }).ToList();
+        return expenses.Select(MapToDto).ToList();
+    }
+
+    public async Task<List<ExpenseDto>> GetByDateRangeAsync(DateOnly from, DateOnly to)
+    {
+        var expenses = await _expenses.GetByDateRangeAsync(from, to);
+        return expenses.Select(MapToDto).ToList();
+    }
+
+    public async Task<ExpenseDto> UpdateAsync(string id, UpdateExpenseRequest request)
+    {
+        var all = await _expenses.GetAllAsync();
+        var existing = all.FirstOrDefault(e => e.Id == id)
+            ?? throw new KeyNotFoundException($"Expense {id} not found");
+
+        existing.Category = request.Category;
+        existing.Description = request.Description;
+        existing.Amount = request.Amount;
+        existing.ExpenseDate = request.ExpenseDate;
+
+        await _expenses.UpdateAsync(existing);
+        return MapToDto(existing);
     }
 
     public async Task DeleteAsync(string id) => await _expenses.DeleteAsync(id);
+
+    private static ExpenseDto MapToDto(Expense e) => new()
+    {
+        Id = e.Id,
+        Category = e.Category,
+        Description = e.Description,
+        Amount = e.Amount,
+        ExpenseDate = e.ExpenseDate,
+        LinkedProductId = e.LinkedProductId
+    };
 }

@@ -7,6 +7,7 @@ import { categoryRepo } from './db/repositories/categoryRepo'
 import { orderRepo } from './db/repositories/orderRepo'
 import { inventoryRepo } from './db/repositories/inventoryRepo'
 import { syncRepo } from './db/repositories/syncRepo'
+import { expenseRepo } from './db/repositories/expenseRepo'
 import { printService } from './services/printService'
 import { imageService, setupImageProtocol } from './services/imageService'
 import { syncService } from './services/syncService'
@@ -166,6 +167,26 @@ function setupIpcHandlers() {
     return res
   })
 
+  // Expenses Management IPC Handlers
+  ipcMain.handle('db:get-expenses', async (_, params) => await expenseRepo.getAll(params))
+  ipcMain.handle('db:get-expense-by-id', async (_, id: string) => await expenseRepo.getById(id))
+  ipcMain.handle('db:create-expense', async (_, expenseData) => {
+    const res = await expenseRepo.create(expenseData)
+    syncService.processSyncQueue().catch(() => {})
+    return res
+  })
+  ipcMain.handle('db:update-expense', async (_, { id, data }) => {
+    const res = await expenseRepo.update(id, data)
+    syncService.processSyncQueue().catch(() => {})
+    return res
+  })
+  ipcMain.handle('db:delete-expense', async (_, id: string) => {
+    await expenseRepo.delete(id)
+    syncService.processSyncQueue().catch(() => {})
+    return { success: true }
+  })
+  ipcMain.handle('db:get-expense-summary', async (_, params) => await expenseRepo.getSummary(params))
+
   ipcMain.handle('auth:login-email', async (_, { email, password }: { email: string; password: string; shopId?: string }) => {
     try {
       const db = await getDatabase()
@@ -244,6 +265,7 @@ function setupIpcHandlers() {
   ipcMain.handle('printer:get-printers', async () => await printService.getPrinters(mainWindow || undefined))
   ipcMain.handle('printer:print-receipt', (_, { data, printerName }: any) => printService.printReceipt(data, printerName))
   ipcMain.handle('printer:test-print', (_, printerName?: string) => printService.testPrint(printerName))
+  ipcMain.handle('printer:print-expense-voucher', (_, { data, printerName }: any) => printService.printExpenseVoucher(data, printerName))
 
   ipcMain.handle('image:select-dialog', () => imageService.selectImageDialog())
   ipcMain.handle('image:save', (_, sourcePath) => imageService.saveProductImage(sourcePath))

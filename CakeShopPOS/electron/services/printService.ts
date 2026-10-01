@@ -24,6 +24,20 @@ export interface ReceiptPrintData {
   footerNote?: string
 }
 
+export interface ExpenseVoucherPrintData {
+  shopName?: string
+  branchName?: string
+  address?: string
+  phone?: string
+  voucherNo: string
+  dateTime: string
+  category: string
+  description: string
+  amount: number
+  addedBy?: string
+  footerNote?: string
+}
+
 export const printService = {
   getPrinters: async (win?: BrowserWindow): Promise<any[]> => {
     try {
@@ -335,5 +349,215 @@ export const printService = {
       changeGiven: 20,
       footerNote: 'TEST PRINT SUCCESSFUL — PRINTER CONNECTED! ✅'
     }, targetPrinter)
+  },
+
+  printExpenseVoucher: async (
+    data: ExpenseVoucherPrintData,
+    preferredPrinter?: string
+  ): Promise<{ success: boolean; message?: string; printerUsed?: string }> => {
+    try {
+      console.log(`[PrintService] Printing petty cash voucher #${data.voucherNo}...`)
+
+      const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Expense Voucher ${data.voucherNo}</title>
+          <style>
+            @page {
+              margin: 0;
+              size: 80mm auto;
+            }
+            * {
+              box-sizing: border-box;
+            }
+            body {
+              margin: 0;
+              padding: 6px 8px 16px 8px;
+              font-family: 'Courier New', Courier, 'Noto Sans Sinhala', monospace, sans-serif;
+              font-size: 13px;
+              line-height: 1.35;
+              color: #000;
+              background: #fff;
+              width: 76mm;
+            }
+            .text-center { text-align: center; }
+            .text-right { text-align: right; }
+            .bold { font-weight: bold; }
+            .title {
+              font-size: 16px;
+              font-weight: 900;
+              letter-spacing: 0.5px;
+              margin-bottom: 2px;
+            }
+            .badge-voucher {
+              display: inline-block;
+              border: 1.5px solid #000;
+              padding: 2px 8px;
+              font-size: 12px;
+              font-weight: 900;
+              letter-spacing: 1px;
+              margin: 5px 0;
+            }
+            .divider {
+              border-bottom: 1px dashed #000;
+              margin: 6px 0;
+            }
+            .double-divider {
+              border-bottom: 2px solid #000;
+              margin: 6px 0;
+            }
+            .row {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              margin-bottom: 4px;
+            }
+            .amount-box {
+              border: 1.5px solid #000;
+              padding: 6px 8px;
+              margin: 8px 0;
+              text-align: center;
+            }
+            .amount-title {
+              font-size: 11px;
+              font-weight: bold;
+              text-transform: uppercase;
+            }
+            .amount-val {
+              font-size: 18px;
+              font-weight: 900;
+              margin-top: 2px;
+            }
+            .sign-area {
+              margin-top: 20px;
+              padding-top: 4px;
+            }
+            .sign-line {
+              border-bottom: 1px solid #000;
+              height: 22px;
+              margin-bottom: 3px;
+            }
+            .footer {
+              text-align: center;
+              font-size: 11px;
+              margin-top: 12px;
+              color: #333;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="text-center">
+            <div class="title">${data.shopName || 'Wasana Cake - Katugastota'}</div>
+            ${data.branchName ? `<div style="font-size: 11px;">${data.branchName}</div>` : ''}
+            ${data.address ? `<div style="font-size: 10px; color: #222;">${data.address}</div>` : ''}
+            ${data.phone ? `<div style="font-size: 10px; color: #222;">Tel: ${data.phone}</div>` : ''}
+            <div><span class="badge-voucher">PETTY CASH VOUCHER</span></div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="row">
+            <span>Voucher No:</span>
+            <span class="bold">#${data.voucherNo}</span>
+          </div>
+          <div class="row">
+            <span>Date & Time:</span>
+            <span>${data.dateTime}</span>
+          </div>
+          <div class="row">
+            <span>Category:</span>
+            <span class="bold">${data.category}</span>
+          </div>
+          <div class="row">
+            <span>Paid By / Staff:</span>
+            <span>${data.addedBy || 'Counter Cashier'}</span>
+          </div>
+
+          <div class="divider"></div>
+
+          <div style="font-size: 11px; font-weight: bold; margin-bottom: 2px;">EXPENSE PURPOSE / DESCRIPTION:</div>
+          <div style="font-size: 13px; font-weight: 600; padding: 4px 0; word-break: break-word;">
+            ${data.description}
+          </div>
+
+          <div class="amount-box">
+            <div class="amount-title">PAID AMOUNT (LKR)</div>
+            <div class="amount-val">Rs. ${Number(data.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div style="font-size: 10px; color: #333; margin-top: 2px;">Paid From: Counter Cash Drawer</div>
+          </div>
+
+          <div class="sign-area">
+            <div class="row" style="align-items: flex-end;">
+              <div style="width: 46%;">
+                <div class="sign-line"></div>
+                <div style="font-size: 10px; text-align: center;">Cashier Signature</div>
+              </div>
+              <div style="width: 46%;">
+                <div class="sign-line"></div>
+                <div style="font-size: 10px; text-align: center;">Recipient / Approved</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="footer">
+            <div>${data.footerNote || 'Wasana Cake Katugastota · POS Cash Drawer Outflow'}</div>
+            <div style="font-size: 9px; color: #666; margin-top: 3px;">Printed: ${new Date().toLocaleTimeString()}</div>
+          </div>
+        </body>
+        </html>
+      `
+
+      const printWin = new BrowserWindow({
+        show: false,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true
+        }
+      })
+
+      await printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+
+      const printers = await printWin.webContents.getPrintersAsync()
+      let deviceName = ''
+
+      if (preferredPrinter && preferredPrinter !== 'default') {
+        const found = printers.find(
+          (p) => p.name.toLowerCase() === preferredPrinter.toLowerCase() || p.displayName?.toLowerCase() === preferredPrinter.toLowerCase()
+        )
+        if (found) deviceName = found.name
+      }
+
+      if (!deviceName) {
+        const defaultPrinter = printers.find((p) => p.isDefault)
+        if (defaultPrinter) deviceName = defaultPrinter.name
+      }
+
+      return new Promise((resolve) => {
+        printWin.webContents.print(
+          {
+            silent: true,
+            printBackground: true,
+            deviceName: deviceName || undefined,
+            margins: { marginType: 'none' }
+          },
+          (success, failureReason) => {
+            try {
+              printWin.close()
+            } catch (_) {}
+
+            if (success) {
+              resolve({ success: true, printerUsed: deviceName || 'Default' })
+            } else {
+              resolve({ success: false, message: failureReason || 'Printer error', printerUsed: deviceName })
+            }
+          }
+        )
+      })
+    } catch (err: any) {
+      console.error('[PrintService] Error printing expense voucher:', err)
+      return { success: false, message: err.message }
+    }
   }
 }

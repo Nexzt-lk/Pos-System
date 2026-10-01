@@ -31,8 +31,15 @@ public class OrdersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<OrderDto>>> GetAll([FromQuery] int limit = 100)
+    public async Task<ActionResult<List<OrderDto>>> GetAll(
+        [FromQuery] int limit = 100,
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null)
     {
+        if (from.HasValue && to.HasValue)
+        {
+            return Ok(await _service.GetByDateRangeAsync(from.Value, to.Value));
+        }
         return Ok(await _service.GetAllAsync(limit));
     }
 

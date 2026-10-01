@@ -209,6 +209,29 @@ export const getDatabase = async (): Promise<POSDatabase> => {
     console.warn('[Database] Notice on shop details update:', shopErr)
   }
 
+  // Ensure expenses table and indexes exist
+  try {
+    rawDb.run(`
+      CREATE TABLE IF NOT EXISTS expenses (
+        id              TEXT PRIMARY KEY,
+        category        TEXT,
+        description     TEXT NOT NULL,
+        amount          REAL NOT NULL,
+        expense_date    TEXT NOT NULL,
+        linked_product_id TEXT REFERENCES products(id) ON DELETE SET NULL,
+        linked_stock_movement_id TEXT REFERENCES stock_movements(id) ON DELETE SET NULL,
+        added_by        TEXT,
+        created_at      TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+        local_id        TEXT NOT NULL,
+        sync_status     TEXT DEFAULT 'pending' CHECK (sync_status IN ('pending','synced','conflict')),
+        UNIQUE(local_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date);
+    `)
+  } catch (expErr) {
+    console.warn('[Database] Notice on expenses table check:', expErr)
+  }
+
   const reloadFromDiskIfNeeded = () => {
     try {
       if (fs.existsSync(dbPath)) {
