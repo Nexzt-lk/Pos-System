@@ -690,7 +690,7 @@ export const syncService = {
               description: exp.description || 'Expense',
               amount: Number(exp.amount) || 0,
               expense_date: exp.expense_date || new Date().toISOString().split('T')[0],
-              added_by: exp.added_by || 'Admin',
+              added_by: toValidUuid(exp.added_by) || null,
               local_id: exp.local_id || exp.id,
               sync_status: 'synced',
               created_at: exp.created_at || new Date().toISOString()

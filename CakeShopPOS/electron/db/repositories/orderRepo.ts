@@ -737,6 +737,98 @@ export const orderRepo = {
       [startDateStr, endDateStr]
     )
 
+    // Detailed expenses list for drill-down & reports
+    const detailedExpenses = db.query<{
+      id: string
+      category: string
+      description: string
+      amount: number
+      expense_date: string
+      added_by: string
+      payment_method: string
+      notes: string
+    }>(
+      `
+      SELECT 
+        id,
+        COALESCE(category, 'General') as category,
+        COALESCE(description, '') as description,
+        COALESCE(amount, 0) as amount,
+        COALESCE(expense_date, '') as expense_date,
+        COALESCE(added_by, 'Staff') as added_by,
+        COALESCE(payment_method, 'CASH') as payment_method,
+        COALESCE(notes, '') as notes
+      FROM expenses
+      WHERE substr(expense_date, 1, 10) >= ? AND substr(expense_date, 1, 10) <= ?
+      ORDER BY expense_date DESC, created_at DESC
+      LIMIT 100
+    `,
+      [startDateStr, endDateStr]
+    )
+
+    // Critical low stock and out-of-stock items for drill-down
+    const lowStockList = db.query<{
+      id: string
+      product_name: string
+      item_code: string
+      category_name: string
+      current_stock: number
+      min_quantity: number
+      cost_price: number
+      price: number
+      unit: string
+    }>(
+      `
+      SELECT 
+        p.id,
+        p.name as product_name,
+        COALESCE(p.item_code, '-') as item_code,
+        COALESCE(c.name, 'General') as category_name,
+        COALESCE(i.quantity, 0) as current_stock,
+        COALESCE(i.min_quantity, 5) as min_quantity,
+        COALESCE(p.cost_price, 0) as cost_price,
+        COALESCE(p.price, 0) as price,
+        COALESCE(p.unit, 'pcs') as unit
+      FROM products p
+      LEFT JOIN inventory i ON p.id = i.product_id
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE (p.is_active = 1 OR p.is_active IS NULL)
+        AND COALESCE(i.quantity, 0) <= COALESCE(i.min_quantity, 5)
+      ORDER BY current_stock ASC
+      LIMIT 50
+    `
+    )
+
+    // Damage loss details for drill-down
+    const damageLossList = db.query<{
+      id: string
+      product_name: string
+      quantity: number
+      cost_per_unit: number
+      total_cost: number
+      note: string
+      created_at: string
+    }>(
+      `
+      SELECT 
+        sm.id,
+        COALESCE(p.name, 'Unknown Item') as product_name,
+        sm.quantity,
+        COALESCE(sm.cost_per_unit, p.cost_price, 0) as cost_per_unit,
+        COALESCE(sm.quantity * COALESCE(sm.cost_per_unit, p.cost_price, 0), 0) as total_cost,
+        COALESCE(sm.note, '-') as note,
+        sm.created_at
+      FROM stock_movements sm
+      LEFT JOIN products p ON sm.product_id = p.id
+      WHERE sm.type = 'DAMAGE'
+        AND COALESCE(strftime('%Y-%m-%d', sm.created_at, 'localtime'), substr(sm.created_at, 1, 10)) >= ? 
+        AND COALESCE(strftime('%Y-%m-%d', sm.created_at, 'localtime'), substr(sm.created_at, 1, 10)) <= ?
+      ORDER BY sm.created_at DESC
+      LIMIT 50
+    `,
+      [startDateStr, endDateStr]
+    )
+
     const totalExpenses = expensesSummary?.total_expenses || 0
     const netProfit = estimatedProfit - totalExpenses
     const netProfitMarginPct = totalRevenue > 0
@@ -773,7 +865,10 @@ export const orderRepo = {
         cashSales: cashPayments,
         cashExpenses: totalExpenses,
         netCashEstimated: netCashInDrawer
-      }
+      },
+      detailedExpenses,
+      lowStockList,
+      damageLossList
     }
 
     return {

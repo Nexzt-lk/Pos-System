@@ -444,7 +444,7 @@ export const ExpensesPage: React.FC = () => {
 
   // ─── Modal Form Markup ──────────────────────────────────────────────────────
 
-  const renderFormFields = () => (
+  const renderFormFields = (_isEdit: boolean = false) => (
     <>
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 12 }}>
         <Form.Item

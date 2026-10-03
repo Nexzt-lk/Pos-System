@@ -4,12 +4,10 @@ import {
   Calendar,
   Banknote,
   TrendingUp,
-  Tag,
   CreditCard,
   Building2,
   DollarSign,
   Receipt,
-  Percent,
   ArrowUpRight,
   ArrowDownRight,
   Sparkles,
@@ -32,7 +30,8 @@ import {
   AlertTriangle,
   TrendingDown,
   ShieldCheck,
-  Coins
+  Coins,
+  FileText
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -53,6 +52,8 @@ import { formatCurrency, formatDateTime } from '../../lib/formatters'
 import dayjs from 'dayjs'
 import { reportsApi } from '../../api/reportsApi'
 import { RefreshButton } from '../../components/RefreshButton'
+import { AnalyticsDetailModal, DetailModalType } from './AnalyticsDetailModal'
+import { ReportGeneratorModal } from './ReportGeneratorModal'
 
 type PeriodType = 'daily' | 'weekly' | 'monthly' | 'custom'
 
@@ -145,6 +146,36 @@ interface AnalyticsState {
       cashExpenses: number
       netCashEstimated: number
     }
+    detailedExpenses?: Array<{
+      id: string
+      category: string
+      description: string
+      amount: number
+      expense_date: string
+      added_by: string
+      payment_method: string
+      notes: string
+    }>
+    lowStockList?: Array<{
+      id: string
+      product_name: string
+      item_code: string
+      category_name: string
+      current_stock: number
+      min_quantity: number
+      cost_price: number
+      price: number
+      unit: string
+    }>
+    damageLossList?: Array<{
+      id: string
+      product_name: string
+      quantity: number
+      cost_per_unit: number
+      total_cost: number
+      note: string
+      created_at: string
+    }>
   }
   peakSlot: { label: string; revenue: number; orders: number } | null
   recentOrders: Array<{
@@ -187,6 +218,8 @@ export const ReportsPage: React.FC = () => {
   const [itemSortKey, setItemSortKey] = useState<'revenue' | 'qty' | 'profit' | 'margin'>('revenue')
   const [loading, setLoading] = useState<boolean>(false)
   const [analytics, setAnalytics] = useState<AnalyticsState | null>(null)
+  const [detailModal, setDetailModal] = useState<DetailModalType>(null)
+  const [showReportGen, setShowReportGen] = useState<boolean>(false)
 
   // Fetch real analytics data from Local Electron DB or Backend API
   const loadAnalytics = async () => {
@@ -848,6 +881,28 @@ export const ReportsPage: React.FC = () => {
             <RefreshButton onClick={loadAnalytics} isLoading={loading} label="" />
 
             <button
+              onClick={() => setShowReportGen(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px 14px',
+                borderRadius: 'var(--radius-sm)',
+                border: 'none',
+                background: 'linear-gradient(135deg, #16a34a, #059669)',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+                color: '#ffffff',
+                boxShadow: '0 2px 8px rgba(22, 163, 74, 0.3)'
+              }}
+              title="Generate Official Business Report (වාර්තා සැකසීම)"
+            >
+              <FileText size={14} />
+              <span>Generate Report</span>
+            </button>
+
+            <button
               onClick={handleExportCSV}
               style={{
                 display: 'flex',
@@ -893,237 +948,413 @@ export const ReportsPage: React.FC = () => {
       {/* ───── VIEW MODE 1: STORE SALES & ITEM-WISE PERFORMANCE ───── */}
       {viewMode === 'store' && (
         <>
-          {/* KPI Cards Grid */}
+          {/* Interactive Clickable KPI Cards Grid */}
           <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-        gap: 14
-      }}>
-        {/* Total Revenue */}
-        <div style={{
-          background: 'var(--surface)',
-          padding: '18px 20px',
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--border)',
-          boxShadow: 'var(--shadow-sm)'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Total Revenue
-            </span>
-            <div style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: 'var(--primary-bg)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--primary)'
-            }}>
-              <DollarSign size={16} />
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+            gap: 14
+          }}>
+            {/* Card 1: Total Revenue (දෛනික ආදායම) */}
+            <div
+              onClick={() => setDetailModal('revenue')}
+              role="button"
+              tabIndex={0}
+              style={{
+                background: 'var(--surface)',
+                padding: '18px 20px',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border)',
+                boxShadow: 'var(--shadow-sm)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-3px)'
+                e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(22, 163, 74, 0.15)'
+                e.currentTarget.style.borderColor = '#16a34a'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'none'
+                e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
+                e.currentTarget.style.borderColor = 'var(--border)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Daily Revenue (දෛනික ආදායම)
+                  </span>
+                  <div style={{ fontSize: 10, color: '#16a34a', fontWeight: 700, marginTop: 2 }}>
+                    Click for Sales Breakdown ↗
+                  </div>
+                </div>
+                <div style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 8,
+                  background: 'rgba(22, 163, 74, 0.12)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#16a34a'
+                }}>
+                  <DollarSign size={18} />
+                </div>
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: '#16a34a', letterSpacing: '-0.5px', marginBottom: 6 }}>
+                {formatCurrency(analytics?.summary?.total_revenue || 0)}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600 }}>
+                {analytics && analytics.summary.revenue_growth_pct >= 0 ? (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 2,
+                    color: '#16a34a',
+                    background: '#dcfce7',
+                    padding: '2px 6px',
+                    borderRadius: 99
+                  }}>
+                    <ArrowUpRight size={12} /> +{analytics.summary.revenue_growth_pct}%
+                  </span>
+                ) : (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 2,
+                    color: '#ef4444',
+                    background: '#fee2e2',
+                    padding: '2px 6px',
+                    borderRadius: 99
+                  }}>
+                    <ArrowDownRight size={12} /> {analytics?.summary.revenue_growth_pct}%
+                  </span>
+                )}
+                <span style={{ color: 'var(--text-muted)' }}>{analytics?.summary?.total_orders || 0} completed bills</span>
+              </div>
             </div>
-          </div>
-          <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--primary)', letterSpacing: '-0.5px', marginBottom: 6 }}>
-            {formatCurrency(analytics?.summary?.total_revenue || 0)}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600 }}>
-            {analytics && analytics.summary.revenue_growth_pct >= 0 ? (
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 2,
-                color: '#16a34a',
-                background: '#dcfce7',
-                padding: '2px 6px',
-                borderRadius: 99
-              }}>
-                <ArrowUpRight size={12} /> +{analytics.summary.revenue_growth_pct}%
-              </span>
-            ) : (
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 2,
-                color: '#ef4444',
-                background: '#fee2e2',
-                padding: '2px 6px',
-                borderRadius: 99
-              }}>
-                <ArrowDownRight size={12} /> {analytics?.summary.revenue_growth_pct}%
-              </span>
-            )}
-            <span style={{ color: 'var(--text-muted)' }}>vs previous period</span>
-          </div>
-        </div>
 
-        {/* Total Orders */}
-        <div style={{
-          background: 'var(--surface)',
-          padding: '18px 20px',
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--border)',
-          boxShadow: 'var(--shadow-sm)'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Total Bills / Orders
-            </span>
-            <div style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: '#eff6ff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#2563eb'
-            }}>
-              <Receipt size={16} />
+            {/* Card 2: Daily Expenses (දෛනික වියදම්) */}
+            <div
+              onClick={() => setDetailModal('expenses')}
+              role="button"
+              tabIndex={0}
+              style={{
+                background: 'var(--surface)',
+                padding: '18px 20px',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border)',
+                boxShadow: 'var(--shadow-sm)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-3px)'
+                e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(234, 88, 12, 0.15)'
+                e.currentTarget.style.borderColor = '#ea580c'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'none'
+                e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
+                e.currentTarget.style.borderColor = 'var(--border)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Operating Expenses (දෛනික වියදම්)
+                  </span>
+                  <div style={{ fontSize: 10, color: '#ea580c', fontWeight: 700, marginTop: 2 }}>
+                    Click for Vouchers Audit ↗
+                  </div>
+                </div>
+                <div style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 8,
+                  background: 'rgba(234, 88, 12, 0.12)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#ea580c'
+                }}>
+                  <TrendingDown size={18} />
+                </div>
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: '#ea580c', letterSpacing: '-0.5px', marginBottom: 6 }}>
+                {formatCurrency(analytics?.ownerMetrics?.totalExpenses || 0)}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600 }}>
+                <span style={{
+                  background: '#ffedd5',
+                  color: '#c2410c',
+                  padding: '2px 8px',
+                  borderRadius: 99
+                }}>
+                  {analytics?.ownerMetrics?.expenseCategories?.length || 0} categories
+                </span>
+                <span style={{ color: 'var(--text-muted)' }}>
+                  Cash outflow: {formatCurrency(analytics?.ownerMetrics?.cashDrawer?.cashExpenses || analytics?.ownerMetrics?.totalExpenses || 0)}
+                </span>
+              </div>
             </div>
-          </div>
-          <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.5px', marginBottom: 6 }}>
-            {analytics?.summary?.total_orders || 0}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600 }}>
-            {analytics && analytics.summary.orders_growth_pct >= 0 ? (
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 2,
-                color: '#2563eb',
-                background: '#dbeafe',
-                padding: '2px 6px',
-                borderRadius: 99
-              }}>
-                <ArrowUpRight size={12} /> +{analytics.summary.orders_growth_pct}%
-              </span>
-            ) : (
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 2,
-                color: '#ef4444',
-                background: '#fee2e2',
-                padding: '2px 6px',
-                borderRadius: 99
-              }}>
-                <ArrowDownRight size={12} /> {analytics?.summary.orders_growth_pct}%
-              </span>
-            )}
-            <span style={{ color: 'var(--text-muted)' }}>completed transactions</span>
-          </div>
-        </div>
 
-        {/* Avg Ticket Size */}
-        <div style={{
-          background: 'var(--surface)',
-          padding: '18px 20px',
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--border)',
-          boxShadow: 'var(--shadow-sm)'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Average Ticket (AOV)
-            </span>
-            <div style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: '#f5f3ff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#8b5cf6'
-            }}>
-              <TrendingUp size={16} />
+            {/* Card 3: Net Profit (ශුද්ධ ලාභය) */}
+            <div
+              onClick={() => setDetailModal('profit')}
+              role="button"
+              tabIndex={0}
+              style={{
+                background: 'var(--surface)',
+                padding: '18px 20px',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border)',
+                boxShadow: 'var(--shadow-sm)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-3px)'
+                e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(5, 150, 105, 0.15)'
+                e.currentTarget.style.borderColor = '#059669'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'none'
+                e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
+                e.currentTarget.style.borderColor = 'var(--border)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Net Profit (ශුද්ධ ලාභය)
+                  </span>
+                  <div style={{ fontSize: 10, color: '#059669', fontWeight: 700, marginTop: 2 }}>
+                    Click for P&L Statement ↗
+                  </div>
+                </div>
+                <div style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 8,
+                  background: 'rgba(5, 150, 105, 0.12)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#059669'
+                }}>
+                  <TrendingUp size={18} />
+                </div>
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: (analytics?.ownerMetrics?.netProfit || 0) >= 0 ? '#059669' : '#dc2626', letterSpacing: '-0.5px', marginBottom: 6 }}>
+                {formatCurrency(analytics?.ownerMetrics?.netProfit ?? analytics?.summary?.estimated_profit ?? 0)}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700 }}>
+                <span style={{
+                  background: (analytics?.ownerMetrics?.netProfitMargin || 0) >= 15 ? '#d1fae5' : '#fee2e2',
+                  color: (analytics?.ownerMetrics?.netProfitMargin || 0) >= 15 ? '#065f46' : '#991b1b',
+                  padding: '2px 8px',
+                  borderRadius: 99
+                }}>
+                  {analytics?.ownerMetrics?.netProfitMargin ?? analytics?.summary?.profit_margin_pct ?? 0}% Net Margin
+                </span>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>
+                  Take-home
+                </span>
+              </div>
             </div>
-          </div>
-          <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.5px', marginBottom: 6 }}>
-            {formatCurrency(analytics?.summary?.avg_order_value || 0)}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>
-            Average basket size per customer
-          </div>
-        </div>
 
-        {/* Discounts Given */}
-        <div style={{
-          background: 'var(--surface)',
-          padding: '18px 20px',
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--border)',
-          boxShadow: 'var(--shadow-sm)'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Total Discounts
-            </span>
-            <div style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: '#fffbeb',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#f59e0b'
-            }}>
-              <Tag size={16} />
+            {/* Card 4: Inventory Valuation & Low Stock (තොග වටිනාකම & අඩු තොග) */}
+            <div
+              onClick={() => setDetailModal('inventory')}
+              role="button"
+              tabIndex={0}
+              style={{
+                background: 'var(--surface)',
+                padding: '18px 20px',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border)',
+                boxShadow: 'var(--shadow-sm)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-3px)'
+                e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(37, 99, 235, 0.15)'
+                e.currentTarget.style.borderColor = '#2563eb'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'none'
+                e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
+                e.currentTarget.style.borderColor = 'var(--border)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Stock Value &amp; Low Stock (තොගය)
+                  </span>
+                  <div style={{ fontSize: 10, color: '#2563eb', fontWeight: 700, marginTop: 2 }}>
+                    Click for Stock Audit ↗
+                  </div>
+                </div>
+                <div style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 8,
+                  background: 'rgba(37, 99, 235, 0.12)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#2563eb'
+                }}>
+                  <Package size={18} />
+                </div>
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.5px', marginBottom: 6 }}>
+                {formatCurrency(analytics?.ownerMetrics?.inventoryValuation?.totalCostValue || 0)}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600 }}>
+                {(analytics?.ownerMetrics?.inventoryValuation?.lowStockCount || 0) > 0 ? (
+                  <span style={{
+                    background: '#fef3c7',
+                    color: '#d97706',
+                    padding: '2px 8px',
+                    borderRadius: 99,
+                    fontWeight: 700
+                  }}>
+                    ⚠ {analytics?.ownerMetrics?.inventoryValuation?.lowStockCount || 0} Low Stock
+                  </span>
+                ) : (
+                  <span style={{
+                    background: '#dcfce7',
+                    color: '#16a34a',
+                    padding: '2px 8px',
+                    borderRadius: 99,
+                    fontWeight: 700
+                  }}>
+                    ✓ Stock Healthy
+                  </span>
+                )}
+                <span style={{ color: 'var(--text-muted)' }}>
+                  Retail: {formatCurrency(analytics?.ownerMetrics?.inventoryValuation?.totalRetailValue || 0)}
+                </span>
+              </div>
             </div>
-          </div>
-          <div style={{ fontSize: 24, fontWeight: 900, color: '#d97706', letterSpacing: '-0.5px', marginBottom: 6 }}>
-            {formatCurrency(analytics?.summary?.total_discount || 0)}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>
-            Promotional & staff discounts
-          </div>
-        </div>
 
-        {/* Estimated Profit & Margin */}
-        <div style={{
-          background: 'var(--surface)',
-          padding: '18px 20px',
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--border)',
-          boxShadow: 'var(--shadow-sm)'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Gross Profit & Margin
-            </span>
-            <div style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: '#ecfeff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#0891b2'
-            }}>
-              <Percent size={16} />
+            {/* Card 5: Total Orders & Basket (මුළු බිල්පත්) */}
+            <div
+              onClick={() => setDetailModal('orders')}
+              role="button"
+              tabIndex={0}
+              style={{
+                background: 'var(--surface)',
+                padding: '18px 20px',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border)',
+                boxShadow: 'var(--shadow-sm)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-3px)'
+                e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(2, 132, 199, 0.15)'
+                e.currentTarget.style.borderColor = '#0284c7'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'none'
+                e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
+                e.currentTarget.style.borderColor = 'var(--border)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Total Orders (මුළු බිල්පත්)
+                  </span>
+                  <div style={{ fontSize: 10, color: '#0284c7', fontWeight: 700, marginTop: 2 }}>
+                    Click for Orders Log ↗
+                  </div>
+                </div>
+                <div style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 8,
+                  background: 'rgba(2, 132, 199, 0.12)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#0284c7'
+                }}>
+                  <Receipt size={18} />
+                </div>
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.5px', marginBottom: 6 }}>
+                {analytics?.summary?.total_orders || 0}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600 }}>
+                <span style={{ color: 'var(--text-muted)' }}>Avg Ticket (AOV):</span>
+                <span style={{ fontWeight: 800, color: '#8b5cf6' }}>{formatCurrency(analytics?.summary?.avg_order_value || 0)}</span>
+              </div>
+            </div>
+
+            {/* Card 6: Cash in Drawer (මුදල් ලාච්චුවේ ශේෂය) */}
+            <div
+              onClick={() => setDetailModal('cash')}
+              role="button"
+              tabIndex={0}
+              style={{
+                background: 'var(--surface)',
+                padding: '18px 20px',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border)',
+                boxShadow: 'var(--shadow-sm)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-3px)'
+                e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(217, 119, 6, 0.15)'
+                e.currentTarget.style.borderColor = '#d97706'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'none'
+                e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
+                e.currentTarget.style.borderColor = 'var(--border)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Cash In Register (මුදල් ලාච්චුව)
+                  </span>
+                  <div style={{ fontSize: 10, color: '#d97706', fontWeight: 700, marginTop: 2 }}>
+                    Click for Reconciliation ↗
+                  </div>
+                </div>
+                <div style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 8,
+                  background: 'rgba(217, 119, 6, 0.12)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#d97706'
+                }}>
+                  <Wallet size={18} />
+                </div>
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: '#d97706', letterSpacing: '-0.5px', marginBottom: 6 }}>
+                {formatCurrency(analytics?.ownerMetrics?.cashDrawer?.netCashEstimated || 0)}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600 }}>
+                <span style={{ color: '#16a34a' }}>+{formatCurrency(analytics?.ownerMetrics?.cashDrawer?.cashSales || 0)}</span>
+                <span style={{ color: 'var(--text-muted)' }}>/</span>
+                <span style={{ color: '#dc2626' }}>-{formatCurrency(analytics?.ownerMetrics?.cashDrawer?.cashExpenses || 0)}</span>
+              </div>
             </div>
           </div>
-          <div style={{ fontSize: 24, fontWeight: 900, color: '#0891b2', letterSpacing: '-0.5px', marginBottom: 6 }}>
-            {formatCurrency(analytics?.summary?.estimated_profit || 0)}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700 }}>
-            <span style={{
-              background: '#cffafe',
-              color: '#0891b2',
-              padding: '2px 8px',
-              borderRadius: 99
-            }}>
-              {analytics?.summary?.profit_margin_pct || 0}% Margin
-            </span>
-            <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>
-              {analytics?.summary?.total_items_sold || 0} items sold
-            </span>
-          </div>
-        </div>
-      </div>
 
       {/* Main Interactive Chart Section */}
       <div style={{
@@ -2159,7 +2390,8 @@ export const ReportsPage: React.FC = () => {
       {/* ───── VIEW MODE 2: OWNER'S EXECUTIVE BUSINESS INTELLIGENCE HUB ───── */}
       {viewMode === 'owner' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Executive P&L Scoreboard Card */}
+
+          {/* ── P&L Scoreboard Card ── */}
           <div style={{
             background: 'var(--surface)',
             borderRadius: 'var(--radius-lg)',
@@ -2172,607 +2404,433 @@ export const ReportsPage: React.FC = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Crown size={20} color="#d97706" />
                   <h3 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-                    Executive Profit & Loss (P&L) Statement
+                    Executive Profit &amp; Loss (P&amp;L) Statement
                   </h3>
                 </div>
                 <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '4px 0 0' }}>
-                  Comprehensive financial summary: Revenue, Cost of Goods Sold (COGS), Operating Expenses, and Real Net Profit for {periodDisplayLabel}.
+                  Comprehensive financial summary for {periodDisplayLabel}.
                 </p>
               </div>
-
               <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '6px 12px',
+                display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px',
                 borderRadius: 99,
                 background: owner.netProfit >= 0 ? 'rgba(22, 163, 74, 0.1)' : 'rgba(220, 38, 38, 0.1)',
                 border: `1px solid ${owner.netProfit >= 0 ? '#16a34a' : '#dc2626'}`,
                 color: owner.netProfit >= 0 ? '#16a34a' : '#dc2626',
-                fontSize: 12,
-                fontWeight: 800
+                fontSize: 12, fontWeight: 800
               }}>
                 <ShieldCheck size={14} />
                 <span>Net Margin: {owner.netProfitMargin}%</span>
               </div>
             </div>
 
-            {/* P&L 5-Card Scoreboard */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: 14,
-              marginBottom: 20
-            }}>
-              {/* 1. Gross Revenue */}
-              <div style={{
-                background: 'var(--surface-2)',
-                padding: '16px 18px',
-                borderRadius: 'var(--radius)',
-                border: '1px solid var(--border-light)'
-              }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 20 }}>
+              <div
+                onClick={() => setDetailModal('revenue')}
+                role="button"
+                tabIndex={0}
+                style={{ background: 'var(--surface-2)', padding: '16px 18px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', cursor: 'pointer', transition: 'all 0.2s' }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-light)'; e.currentTarget.style.transform = 'none' }}
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                    1. Gross Revenue
-                  </span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>1. Gross Revenue ↗</span>
                   <DollarSign size={16} color="var(--primary)" />
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>
-                  {formatCurrency(analytics?.summary?.total_revenue || 0)}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
-                  {analytics?.summary?.total_orders || 0} completed orders
-                </div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>{formatCurrency(analytics?.summary?.total_revenue || 0)}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>{analytics?.summary?.total_orders || 0} completed orders</div>
               </div>
 
-              {/* 2. Direct COGS */}
-              <div style={{
-                background: 'var(--surface-2)',
-                padding: '16px 18px',
-                borderRadius: 'var(--radius)',
-                border: '1px solid var(--border-light)'
-              }}>
+              <div
+                onClick={() => setDetailModal('profit')}
+                role="button"
+                tabIndex={0}
+                style={{ background: 'var(--surface-2)', padding: '16px 18px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', cursor: 'pointer', transition: 'all 0.2s' }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-light)'; e.currentTarget.style.transform = 'none' }}
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                    2. Product Cost (COGS)
-                  </span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>2. Product Cost (COGS) ↗</span>
                   <Layers size={16} color="#6366f1" />
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#6366f1' }}>
-                  {formatCurrency(analytics?.summary?.total_cost || 0)}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
-                  Direct ingredient & production cost
-                </div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#6366f1' }}>{formatCurrency(analytics?.summary?.total_cost || 0)}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>Direct ingredient &amp; production cost</div>
               </div>
 
-              {/* 3. Gross Operating Profit */}
-              <div style={{
-                background: 'var(--surface-2)',
-                padding: '16px 18px',
-                borderRadius: 'var(--radius)',
-                border: '1px solid var(--border-light)'
-              }}>
+              <div
+                onClick={() => setDetailModal('profit')}
+                role="button"
+                tabIndex={0}
+                style={{ background: 'var(--surface-2)', padding: '16px 18px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', cursor: 'pointer', transition: 'all 0.2s' }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#059669'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-light)'; e.currentTarget.style.transform = 'none' }}
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                    3. Gross Profit
-                  </span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>3. Gross Profit ↗</span>
                   <TrendingUp size={16} color="#059669" />
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#059669' }}>
-                  {formatCurrency(owner.grossProfit)}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
-                  Gross Margin: <strong style={{ color: '#059669' }}>{owner.grossProfitMargin}%</strong>
-                </div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#059669' }}>{formatCurrency(owner.grossProfit)}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>Gross Margin: <strong style={{ color: '#059669' }}>{owner.grossProfitMargin}%</strong></div>
               </div>
 
-              {/* 4. Operating Expenses */}
-              <div style={{
-                background: 'var(--surface-2)',
-                padding: '16px 18px',
-                borderRadius: 'var(--radius)',
-                border: '1px solid var(--border-light)'
-              }}>
+              <div
+                onClick={() => setDetailModal('expenses')}
+                role="button"
+                tabIndex={0}
+                style={{ background: 'var(--surface-2)', padding: '16px 18px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', cursor: 'pointer', transition: 'all 0.2s' }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#ea580c'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-light)'; e.currentTarget.style.transform = 'none' }}
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                    4. Operating Expenses
-                  </span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>4. Operating Expenses ↗</span>
                   <TrendingDown size={16} color="#ea580c" />
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#ea580c' }}>
-                  {formatCurrency(owner.totalExpenses)}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
-                  {owner.expenseCategories.length} expense categories logged
-                </div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#ea580c' }}>{formatCurrency(owner.totalExpenses)}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>{owner.expenseCategories.length} expense categories logged</div>
               </div>
 
-              {/* 5. True Net Profit */}
-              <div style={{
-                background: owner.netProfit >= 0 ? 'rgba(22, 163, 74, 0.08)' : 'rgba(220, 38, 38, 0.08)',
-                padding: '16px 18px',
-                borderRadius: 'var(--radius)',
-                border: `2px solid ${owner.netProfit >= 0 ? '#16a34a' : '#dc2626'}`
-              }}>
+              <div
+                onClick={() => setDetailModal('profit')}
+                role="button"
+                tabIndex={0}
+                style={{
+                  background: owner.netProfit >= 0 ? 'rgba(22, 163, 74, 0.08)' : 'rgba(220, 38, 38, 0.08)',
+                  padding: '16px 18px', borderRadius: 'var(--radius)',
+                  border: `2px solid ${owner.netProfit >= 0 ? '#16a34a' : '#dc2626'}`,
+                  cursor: 'pointer', transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'none' }}
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: owner.netProfit >= 0 ? '#16a34a' : '#dc2626', textTransform: 'uppercase' }}>
-                    5. Net Bottom Line
-                  </span>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: owner.netProfit >= 0 ? '#16a34a' : '#dc2626', textTransform: 'uppercase' }}>5. Net Bottom Line ↗</span>
                   <Crown size={16} color={owner.netProfit >= 0 ? '#16a34a' : '#dc2626'} />
                 </div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: owner.netProfit >= 0 ? '#16a34a' : '#dc2626' }}>
-                  {formatCurrency(owner.netProfit)}
-                </div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: owner.netProfit >= 0 ? '#15803d' : '#b91c1c', marginTop: 4 }}>
-                  Take-Home: {owner.netProfitMargin}% of revenue
-                </div>
+                <div style={{ fontSize: 22, fontWeight: 900, color: owner.netProfit >= 0 ? '#16a34a' : '#dc2626' }}>{formatCurrency(owner.netProfit)}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: owner.netProfit >= 0 ? '#15803d' : '#b91c1c', marginTop: 4 }}>Take-Home: {owner.netProfitMargin}% of revenue</div>
               </div>
             </div>
 
-            {/* P&L Visual Distribution Bar */}
             {analytics && analytics.summary.total_revenue > 0 && (
-              <div style={{ marginTop: 10, padding: '14px 16px', background: 'var(--surface-2)', borderRadius: 'var(--radius)' }}>
+              <div style={{ padding: '14px 16px', background: 'var(--surface-2)', borderRadius: 'var(--radius)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
                   <span>Revenue Capital Allocation Waterfall</span>
                   <span style={{ color: 'var(--text-muted)' }}>100% of {formatCurrency(analytics.summary.total_revenue)}</span>
                 </div>
-                {/* Horizontal Segmented Bar */}
                 <div style={{ display: 'flex', height: 14, borderRadius: 7, overflow: 'hidden', background: '#e2e8f0', gap: 2 }}>
-                  <div
-                    title={`COGS: ${formatCurrency(analytics.summary.total_cost)} (${Math.round((analytics.summary.total_cost / analytics.summary.total_revenue) * 100)}%)`}
-                    style={{
-                      width: `${Math.min(100, Math.max(0, (analytics.summary.total_cost / analytics.summary.total_revenue) * 100))}%`,
-                      background: '#6366f1'
-                    }}
-                  />
-                  <div
-                    title={`Operating Expenses: ${formatCurrency(owner.totalExpenses)} (${Math.round((owner.totalExpenses / analytics.summary.total_revenue) * 100)}%)`}
-                    style={{
-                      width: `${Math.min(100, Math.max(0, (owner.totalExpenses / analytics.summary.total_revenue) * 100))}%`,
-                      background: '#ea580c'
-                    }}
-                  />
-                  <div
-                    title={`Net Profit: ${formatCurrency(owner.netProfit)} (${owner.netProfitMargin}%)`}
-                    style={{
-                      width: `${Math.min(100, Math.max(0, (owner.netProfit / analytics.summary.total_revenue) * 100))}%`,
-                      background: owner.netProfit >= 0 ? '#16a34a' : '#dc2626'
-                    }}
-                  />
+                  <div style={{ width: `${Math.min(100, Math.max(0, (analytics.summary.total_cost / analytics.summary.total_revenue) * 100))}%`, background: '#6366f1' }} />
+                  <div style={{ width: `${Math.min(100, Math.max(0, (owner.totalExpenses / analytics.summary.total_revenue) * 100))}%`, background: '#ea580c' }} />
+                  <div style={{ width: `${Math.min(100, Math.max(0, (owner.netProfit / analytics.summary.total_revenue) * 100))}%`, background: owner.netProfit >= 0 ? '#16a34a' : '#dc2626' }} />
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 10, fontSize: 11 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: 2, background: '#6366f1' }} />
-                    <span>Cost of Goods: <strong>{Math.round((analytics.summary.total_cost / analytics.summary.total_revenue) * 100)}%</strong> ({formatCurrency(analytics.summary.total_cost)})</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: 2, background: '#ea580c' }} />
-                    <span>Operating Expenses: <strong>{Math.round((owner.totalExpenses / analytics.summary.total_revenue) * 100)}%</strong> ({formatCurrency(owner.totalExpenses)})</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: 2, background: owner.netProfit >= 0 ? '#16a34a' : '#dc2626' }} />
-                    <span>Net Profit: <strong>{owner.netProfitMargin}%</strong> ({formatCurrency(owner.netProfit)})</span>
-                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: '#6366f1' }} /><span>COGS: <strong>{Math.round((analytics.summary.total_cost / analytics.summary.total_revenue) * 100)}%</strong> ({formatCurrency(analytics.summary.total_cost)})</span></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: '#ea580c' }} /><span>Expenses: <strong>{Math.round((owner.totalExpenses / analytics.summary.total_revenue) * 100)}%</strong> ({formatCurrency(owner.totalExpenses)})</span></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: owner.netProfit >= 0 ? '#16a34a' : '#dc2626' }} /><span>Net Profit: <strong>{owner.netProfitMargin}%</strong> ({formatCurrency(owner.netProfit)})</span></div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Section 2: Counter Cash Reconciliation & Drawer Audit */}
-          <div style={{
-            background: 'var(--surface)',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border)',
-            padding: 20,
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Wallet size={18} color="#16a34a" />
-                <h4 style={{ fontSize: 15, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-                  Counter Cash Reconciliation & Drawer Audit
-                </h4>
+          {/* ── Cash Reconciliation Label ── */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 4 }}>
+            <Wallet size={16} color="#16a34a" />
+            <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)' }}>Counter Cash Reconciliation &amp; Drawer Audit</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Real-time physical cash tracking</span>
+          </div>
+
+          {/* ── Cash Reconciliation 3 standalone cards ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+            <div
+              onClick={() => setDetailModal('cash')}
+              role="button"
+              tabIndex={0}
+              style={{ background: 'var(--surface)', border: '1px solid rgba(22,163,74,0.3)', borderLeft: '4px solid #16a34a', padding: '18px 20px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', cursor: 'pointer', transition: 'all 0.2s' }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'none' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#16a34a', fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
+                <ArrowUpRight size={16} /><span>Cash Inflow (Sales) ↗</span>
               </div>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>
-                Real-time tracking of physical cash movement in store register
-              </span>
+              <div style={{ fontSize: 24, fontWeight: 900, color: '#16a34a' }}>{formatCurrency(owner.cashDrawer.cashSales)}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>Collected directly from cash customers</div>
             </div>
 
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: 14
-            }}>
-              {/* Cash Inflow */}
-              <div style={{
-                background: 'rgba(22, 163, 74, 0.05)',
-                border: '1px solid rgba(22, 163, 74, 0.2)',
-                padding: '14px 16px',
-                borderRadius: 'var(--radius)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#16a34a', fontSize: 12, fontWeight: 700 }}>
-                  <ArrowUpRight size={16} />
-                  <span>Cash Inflow (Sales)</span>
-                </div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#16a34a', marginTop: 4 }}>
-                  {formatCurrency(owner.cashDrawer.cashSales)}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
-                  Collected directly from cash customers
-                </div>
+            <div
+              onClick={() => setDetailModal('cash')}
+              role="button"
+              tabIndex={0}
+              style={{ background: 'var(--surface)', border: '1px solid rgba(220,38,38,0.3)', borderLeft: '4px solid #dc2626', padding: '18px 20px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', cursor: 'pointer', transition: 'all 0.2s' }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'none' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#dc2626', fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
+                <ArrowDownRight size={16} /><span>Cash Outflow (Counter Expenses) ↗</span>
               </div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: '#dc2626' }}>{formatCurrency(owner.cashDrawer.cashExpenses)}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>Petty cash and vendor payments from drawer</div>
+            </div>
 
-              {/* Cash Outflow */}
-              <div style={{
-                background: 'rgba(220, 38, 38, 0.05)',
-                border: '1px solid rgba(220, 38, 38, 0.2)',
-                padding: '14px 16px',
-                borderRadius: 'var(--radius)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#dc2626', fontSize: 12, fontWeight: 700 }}>
-                  <ArrowDownRight size={16} />
-                  <span>Cash Outflow (Counter Expenses)</span>
-                </div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#dc2626', marginTop: 4 }}>
-                  {formatCurrency(owner.cashDrawer.cashExpenses)}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
-                  Petty cash and cash vendor payments from drawer
-                </div>
+            <div
+              onClick={() => setDetailModal('cash')}
+              role="button"
+              tabIndex={0}
+              style={{ background: 'var(--surface)', border: '2px solid var(--primary)', borderLeft: '4px solid var(--primary)', padding: '18px 20px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', cursor: 'pointer', transition: 'all 0.2s' }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'none' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--primary)', fontSize: 12, fontWeight: 800, marginBottom: 8 }}>
+                <Coins size={16} /><span>Expected Cash In Register ↗</span>
               </div>
-
-              {/* Net Expected Cash In Drawer */}
-              <div style={{
-                background: 'var(--surface-2)',
-                border: '2px solid var(--primary)',
-                padding: '14px 16px',
-                borderRadius: 'var(--radius)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--primary)', fontSize: 12, fontWeight: 800 }}>
-                  <Coins size={16} />
-                  <span>Expected Physical Cash In Register</span>
-                </div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--primary)', marginTop: 4 }}>
-                  {formatCurrency(owner.cashDrawer.netCashEstimated)}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
-                  Net sales cash minus payouts (excl. initial float)
-                </div>
-              </div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--primary)' }}>{formatCurrency(owner.cashDrawer.netCashEstimated)}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>Net sales cash minus payouts (excl. initial float)</div>
             </div>
           </div>
 
-          {/* Section 3: Two-Column Grid: Staff/Cashier Audit & Terminal Sales */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
-            gap: 16
-          }}>
-            {/* Staff & Cashier Accountability */}
-            <div style={{
-              background: 'var(--surface)',
-              borderRadius: 'var(--radius-lg)',
-              border: '1px solid var(--border)',
-              padding: 20,
-              boxShadow: 'var(--shadow-sm)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                <Users size={18} color="var(--primary)" />
-                <div>
-                  <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-                    Staff & Cashier Accountability Matrix
-                  </h4>
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                    Track billing volumes, revenue contribution, and discounts given per staff
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                  <thead>
-                    <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
-                      <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: 'var(--text-muted)' }}>Cashier</th>
-                      <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: 'var(--text-muted)' }}>Orders</th>
-                      <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>Revenue</th>
-                      <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>Discounts</th>
-                      <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>Avg Ticket</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {owner.cashierPerformance.length > 0 ? (
-                      owner.cashierPerformance.map((c, idx) => (
-                        <tr key={idx} style={{ borderBottom: '1px solid var(--border-light)' }}>
-                          <td style={{ padding: '8px 10px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                            {c.cashier_name}
-                          </td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                            <span style={{ background: 'var(--surface-2)', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>
-                              {c.orders_count}
-                            </span>
-                          </td>
-                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: 'var(--primary)' }}>
-                            {formatCurrency(c.total_revenue)}
-                          </td>
-                          <td style={{ padding: '8px 10px', textAlign: 'right', color: c.total_discount > 0 ? '#d97706' : 'var(--text-muted)' }}>
-                            {c.total_discount > 0 ? formatCurrency(c.total_discount) : '-'}
-                          </td>
-                          <td style={{ padding: '8px 10px', textAlign: 'right', color: 'var(--text-secondary)' }}>
-                            {formatCurrency(c.avg_ticket)}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={5} style={{ padding: 16, textAlign: 'center', color: 'var(--text-muted)' }}>
-                          No cashier transactions recorded for this period
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+          {/* ── Staff & Cashier Accountability – standalone card ── */}
+          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: '20px 24px', boxShadow: 'var(--shadow-sm)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+              <Users size={18} color="var(--primary)" />
+              <div>
+                <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>Staff &amp; Cashier Accountability Matrix</h4>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Track billing volumes, revenue contribution, and discounts given per staff</div>
               </div>
             </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
+                    <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: 'var(--text-muted)' }}>Cashier</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: 'var(--text-muted)' }}>Orders</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>Revenue</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>Discounts</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>Avg Ticket</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {owner.cashierPerformance.length > 0 ? (
+                    owner.cashierPerformance.map((c, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                        <td style={{ padding: '8px 10px', fontWeight: 700, color: 'var(--text-primary)' }}>{c.cashier_name}</td>
+                        <td style={{ padding: '8px 10px', textAlign: 'center' }}><span style={{ background: 'var(--surface-2)', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>{c.orders_count}</span></td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: 'var(--primary)' }}>{formatCurrency(c.total_revenue)}</td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', color: c.total_discount > 0 ? '#d97706' : 'var(--text-muted)' }}>{c.total_discount > 0 ? formatCurrency(c.total_discount) : '-'}</td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', color: 'var(--text-secondary)' }}>{formatCurrency(c.avg_ticket)}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr><td colSpan={5} style={{ padding: 16, textAlign: 'center', color: 'var(--text-muted)' }}>No cashier transactions recorded for this period</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-            {/* POS Terminal Breakdown */}
-            <div style={{
-              background: 'var(--surface)',
-              borderRadius: 'var(--radius-lg)',
-              border: '1px solid var(--border)',
-              padding: 20,
-              boxShadow: 'var(--shadow-sm)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                <Monitor size={18} color="var(--primary)" />
-                <div>
-                  <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-                    POS Terminal Sales Performance
-                  </h4>
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                    Compare workload and billings across Counter Terminals
-                  </div>
-                </div>
+          {/* ── POS Terminal Sales – standalone card ── */}
+          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: '20px 24px', boxShadow: 'var(--shadow-sm)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+              <Monitor size={18} color="var(--primary)" />
+              <div>
+                <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>POS Terminal Sales Performance</h4>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Compare workload and billings across Counter Terminals</div>
               </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {owner.terminalPerformance.length > 0 ? (
-                  owner.terminalPerformance.map((t, idx) => {
-                    const totalRev = analytics?.summary?.total_revenue || 1
-                    const share = Math.round((t.total_revenue / totalRev) * 100)
-                    return (
-                      <div key={idx} style={{
-                        padding: '12px 14px',
-                        borderRadius: 'var(--radius)',
-                        background: 'var(--surface-2)',
-                        border: '1px solid var(--border-light)'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{
-                              fontWeight: 800,
-                              fontSize: 12,
-                              padding: '2px 8px',
-                              borderRadius: 4,
-                              background: 'var(--primary)',
-                              color: '#fff'
-                            }}>
-                              {t.terminal_id}
-                            </span>
-                            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                              {t.orders_count} orders completed
-                            </span>
-                          </div>
-                          <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>
-                            {formatCurrency(t.total_revenue)}
-                          </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {owner.terminalPerformance.length > 0 ? (
+                owner.terminalPerformance.map((t, idx) => {
+                  const totalRev = analytics?.summary?.total_revenue || 1
+                  const share = Math.round((t.total_revenue / totalRev) * 100)
+                  return (
+                    <div key={idx} style={{ padding: '12px 14px', borderRadius: 'var(--radius)', background: 'var(--surface-2)', border: '1px solid var(--border-light)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontWeight: 800, fontSize: 12, padding: '2px 8px', borderRadius: 4, background: 'var(--primary)', color: '#fff' }}>{t.terminal_id}</span>
+                          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t.orders_count} orders completed</span>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'var(--border)', overflow: 'hidden' }}>
-                            <div style={{ width: `${share}%`, height: '100%', background: 'var(--primary)' }} />
-                          </div>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--primary)' }}>
-                            {share}%
-                          </span>
-                        </div>
+                        <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>{formatCurrency(t.total_revenue)}</span>
                       </div>
-                    )
-                  })
-                ) : (
-                  <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
-                    No terminal records for this period
-                  </div>
-                )}
-              </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'var(--border)', overflow: 'hidden' }}>
+                          <div style={{ width: `${share}%`, height: '100%', background: 'var(--primary)' }} />
+                        </div>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--primary)' }}>{share}%</span>
+                      </div>
+                    </div>
+                  )
+                })
+              ) : (
+                <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>No terminal records for this period</div>
+              )}
             </div>
           </div>
 
-          {/* Section 4: Operating Expenses & Inventory Capital Valuation */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
-            gap: 16
-          }}>
-            {/* Operating Expenses Breakdown Table */}
-            <div style={{
-              background: 'var(--surface)',
-              borderRadius: 'var(--radius-lg)',
-              border: '1px solid var(--border)',
-              padding: 20,
-              boxShadow: 'var(--shadow-sm)'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <TrendingDown size={18} color="#ea580c" />
-                  <div>
-                    <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-                      Operating Expenses Breakdown
-                    </h4>
-                    <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                      Expenses categorized from store expenses registry
-                    </div>
-                  </div>
+          {/* ── Operating Expenses Breakdown – standalone card ── */}
+          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: '20px 24px', boxShadow: 'var(--shadow-sm)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <TrendingDown size={18} color="#ea580c" />
+                <div>
+                  <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>Operating Expenses Breakdown</h4>
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Expenses categorized from store expenses registry</div>
                 </div>
-                <span style={{ fontSize: 13, fontWeight: 800, color: '#ea580c' }}>
-                  Total: {formatCurrency(owner.totalExpenses)}
-                </span>
               </div>
-
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                  <thead>
-                    <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
-                      <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: 'var(--text-muted)' }}>Category</th>
-                      <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: 'var(--text-muted)' }}>Vouchers</th>
-                      <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>Amount</th>
-                      <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>Share %</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {owner.expenseCategories.length > 0 ? (
-                      owner.expenseCategories.map((exp, idx) => {
-                        const share = owner.totalExpenses > 0 ? Math.round((exp.total_amount / owner.totalExpenses) * 100) : 0
-                        return (
-                          <tr key={idx} style={{ borderBottom: '1px solid var(--border-light)' }}>
-                            <td style={{ padding: '8px 10px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                              {exp.category}
-                            </td>
-                            <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                              <span style={{ background: 'var(--surface-2)', padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>
-                                {exp.count}
-                              </span>
-                            </td>
-                            <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#ea580c' }}>
-                              {formatCurrency(exp.total_amount)}
-                            </td>
-                            <td style={{ padding: '8px 10px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                              {share}%
-                            </td>
-                          </tr>
-                        )
-                      })
-                    ) : (
-                      <tr>
-                        <td colSpan={4} style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>
-                          No operating expenses logged for this period
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#ea580c' }}>Total: {formatCurrency(owner.totalExpenses)}</span>
             </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
+                    <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: 'var(--text-muted)' }}>Category</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: 'var(--text-muted)' }}>Vouchers</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>Amount</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>Share %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {owner.expenseCategories.length > 0 ? (
+                    owner.expenseCategories.map((exp, idx) => {
+                      const share = owner.totalExpenses > 0 ? Math.round((exp.total_amount / owner.totalExpenses) * 100) : 0
+                      return (
+                        <tr key={idx} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                          <td style={{ padding: '8px 10px', fontWeight: 700, color: 'var(--text-primary)' }}>{exp.category}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center' }}><span style={{ background: 'var(--surface-2)', padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>{exp.count}</span></td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#ea580c' }}>{formatCurrency(exp.total_amount)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>{share}%</td>
+                        </tr>
+                      )
+                    })
+                  ) : (
+                    <tr><td colSpan={4} style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>No operating expenses logged for this period</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-            {/* Inventory Capital Valuation & Risk Audit */}
-            <div style={{
-              background: 'var(--surface)',
-              borderRadius: 'var(--radius-lg)',
-              border: '1px solid var(--border)',
-              padding: 20,
-              boxShadow: 'var(--shadow-sm)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+          {/* ── Inventory Capital Valuation – standalone card ── */}
+          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: '20px 24px', boxShadow: 'var(--shadow-sm)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Package size={18} color="#2563eb" />
                 <div>
-                  <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-                    Inventory Capital Valuation & Spoilage Audit
-                  </h4>
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                    Live snapshot of locked capital, potential retail margin, and spoilage losses
-                  </div>
+                  <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>Inventory Capital Valuation &amp; Spoilage Audit</h4>
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Live snapshot of locked capital, potential retail margin, and spoilage losses</div>
                 </div>
               </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
-                <div style={{ background: 'var(--surface-2)', padding: '10px 12px', borderRadius: 'var(--radius)' }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                    Capital In Stock (At Cost)
-                  </div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', marginTop: 2 }}>
-                    {formatCurrency(owner.inventoryValuation.totalCostValue)}
-                  </div>
-                  <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
-                    {owner.inventoryValuation.totalProducts} active products
-                  </div>
-                </div>
-
-                <div style={{ background: 'var(--surface-2)', padding: '10px 12px', borderRadius: 'var(--radius)' }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                    Retail Value (Selling Price)
-                  </div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: '#2563eb', marginTop: 2 }}>
-                    {formatCurrency(owner.inventoryValuation.totalRetailValue)}
-                  </div>
-                  <div style={{ fontSize: 10, color: '#16a34a', fontWeight: 600 }}>
-                    +{formatCurrency(owner.inventoryValuation.potentialMarginValue)} profit potential
-                  </div>
-                </div>
-              </div>
-
-              {/* Stock Health Badges */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8, marginBottom: 14 }}>
-                <div style={{
-                  padding: '8px 10px',
-                  borderRadius: 'var(--radius-sm)',
-                  background: owner.inventoryValuation.lowStockCount > 0 ? 'rgba(217, 119, 6, 0.1)' : 'var(--surface-2)',
-                  border: `1px solid ${owner.inventoryValuation.lowStockCount > 0 ? '#d97706' : 'var(--border)'}`,
+              <button
+                onClick={() => setDetailModal('inventory')}
+                style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 6
-                }}>
-                  <AlertTriangle size={14} color={owner.inventoryValuation.lowStockCount > 0 ? '#d97706' : 'var(--text-muted)'} />
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: owner.inventoryValuation.lowStockCount > 0 ? '#d97706' : 'var(--text-primary)' }}>
-                      {owner.inventoryValuation.lowStockCount} Items
-                    </div>
-                    <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>Low Stock Warning</div>
-                  </div>
-                </div>
+                  gap: 4,
+                  padding: '4px 10px',
+                  borderRadius: 6,
+                  border: '1px solid var(--border)',
+                  background: 'var(--surface-2)',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  color: '#2563eb'
+                }}
+              >
+                <span>Full Audit ↗</span>
+              </button>
+            </div>
 
-                <div style={{
-                  padding: '8px 10px',
-                  borderRadius: 'var(--radius-sm)',
-                  background: owner.inventoryValuation.outOfStockCount > 0 ? 'rgba(220, 38, 38, 0.1)' : 'var(--surface-2)',
-                  border: `1px solid ${owner.inventoryValuation.outOfStockCount > 0 ? '#dc2626' : 'var(--border)'}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6
-                }}>
-                  <AlertTriangle size={14} color={owner.inventoryValuation.outOfStockCount > 0 ? '#dc2626' : 'var(--text-muted)'} />
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: owner.inventoryValuation.outOfStockCount > 0 ? '#dc2626' : 'var(--text-primary)' }}>
-                      {owner.inventoryValuation.outOfStockCount} Items
-                    </div>
-                    <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>Out of Stock Risk</div>
-                  </div>
-                </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 14 }}>
+              <div
+                onClick={() => setDetailModal('inventory')}
+                style={{ background: 'var(--surface-2)', padding: '14px 16px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', cursor: 'pointer', transition: 'all 0.2s' }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'none' }}
+              >
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Capital In Stock (At Cost) ↗</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>{formatCurrency(owner.inventoryValuation.totalCostValue)}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>{owner.inventoryValuation.totalProducts} active products</div>
               </div>
 
-              {/* Damaged & Spoilage Losses */}
-              <div style={{
-                padding: '10px 14px',
-                borderRadius: 'var(--radius)',
-                background: 'rgba(220, 38, 38, 0.04)',
-                border: '1px solid rgba(220, 38, 38, 0.2)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
+              <div
+                onClick={() => setDetailModal('inventory')}
+                style={{ background: 'var(--surface-2)', padding: '14px 16px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', cursor: 'pointer', transition: 'all 0.2s' }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'none' }}
+              >
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Retail Value (Selling Price) ↗</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#2563eb', marginTop: 4 }}>{formatCurrency(owner.inventoryValuation.totalRetailValue)}</div>
+                <div style={{ fontSize: 10, color: '#16a34a', fontWeight: 600, marginTop: 2 }}>+{formatCurrency(owner.inventoryValuation.potentialMarginValue)} profit potential</div>
+              </div>
+
+              <div
+                onClick={() => setDetailModal('inventory')}
+                style={{
+                  background: owner.inventoryValuation.lowStockCount > 0 ? 'rgba(217,119,6,0.08)' : 'var(--surface-2)',
+                  border: `1px solid ${owner.inventoryValuation.lowStockCount > 0 ? '#d97706' : 'var(--border-light)'}`,
+                  padding: '14px 16px', borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', gap: 10,
+                  cursor: 'pointer', transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'none' }}
+              >
+                <AlertTriangle size={20} color={owner.inventoryValuation.lowStockCount > 0 ? '#d97706' : 'var(--text-muted)'} />
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#dc2626' }}>
-                    Spoilage & Damaged Stock Lost
-                  </div>
-                  <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
-                    {owner.damageLoss.quantity} units lost across {owner.damageLoss.events} incidents
-                  </div>
-                </div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: '#dc2626' }}>
-                  {formatCurrency(owner.damageLoss.cost)}
+                  <div style={{ fontSize: 18, fontWeight: 800, color: owner.inventoryValuation.lowStockCount > 0 ? '#d97706' : 'var(--text-primary)' }}>{owner.inventoryValuation.lowStockCount} Items ↗</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Low Stock Warning</div>
                 </div>
               </div>
+
+              <div
+                onClick={() => setDetailModal('inventory')}
+                style={{
+                  background: owner.inventoryValuation.outOfStockCount > 0 ? 'rgba(220,38,38,0.08)' : 'var(--surface-2)',
+                  border: `1px solid ${owner.inventoryValuation.outOfStockCount > 0 ? '#dc2626' : 'var(--border-light)'}`,
+                  padding: '14px 16px', borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', gap: 10,
+                  cursor: 'pointer', transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'none' }}
+              >
+                <AlertTriangle size={20} color={owner.inventoryValuation.outOfStockCount > 0 ? '#dc2626' : 'var(--text-muted)'} />
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: owner.inventoryValuation.outOfStockCount > 0 ? '#dc2626' : 'var(--text-primary)' }}>{owner.inventoryValuation.outOfStockCount} Items ↗</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Out of Stock Risk</div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              onClick={() => setDetailModal('inventory')}
+              style={{ padding: '12px 16px', borderRadius: 'var(--radius)', background: 'rgba(220,38,38,0.04)', border: '1px solid rgba(220,38,38,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'none' }}
+            >
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#dc2626' }}>Spoilage &amp; Damaged Stock Lost ↗</div>
+                <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>{owner.damageLoss.quantity} units lost across {owner.damageLoss.events} incidents (Click to view breakdown)</div>
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: '#dc2626' }}>{formatCurrency(owner.damageLoss.cost)}</div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Interactive Detail Drill-down Modal */}
+      {detailModal && (
+        <AnalyticsDetailModal
+          type={detailModal}
+          onClose={() => setDetailModal(null)}
+          analytics={analytics}
+          shopName={currentShop?.name}
+          periodLabel={periodDisplayLabel}
+        />
+      )}
+
+      {/* Professional Executive Report Generator Modal */}
+      {showReportGen && (
+        <ReportGeneratorModal
+          onClose={() => setShowReportGen(false)}
+          analytics={analytics}
+          currentShop={currentShop}
+          currentPeriodLabel={periodDisplayLabel}
+        />
       )}
     </div>
   )
@@ -2906,7 +2964,10 @@ function generateEmptyAnalytics(
         cashSales: 0,
         cashExpenses: 0,
         netCashEstimated: 0
-      }
+      },
+      detailedExpenses: [],
+      lowStockList: [],
+      damageLossList: []
     },
     peakSlot: null,
     recentOrders: []
