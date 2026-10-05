@@ -40,14 +40,15 @@ public class OrderRepository : IOrderRepository
                 cmd.Transaction = transaction;
                 cmd.CommandText = @"
                     INSERT INTO orders
-                        (id, order_no, cashier_id, subtotal, discount_type, discount_amount,
+                        (id, order_no, cashier_id, shop_id, subtotal, discount_type, discount_amount,
                          tax_amount, total_amount, status, note, created_at, local_id, sync_status)
                     VALUES
-                        ($id, $orderNo, $cashierId, $subtotal, $discType, $discAmt,
+                        ($id, $orderNo, $cashierId, $shopId, $subtotal, $discType, $discAmt,
                          $tax, $total, $status, $note, $created, $localId, 'pending');";
                 cmd.Parameters.AddWithValue("$id", order.Id);
                 cmd.Parameters.AddWithValue("$orderNo", order.OrderNo);
                 cmd.Parameters.AddWithValue("$cashierId", (object?)order.CashierId ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("$shopId", string.IsNullOrWhiteSpace(order.ShopId) ? "b0000000-0000-0000-0000-000000000001" : order.ShopId);
                 cmd.Parameters.AddWithValue("$subtotal", order.Subtotal);
                 cmd.Parameters.AddWithValue("$discType", (object?)order.DiscountType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("$discAmt", order.DiscountAmount);
@@ -150,14 +151,21 @@ public class OrderRepository : IOrderRepository
         return order;
     }
 
-    public async Task<List<Order>> GetByDateRangeAsync(DateTime fromUtc, DateTime toUtc)
+    public async Task<List<Order>> GetByDateRangeAsync(DateTime fromUtc, DateTime toUtc, string? shopId = null)
     {
         using var connection = _factory.CreateConnection();
         var orders = new List<Order>();
 
         using (var cmd = connection.CreateCommand())
         {
-            cmd.CommandText = "SELECT * FROM orders WHERE created_at BETWEEN $from AND $to ORDER BY created_at DESC;";
+            var sql = "SELECT * FROM orders WHERE created_at BETWEEN $from AND $to";
+            if (!string.IsNullOrWhiteSpace(shopId))
+            {
+                sql += " AND shop_id = $shopId";
+                cmd.Parameters.AddWithValue("$shopId", shopId);
+            }
+            sql += " ORDER BY created_at DESC;";
+            cmd.CommandText = sql;
             cmd.Parameters.AddWithValue("$from", fromUtc.ToString("o"));
             cmd.Parameters.AddWithValue("$to", toUtc.ToString("o"));
             using var reader = await cmd.ExecuteReaderAsync();
@@ -171,14 +179,21 @@ public class OrderRepository : IOrderRepository
         return orders;
     }
 
-    public async Task<List<Order>> GetAllAsync(int limit = 100)
+    public async Task<List<Order>> GetAllAsync(int limit = 100, string? shopId = null)
     {
         using var connection = _factory.CreateConnection();
         var orders = new List<Order>();
 
         using (var cmd = connection.CreateCommand())
         {
-            cmd.CommandText = "SELECT * FROM orders ORDER BY created_at DESC LIMIT $limit;";
+            var sql = "SELECT * FROM orders WHERE 1=1";
+            if (!string.IsNullOrWhiteSpace(shopId))
+            {
+                sql += " AND shop_id = $shopId";
+                cmd.Parameters.AddWithValue("$shopId", shopId);
+            }
+            sql += " ORDER BY created_at DESC LIMIT $limit;";
+            cmd.CommandText = sql;
             cmd.Parameters.AddWithValue("$limit", limit);
             using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -240,6 +255,7 @@ public class OrderRepository : IOrderRepository
     private static Order MapOrder(SqliteDataReader r) => new()
     {
         Id = r.GetString(r.GetOrdinal("id")),
+        ShopId = r.IsDBNull(r.GetOrdinal("shop_id")) ? "b0000000-0000-0000-0000-000000000001" : r.GetString(r.GetOrdinal("shop_id")),
         OrderNo = r.GetString(r.GetOrdinal("order_no")),
         CashierId = r.IsDBNull(r.GetOrdinal("cashier_id")) ? null : r.GetString(r.GetOrdinal("cashier_id")),
         Subtotal = Convert.ToDecimal(r.GetDouble(r.GetOrdinal("subtotal"))),

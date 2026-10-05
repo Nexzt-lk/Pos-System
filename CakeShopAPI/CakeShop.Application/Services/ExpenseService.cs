@@ -18,6 +18,7 @@ public class ExpenseService
     {
         var expense = new Expense
         {
+            ShopId = string.IsNullOrWhiteSpace(request.ShopId) ? "b0000000-0000-0000-0000-000000000001" : request.ShopId,
             Category = request.Category,
             Description = request.Description,
             Amount = request.Amount,
@@ -30,6 +31,7 @@ public class ExpenseService
         return new ExpenseDto
         {
             Id = expense.Id,
+            ShopId = expense.ShopId,
             Category = expense.Category,
             Description = expense.Description,
             Amount = expense.Amount,
@@ -38,24 +40,28 @@ public class ExpenseService
         };
     }
 
-    public async Task<List<ExpenseDto>> GetAllAsync()
+    public async Task<List<ExpenseDto>> GetAllAsync(string? shopId = null)
     {
-        var expenses = await _expenses.GetAllAsync();
+        var expenses = await _expenses.GetAllAsync(shopId);
         return expenses.Select(MapToDto).ToList();
     }
 
-    public async Task<List<ExpenseDto>> GetByDateRangeAsync(DateOnly from, DateOnly to)
+    public async Task<List<ExpenseDto>> GetByDateRangeAsync(DateOnly from, DateOnly to, string? shopId = null)
     {
-        var expenses = await _expenses.GetByDateRangeAsync(from, to);
+        var expenses = await _expenses.GetByDateRangeAsync(from, to, shopId);
         return expenses.Select(MapToDto).ToList();
     }
 
     public async Task<ExpenseDto> UpdateAsync(string id, UpdateExpenseRequest request)
     {
-        var all = await _expenses.GetAllAsync();
+        var all = await _expenses.GetAllAsync(request.ShopId);
         var existing = all.FirstOrDefault(e => e.Id == id)
             ?? throw new KeyNotFoundException($"Expense {id} not found");
 
+        if (!string.IsNullOrWhiteSpace(request.ShopId))
+        {
+            existing.ShopId = request.ShopId;
+        }
         existing.Category = request.Category;
         existing.Description = request.Description;
         existing.Amount = request.Amount;
@@ -70,6 +76,7 @@ public class ExpenseService
     private static ExpenseDto MapToDto(Expense e) => new()
     {
         Id = e.Id,
+        ShopId = e.ShopId,
         Category = e.Category,
         Description = e.Description,
         Amount = e.Amount,

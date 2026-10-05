@@ -4,6 +4,7 @@ namespace CakeShop.Domain.Entities;
 public class Order
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string ShopId { get; set; } = "b0000000-0000-0000-0000-000000000001";
     public string OrderNo { get; set; } = string.Empty;    // TERMINAL-YYYYMMDD-0001
     public string? CashierId { get; set; }
     public decimal Subtotal { get; set; }

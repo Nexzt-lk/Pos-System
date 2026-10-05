@@ -34,13 +34,14 @@ public class OrdersController : ControllerBase
     public async Task<ActionResult<List<OrderDto>>> GetAll(
         [FromQuery] int limit = 100,
         [FromQuery] DateTime? from = null,
-        [FromQuery] DateTime? to = null)
+        [FromQuery] DateTime? to = null,
+        [FromQuery] string? shopId = null)
     {
         if (from.HasValue && to.HasValue)
         {
-            return Ok(await _service.GetByDateRangeAsync(from.Value, to.Value));
+            return Ok(await _service.GetByDateRangeAsync(from.Value, to.Value, shopId));
         }
-        return Ok(await _service.GetAllAsync(limit));
+        return Ok(await _service.GetAllAsync(limit, shopId));
     }
 
     [HttpGet("{id}")]

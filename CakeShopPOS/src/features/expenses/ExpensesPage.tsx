@@ -186,16 +186,17 @@ export const ExpensesPage: React.FC = () => {
     setIsLoading(true)
     try {
       let data: ExpenseDto[] = []
+      const shopId = currentShop?.id || 'b0000000-0000-0000-0000-000000000001'
 
       if (dateMode === 'day') {
         const dStr = selectedDate.format('YYYY-MM-DD')
-        data = await expensesApi.getByDateRange(dStr, dStr)
+        data = await expensesApi.getByDateRange(dStr, dStr, undefined, undefined, shopId)
       } else if (dateMode === 'range' && selectedRange && selectedRange[0] && selectedRange[1]) {
         const fromStr = selectedRange[0].format('YYYY-MM-DD')
         const toStr = selectedRange[1].format('YYYY-MM-DD')
-        data = await expensesApi.getByDateRange(fromStr, toStr)
+        data = await expensesApi.getByDateRange(fromStr, toStr, undefined, undefined, shopId)
       } else {
-        data = await expensesApi.getAll()
+        data = await expensesApi.getAll({ shopId })
       }
 
       setExpenses(data || [])
@@ -209,7 +210,7 @@ export const ExpensesPage: React.FC = () => {
 
   useEffect(() => {
     loadExpenses()
-  }, [dateMode, selectedDate, selectedRange])
+  }, [dateMode, selectedDate, selectedRange, currentShop?.id])
 
   // ─── Category counts ────────────────────────────────────────────────────────
 
@@ -358,7 +359,8 @@ export const ExpensesPage: React.FC = () => {
         description: values.description,
         amount: Number(values.amount),
         expenseDate: (values.expenseDate || dayjs()).format('YYYY-MM-DD'),
-        addedBy: values.addedBy || currentUser?.name || 'Cashier'
+        addedBy: values.addedBy || currentUser?.name || 'Cashier',
+        shopId: currentShop?.id || 'b0000000-0000-0000-0000-000000000001'
       })
 
       message.success('Expense recorded successfully')
@@ -379,7 +381,8 @@ export const ExpensesPage: React.FC = () => {
         description: values.description,
         amount: Number(values.amount),
         expenseDate: (values.expenseDate || dayjs()).format('YYYY-MM-DD'),
-        addedBy: values.addedBy || editingExpense.addedBy || currentUser?.name
+        addedBy: values.addedBy || editingExpense.addedBy || currentUser?.name,
+        shopId: currentShop?.id || editingExpense.shopId
       })
 
       message.success('Expense record updated successfully')
@@ -588,21 +591,21 @@ export const ExpensesPage: React.FC = () => {
       }}
     >
       {/* ── 1. Page Header ── */}
-      <div className="page-header" style={{ alignItems: 'flex-start', flexShrink: 0 }}>
-        <div>
+      <div className="page-header" style={{ alignItems: 'center', flexWrap: 'wrap', gap: 14, flexShrink: 0 }}>
+        <div style={{ minWidth: 260, flex: '1 1 auto' }}>
           <div className="page-title" style={{ fontSize: 20 }}>
             <div
               style={{
                 width: 38,
                 height: 38,
                 borderRadius: 12,
-                background: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
-                color: '#15803d',
+                background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
+                color: '#dc2626',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 2px 6px rgba(22, 163, 74, 0.12)',
-                border: '1px solid #86efac'
+                boxShadow: '0 2px 6px rgba(220, 38, 38, 0.12)',
+                border: '1px solid #fecaca'
               }}
             >
               <Receipt size={20} />
@@ -612,9 +615,9 @@ export const ExpensesPage: React.FC = () => {
               style={{
                 fontSize: 11,
                 fontWeight: 700,
-                color: 'var(--primary-dark)',
-                background: 'var(--primary-bg)',
-                border: '1px solid var(--primary-muted)',
+                color: '#b91c1c',
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
                 padding: '2px 8px',
                 borderRadius: 99,
                 marginLeft: 4
@@ -632,9 +635,8 @@ export const ExpensesPage: React.FC = () => {
         </div>
 
         {/* Header Right Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, flexWrap: 'nowrap' }}>
           <button
-            className="btn-secondary"
             onClick={handleExportCSV}
             title="Download CSV spreadsheet"
             style={{
@@ -643,19 +645,33 @@ export const ExpensesPage: React.FC = () => {
               borderRadius: 10,
               fontSize: 12.5,
               fontWeight: 600,
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              gap: 6
+              gap: 6,
+              background: '#ffffff',
+              border: '1.5px solid var(--border)',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--primary)'
+              e.currentTarget.style.color = 'var(--primary)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border)'
+              e.currentTarget.style.color = 'var(--text-secondary)'
             }}
           >
-            <Download size={15} />
-            <span>Export CSV</span>
+            <Download size={15} style={{ flexShrink: 0 }} />
+            <span style={{ whiteSpace: 'nowrap' }}>Export CSV</span>
           </button>
 
           <RefreshButton onClick={loadExpenses} isLoading={isLoading} />
 
           <button
-            className="btn-primary"
             onClick={() => {
               addForm.setFieldsValue({
                 category: 'Ingredients',
@@ -671,14 +687,32 @@ export const ExpensesPage: React.FC = () => {
               borderRadius: 10,
               fontSize: 13,
               fontWeight: 700,
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: 8,
-              boxShadow: '0 4px 12px rgba(22, 163, 74, 0.25)'
+              border: 'none',
+              background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+              color: '#ffffff',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(22, 163, 74, 0.3)',
+              transition: 'all 0.15s ease',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = '0.92'
+              e.currentTarget.style.transform = 'translateY(-1px)'
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(22, 163, 74, 0.4)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = '1'
+              e.currentTarget.style.transform = 'none'
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(22, 163, 74, 0.3)'
             }}
           >
-            <Plus size={16} strokeWidth={2.5} />
-            <span>Record Expense</span>
+            <Plus size={16} strokeWidth={2.5} style={{ flexShrink: 0 }} />
+            <span style={{ whiteSpace: 'nowrap' }}>Record Expense</span>
           </button>
         </div>
       </div>

@@ -40,7 +40,7 @@ export const POSPage: React.FC = () => {
     setIsLoading(true)
     try {
       const [rawProds, rawCats] = await Promise.all([
-        productsApi.getAll(false).catch(() => []),
+        productsApi.getAll(false, currentShop.id).catch(() => []),
         categoriesApi.getAll().catch(() => [])
       ])
 

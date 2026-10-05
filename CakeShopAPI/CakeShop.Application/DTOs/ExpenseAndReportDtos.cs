@@ -2,6 +2,7 @@ namespace CakeShop.Application.DTOs;
 
 public class CreateExpenseRequest
 {
+    public string? ShopId { get; set; }
     public string? Category { get; set; }
     public string Description { get; set; } = string.Empty;
     public decimal Amount { get; set; }
@@ -11,6 +12,7 @@ public class CreateExpenseRequest
 
 public class UpdateExpenseRequest
 {
+    public string? ShopId { get; set; }
     public string? Category { get; set; }
     public string Description { get; set; } = string.Empty;
     public decimal Amount { get; set; }
@@ -20,6 +22,7 @@ public class UpdateExpenseRequest
 public class ExpenseDto
 {
     public string Id { get; set; } = string.Empty;
+    public string? ShopId { get; set; }
     public string? Category { get; set; }
     public string Description { get; set; } = string.Empty;
     public decimal Amount { get; set; }

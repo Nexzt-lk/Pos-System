@@ -26,6 +26,7 @@ export interface User {
   id: string
   tenant_id: string
   shop_id: string
+  shopId?: string
   name: string
   email?: string
   pin_hash?: string

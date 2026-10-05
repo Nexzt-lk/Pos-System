@@ -13,14 +13,14 @@ public class ProductsController : ControllerBase
     public ProductsController(ProductService service) => _service = service;
 
     [HttpGet]
-    public async Task<ActionResult<List<ProductDto>>> GetAll([FromQuery] bool includeInactive = false)
-        => Ok(await _service.GetAllAsync(includeInactive));
+    public async Task<ActionResult<List<ProductDto>>> GetAll([FromQuery] bool includeInactive = false, [FromQuery] string? shopId = null)
+        => Ok(await _service.GetAllAsync(includeInactive, shopId));
 
     // Used by the barcode scanner flow at checkout / product lookup.
     [HttpGet("by-barcode/{barcode}")]
-    public async Task<ActionResult<ProductDto>> GetByBarcode(string barcode)
+    public async Task<ActionResult<ProductDto>> GetByBarcode(string barcode, [FromQuery] string? shopId = null)
     {
-        var product = await _service.GetByBarcodeAsync(barcode);
+        var product = await _service.GetByBarcodeAsync(barcode, shopId);
         return product == null ? NotFound() : Ok(product);
     }
 

@@ -37,9 +37,18 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
   }, [])
 
   // Auto-fetch latest shop info from DB on mount
+  // ⚠️ IMPORTANT: Do NOT override Poojapitiya branch if the logged-in user belongs to Branch 2.
+  //    This prevents the layout from resetting back to Katugastota after branch 2 login.
   useEffect(() => {
+    // If user is already in Poojapitiya context, skip the DB auto-load
+    const userShopId = currentUser?.shop_id || (currentUser as any)?.shopId || currentShop?.id
+    const isPooja = userShopId === 'b0000000-0000-0000-0000-000000000002' || currentShop?.id === 'b0000000-0000-0000-0000-000000000002'
+    if (isPooja) return
+
     shopsApi.getCurrent().then((shop) => {
       if (shop && shop.id) {
+        // Only apply if this isn't overriding a Poojapitiya session
+        if (shop.id === 'b0000000-0000-0000-0000-000000000002' || currentShop?.id === 'b0000000-0000-0000-0000-000000000002') return
         setShop({
           id: shop.id,
           tenant_id: 'a0000000-0000-0000-0000-000000000001',
@@ -52,7 +61,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
         })
       }
     }).catch(() => {})
-  }, [setShop])
+  }, [setShop, currentUser?.id, currentShop?.id])
 
   // Auto-fetch stock alerts on login / mount and poll every 30 seconds
   useEffect(() => {
@@ -90,10 +99,30 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
   const navItems = allNavItems.filter((item) => item.roles.includes(userRole))
 
   const toggleBranch = () => {
-    if (currentShop?.branch_code === 'B1') {
-      setShop({ id: 'b0000000-0000-0000-0000-000000000002', tenant_id: 'a0000000-0000-0000-0000-000000000001', name: 'Rasa Cake House - Colombo Branch', branch_code: 'B2', address: 'No. 120, Galle Road, Colombo 03', phone: '+94 11 258 9101', currency: 'LKR', is_active: true })
+    if (currentShop?.branch_code === 'B1' || currentShop?.id === 'b0000000-0000-0000-0000-000000000001') {
+      setShop({
+        id: 'b0000000-0000-0000-0000-000000000002',
+        tenant_id: 'a0000000-0000-0000-0000-000000000001',
+        name: 'Wasana Cake - Poojapitiya',
+        branch_code: 'B2',
+        address: 'Wasana Cake, Poojapitiya Road, Poojapitiya',
+        phone: '071-1172201',
+        email: 'poojapitiya@wasanacake.com',
+        currency: 'LKR',
+        is_active: true
+      })
     } else {
-      setShop({ id: 'b0000000-0000-0000-0000-000000000001', tenant_id: 'a0000000-0000-0000-0000-000000000001', name: 'Wasana Cake - Katugastota', branch_code: 'B1', address: 'Horana Wasana Bakers Galagedara Road Katugastota', phone: '071-1172201', currency: 'LKR', is_active: true })
+      setShop({
+        id: 'b0000000-0000-0000-0000-000000000001',
+        tenant_id: 'a0000000-0000-0000-0000-000000000001',
+        name: 'Wasana Cake - Katugastota',
+        branch_code: 'B1',
+        address: 'Horana Wasana Bakers Galagedara Road Katugastota',
+        phone: '071-1172201',
+        email: 'wasana@cakes.lk',
+        currency: 'LKR',
+        is_active: true
+      })
     }
   }
 

@@ -44,14 +44,17 @@ export const orderRepo = {
       orderNo = await orderRepo.getNextOrderNumber(orderData.shop_id, orderData.branch_code, terminalId)
     }
 
+    const shopId = orderData.shop_id || 'b0000000-0000-0000-0000-000000000001'
+
     // 1. Insert Order
     db.run(
       `
       INSERT INTO orders (
         id, order_no, terminal_id, subtotal, discount_type,
         discount_amount, tax_amount, total_amount, status, note,
-        cashier_id, cashier_name, created_at, local_id, sync_status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+        cashier_id, cashier_name, created_at, local_id, sync_status,
+        shop_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
     `,
       [
         orderId,
@@ -67,7 +70,8 @@ export const orderRepo = {
         orderData.cashier_id || null,
         orderData.cashier_name || null,
         createdAt,
-        localId
+        localId,
+        shopId
       ]
     )
 
@@ -166,9 +170,10 @@ export const orderRepo = {
     return { success: true, orderId, orderNo }
   },
 
-  getDailySummary: async (_shopId?: string, dateStr?: string) => {
+  getDailySummary: async (shopId?: string, dateStr?: string) => {
     const db = await getDatabase()
     const targetDate = dateStr || dayjs().format('YYYY-MM-DD')
+    const filterByShop = shopId && shopId !== 'all'
 
     const summary = db.queryOne(
       `
@@ -178,9 +183,11 @@ export const orderRepo = {
         COALESCE(sum(discount_amount), 0) as total_discount,
         COALESCE(avg(total_amount), 0) as avg_order_value
       FROM orders
-      WHERE substr(created_at, 1, 10) = ? AND (LOWER(status) = 'completed' OR status IS NULL OR status = '')
+      WHERE substr(created_at, 1, 10) = ? 
+        AND (LOWER(status) = 'completed' OR status IS NULL OR status = '')
+        AND (? = 0 OR shop_id = ?)
     `,
-      [targetDate]
+      [targetDate, filterByShop ? 1 : 0, shopId || '']
     )
 
     const paymentBreakdown = db.query(
@@ -188,13 +195,67 @@ export const orderRepo = {
       SELECT p.method, COALESCE(sum(p.amount), 0) as total_amount
       FROM payments p
       JOIN orders o ON p.order_id = o.id
-      WHERE substr(o.created_at, 1, 10) = ? AND (LOWER(o.status) = 'completed' OR o.status IS NULL OR o.status = '')
+      WHERE substr(o.created_at, 1, 10) = ? 
+        AND (LOWER(o.status) = 'completed' OR o.status IS NULL OR o.status = '')
+        AND (? = 0 OR o.shop_id = ?)
       GROUP BY p.method
     `,
-      [targetDate]
+      [targetDate, filterByShop ? 1 : 0, shopId || '']
     )
 
     return { summary, paymentBreakdown }
+  },
+
+  getByShop: async (shopId?: string, limit: number = 200, dateStr?: string) => {
+    const db = await getDatabase()
+    const filterByShop = shopId && shopId !== 'all'
+    let sql = `SELECT * FROM orders WHERE 1=1`
+    const params: any[] = []
+
+    if (dateStr) {
+      sql += ` AND substr(created_at, 1, 10) = ?`
+      params.push(dateStr)
+    }
+    if (filterByShop) {
+      sql += ` AND shop_id = ?`
+      params.push(shopId)
+    }
+    sql += ` ORDER BY created_at DESC LIMIT ?`
+    params.push(limit)
+
+    const orders = db.query(sql, params)
+    return orders.map((o: any) => {
+      const items = db.query(`SELECT * FROM order_items WHERE order_id = ?`, [o.id])
+      const payments = db.query(`SELECT * FROM payments WHERE order_id = ?`, [o.id])
+      return {
+        id: o.id,
+        localId: o.local_id || o.id,
+        orderNo: o.order_no,
+        cashierId: o.cashier_id,
+        cashierName: o.cashier_name,
+        subtotal: o.subtotal,
+        discountAmount: o.discount_amount || 0,
+        taxAmount: o.tax_amount || 0,
+        totalAmount: o.total_amount,
+        status: o.status || 'completed',
+        createdAt: o.created_at,
+        shopId: o.shop_id,
+        items: (items || []).map((it: any) => ({
+          productName: it.product_name,
+          itemCode: it.item_code,
+          unitPrice: it.unit_price,
+          quantity: it.quantity,
+          discount: it.discount || 0,
+          subtotal: it.subtotal
+        })),
+        payments: (payments || []).map((pm: any) => ({
+          method: pm.method,
+          amount: pm.amount,
+          cashGiven: pm.cash_given,
+          changeGiven: pm.change_given
+        }))
+      }
+    })
   },
 
   getAnalytics: async (params: {

@@ -1,8 +1,17 @@
+using System.Text.Json.Serialization;
+
 namespace CakeShop.Application.DTOs;
 
 public class ProductDto
 {
     public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("shopId")]
+    public string? ShopId { get; set; }
+
+    [JsonPropertyName("shop_id")]
+    public string? ShopIdSnake { get => ShopId; set => ShopId = value; }
+
     public string? CategoryId { get; set; }
     public string? CategoryName { get; set; }
     public string ItemCode { get; set; } = string.Empty;
@@ -22,6 +31,12 @@ public class ProductDto
 // If Barcode is null/empty, the product is treated as manual-entry only.
 public class CreateProductRequest
 {
+    [JsonPropertyName("shopId")]
+    public string? ShopId { get; set; }
+
+    [JsonPropertyName("shop_id")]
+    public string? ShopIdSnake { get => ShopId; set => ShopId = value; }
+
     public string CategoryId { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
@@ -36,6 +51,12 @@ public class CreateProductRequest
 
 public class UpdateProductRequest
 {
+    [JsonPropertyName("shopId")]
+    public string? ShopId { get; set; }
+
+    [JsonPropertyName("shop_id")]
+    public string? ShopIdSnake { get => ShopId; set => ShopId = value; }
+
     public string? CategoryId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }

@@ -50,7 +50,7 @@ export const ProductsPage: React.FC = () => {
     setIsLoading(true)
     try {
       const [rawProds, rawCats] = await Promise.all([
-        productsApi.getAll(true).catch(() => []),
+        productsApi.getAll(true, currentShop.id).catch(() => []),
         categoriesApi.getAll().catch(() => [])
       ])
 
@@ -167,6 +167,8 @@ export const ProductsPage: React.FC = () => {
 
       if (editingProduct) {
         await productsApi.update(editingProduct.id, {
+          shopId: currentShop.id,
+          shop_id: currentShop.id,
           categoryId: values.category_id || undefined,
           name: values.name.trim(),
           description: values.description || '',
@@ -191,7 +193,9 @@ export const ProductsPage: React.FC = () => {
           trackInventory: Boolean(values.track_inventory),
           initialStock: finalInitialStock,
           imagePath: finalImagePath,
-          minStockAlert: 5
+          minStockAlert: 5,
+          shopId: currentShop.id,
+          shop_id: currentShop.id
         })
         message.success(`Product "${values.name}" (Code: ${itemCode}) created via Backend API!`)
       }
@@ -275,8 +279,8 @@ export const ProductsPage: React.FC = () => {
   return (
     <div className="page-container" style={{ padding: '18px 24px', gap: 16 }}>
       {/* ── Page Header ── */}
-      <div className="page-header" style={{ alignItems: 'flex-start' }}>
-        <div>
+      <div className="page-header" style={{ alignItems: 'center', flexWrap: 'wrap', gap: 14 }}>
+        <div style={{ minWidth: 260, flex: '1 1 auto' }}>
           <div className="page-title" style={{ fontSize: 20 }}>
             <div
               style={{
@@ -315,11 +319,10 @@ export const ProductsPage: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, flexWrap: 'nowrap' }}>
           <RefreshButton onClick={loadData} isLoading={isLoading} />
 
           <button
-            className="btn-primary"
             onClick={() => handleOpenModal()}
             style={{
               height: 38,
@@ -327,14 +330,32 @@ export const ProductsPage: React.FC = () => {
               borderRadius: 10,
               fontSize: 13,
               fontWeight: 700,
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: 8,
-              boxShadow: '0 4px 12px rgba(22, 163, 74, 0.25)'
+              border: 'none',
+              background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+              color: '#ffffff',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(22, 163, 74, 0.3)',
+              transition: 'all 0.15s ease',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = '0.92'
+              e.currentTarget.style.transform = 'translateY(-1px)'
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(22, 163, 74, 0.4)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = '1'
+              e.currentTarget.style.transform = 'none'
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(22, 163, 74, 0.3)'
             }}
           >
-            <Plus size={16} strokeWidth={2.5} />
-            <span>Add New Product</span>
+            <Plus size={16} strokeWidth={2.5} style={{ flexShrink: 0 }} />
+            <span style={{ whiteSpace: 'nowrap' }}>Add New Product</span>
           </button>
         </div>
       </div>
@@ -783,27 +804,27 @@ export const ProductsPage: React.FC = () => {
                               onClick={() => handleOpenModal(product)}
                               title="Edit Product Details"
                               style={{
-                                width: 28,
-                                height: 28,
+                                width: 32,
+                                height: 32,
                                 borderRadius: 8,
-                                border: '1px solid transparent',
-                                background: 'transparent',
+                                border: '1px solid #bfdbfe',
+                                background: '#eff6ff',
                                 cursor: 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                color: 'var(--primary)',
+                                color: '#2563eb',
                                 transition: 'all 0.15s ease'
                               }}
                               onMouseEnter={(e) => {
-                                e.currentTarget.style.background = 'var(--primary-bg)'
-                                e.currentTarget.style.color = 'var(--primary-dark)'
-                                e.currentTarget.style.borderColor = 'var(--primary-muted)'
+                                e.currentTarget.style.background = '#dbeafe'
+                                e.currentTarget.style.transform = 'translateY(-1px)'
+                                e.currentTarget.style.boxShadow = '0 2px 6px rgba(37, 99, 235, 0.2)'
                               }}
                               onMouseLeave={(e) => {
-                                e.currentTarget.style.background = 'transparent'
-                                e.currentTarget.style.color = 'var(--primary)'
-                                e.currentTarget.style.borderColor = 'transparent'
+                                e.currentTarget.style.background = '#eff6ff'
+                                e.currentTarget.style.transform = 'none'
+                                e.currentTarget.style.boxShadow = 'none'
                               }}
                             >
                               <Edit3 size={15} />
@@ -820,27 +841,27 @@ export const ProductsPage: React.FC = () => {
                               <button
                                 title="Delete Product"
                                 style={{
-                                  width: 28,
-                                  height: 28,
+                                  width: 32,
+                                  height: 32,
                                   borderRadius: 8,
-                                  border: '1px solid transparent',
-                                  background: 'transparent',
+                                  border: '1px solid #fecaca',
+                                  background: '#fef2f2',
                                   cursor: 'pointer',
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  color: '#94a3b8',
+                                  color: '#dc2626',
                                   transition: 'all 0.15s ease'
                                 }}
                                 onMouseEnter={(e) => {
                                   e.currentTarget.style.background = '#fee2e2'
-                                  e.currentTarget.style.color = '#ef4444'
-                                  e.currentTarget.style.borderColor = '#fca5a5'
+                                  e.currentTarget.style.transform = 'translateY(-1px)'
+                                  e.currentTarget.style.boxShadow = '0 2px 6px rgba(220, 38, 38, 0.2)'
                                 }}
                                 onMouseLeave={(e) => {
-                                  e.currentTarget.style.background = 'transparent'
-                                  e.currentTarget.style.color = '#94a3b8'
-                                  e.currentTarget.style.borderColor = 'transparent'
+                                  e.currentTarget.style.background = '#fef2f2'
+                                  e.currentTarget.style.transform = 'none'
+                                  e.currentTarget.style.boxShadow = 'none'
                                 }}
                               >
                                 <Trash2 size={15} />

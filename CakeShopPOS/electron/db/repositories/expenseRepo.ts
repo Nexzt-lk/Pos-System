@@ -4,6 +4,7 @@ import dayjs from 'dayjs'
 
 export interface DBExpense {
   id: string
+  shop_id?: string
   category?: string
   description: string
   amount: number
@@ -30,6 +31,7 @@ export interface ExpenseFilterParams {
 
 export interface ExpenseInput {
   id?: string
+  shopId?: string
   category?: string
   description: string
   amount: number
@@ -48,6 +50,11 @@ export const expenseRepo = {
     const db = await getDatabase()
     let query = `SELECT * FROM expenses WHERE 1=1`
     const sqlParams: any[] = []
+
+    if (params?.shopId && params.shopId !== 'all') {
+      query += ` AND shop_id = ?`
+      sqlParams.push(params.shopId)
+    }
 
     if (params?.from) {
       query += ` AND substr(expense_date, 1, 10) >= ?`
@@ -76,6 +83,7 @@ export const expenseRepo = {
 
     return rows.map((r) => ({
       id: r.id,
+      shopId: r.shop_id || 'b0000000-0000-0000-0000-000000000001',
       category: r.category || 'Other',
       description: r.description,
       amount: Number(r.amount) || 0,
@@ -100,6 +108,7 @@ export const expenseRepo = {
 
     return {
       id: r.id,
+      shopId: r.shop_id || 'b0000000-0000-0000-0000-000000000001',
       category: r.category || 'Other',
       description: r.description,
       amount: Number(r.amount) || 0,
@@ -120,6 +129,7 @@ export const expenseRepo = {
   create: async (data: ExpenseInput): Promise<any> => {
     const db = await getDatabase()
     const id = data.id || uuidv4()
+    const shopId = data.shopId || 'b0000000-0000-0000-0000-000000000001'
     const localId = 'exp-' + Date.now() + '-' + Math.floor(100 + Math.random() * 900)
     const expenseDate = data.expenseDate
       ? dayjs(data.expenseDate).format('YYYY-MM-DD')
@@ -138,14 +148,15 @@ export const expenseRepo = {
     db.run(
       `
       INSERT INTO expenses (
-        id, category, description, amount, expense_date,
+        id, shop_id, category, description, amount, expense_date,
         linked_product_id, linked_stock_movement_id, supplier_id,
         supplier_name, invoice_no, payment_method, added_by,
         created_at, local_id, sync_status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, 'pending')
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, 'pending')
     `,
       [
         id,
+        shopId,
         category,
         description,
         amount,
@@ -164,6 +175,7 @@ export const expenseRepo = {
     // Enqueue in sync_queue for cloud mirroring
     const payload = JSON.stringify({
       id,
+      shop_id: shopId,
       local_id: localId,
       category,
       description,
@@ -190,6 +202,7 @@ export const expenseRepo = {
 
     return {
       id,
+      shopId,
       localId,
       category,
       description,
@@ -305,6 +318,11 @@ export const expenseRepo = {
     let whereClause = `WHERE 1=1`
     const sqlParams: any[] = []
 
+    if (params?.shopId && params.shopId !== 'all') {
+      whereClause += ` AND shop_id = ?`
+      sqlParams.push(params.shopId)
+    }
+
     if (params?.from) {
       whereClause += ` AND substr(expense_date, 1, 10) >= ?`
       sqlParams.push(params.from)
@@ -351,26 +369,22 @@ export const expenseRepo = {
     )
 
     const todayStr = dayjs().format('YYYY-MM-DD')
-    const todayRow = db.queryOne<{ today_total: number; today_count: number }>(
-      `
-      SELECT 
-        COALESCE(sum(amount), 0) as today_total,
-        count(*) as today_count
-      FROM expenses
-      WHERE substr(expense_date, 1, 10) = ?
-    `,
-      [todayStr]
-    )
+    let todayQuery = `SELECT COALESCE(sum(amount), 0) as today_total, count(*) as today_count FROM expenses WHERE substr(expense_date, 1, 10) = ?`
+    const todayParams: any[] = [todayStr]
+    if (params?.shopId && params.shopId !== 'all') {
+      todayQuery += ` AND shop_id = ?`
+      todayParams.push(params.shopId)
+    }
+    const todayRow = db.queryOne<{ today_total: number; today_count: number }>(todayQuery, todayParams)
 
     const monthPrefix = dayjs().format('YYYY-MM')
-    const monthRow = db.queryOne<{ month_total: number }>(
-      `
-      SELECT COALESCE(sum(amount), 0) as month_total
-      FROM expenses
-      WHERE substr(expense_date, 1, 7) = ?
-    `,
-      [monthPrefix]
-    )
+    let monthQuery = `SELECT COALESCE(sum(amount), 0) as month_total FROM expenses WHERE substr(expense_date, 1, 7) = ?`
+    const monthParams: any[] = [monthPrefix]
+    if (params?.shopId && params.shopId !== 'all') {
+      monthQuery += ` AND shop_id = ?`
+      monthParams.push(params.shopId)
+    }
+    const monthRow = db.queryOne<{ month_total: number }>(monthQuery, monthParams)
 
     return {
       totalAmount: summaryRow?.total_amount || 0,

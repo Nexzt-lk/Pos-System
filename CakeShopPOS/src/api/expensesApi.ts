@@ -2,6 +2,8 @@ import { apiClient } from './apiClient'
 
 export interface ExpenseDto {
   id: string
+  shopId?: string
+  shop_id?: string
   category?: string
   description: string
   amount: number
@@ -19,6 +21,8 @@ export interface ExpenseDto {
 }
 
 export interface CreateExpenseRequest {
+  shopId?: string
+  shop_id?: string
   category?: string
   description: string
   amount: number
@@ -33,6 +37,8 @@ export interface CreateExpenseRequest {
 }
 
 export interface UpdateExpenseRequest {
+  shopId?: string
+  shop_id?: string
   category?: string
   description: string
   amount: number
@@ -58,6 +64,8 @@ export interface ExpenseSummaryDto {
 function normalizeExpense(raw: any): ExpenseDto {
   return {
     id: raw.id || raw.local_id || String(Math.random()),
+    shopId: raw.shopId || raw.shop_id,
+    shop_id: raw.shop_id || raw.shopId,
     category: raw.category || 'Other',
     description: raw.description || '',
     amount: Number(raw.amount) || 0,
@@ -76,9 +84,9 @@ function normalizeExpense(raw: any): ExpenseDto {
 }
 
 export const expensesApi = {
-  getAll: async (params?: { category?: string; search?: string }): Promise<ExpenseDto[]> => {
+  getAll: async (params?: { category?: string; search?: string; shopId?: string }): Promise<ExpenseDto[]> => {
     try {
-      const res = await apiClient.get<any[]>('/expenses')
+      const res = await apiClient.get<any[]>('/expenses', { params })
       if (Array.isArray(res)) {
         return res.map(normalizeExpense)
       }
@@ -95,9 +103,9 @@ export const expensesApi = {
     return []
   },
 
-  getByDateRange: async (from: string, to: string, category?: string, search?: string): Promise<ExpenseDto[]> => {
+  getByDateRange: async (from: string, to: string, category?: string, search?: string, shopId?: string): Promise<ExpenseDto[]> => {
     try {
-      const res = await apiClient.get<any[]>(`/expenses?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
+      const res = await apiClient.get<any[]>('/expenses', { params: { from, to, category, search, shopId } })
       if (Array.isArray(res)) {
         return res.map(normalizeExpense)
       }
@@ -107,7 +115,7 @@ export const expensesApi = {
 
     const api = typeof window !== 'undefined' ? (window as any).electronAPI : undefined
     if (api?.getExpenses) {
-      const rows = await api.getExpenses({ from, to, category, search })
+      const rows = await api.getExpenses({ from, to, category, search, shopId })
       return (rows || []).map(normalizeExpense)
     }
 

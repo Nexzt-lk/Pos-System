@@ -16,6 +16,7 @@ public class CreateSaleRequest
     public string? IdempotencyKey { get; set; }
     public string? LocalId { get; set; }
     public string? CashierId { get; set; }
+    public string? ShopId { get; set; }
 
     public string TerminalId { get; set; } = "T1";
     public List<SaleItemRequest> Items { get; set; } = new();
@@ -33,6 +34,7 @@ public class CreateSaleRequest
 public class OrderDto
 {
     public string Id { get; set; } = string.Empty;
+    public string? ShopId { get; set; }
     public string LocalId { get; set; } = string.Empty;
     public string OrderNo { get; set; } = string.Empty;
     public string? CashierId { get; set; }

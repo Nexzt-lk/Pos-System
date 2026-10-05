@@ -4,6 +4,7 @@ namespace CakeShop.Domain.Entities;
 public class Product
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string ShopId { get; set; } = "b0000000-0000-0000-0000-000000000001";
     public string? CategoryId { get; set; }
     public string ItemCode { get; set; } = string.Empty;   // Auto-generated: "BDY-001"
     public string Name { get; set; } = string.Empty;

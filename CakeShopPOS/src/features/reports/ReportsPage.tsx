@@ -873,7 +873,7 @@ export const ReportsPage: React.FC = () => {
   const isCurrentDayFuture = dayjs(selectedDate).isSame(dayjs(), 'day')
 
   return (
-    <div className="page-container" style={{ overflowY: 'auto', padding: '20px 24px', gap: 18, background: '#fafbfc' }}>
+    <div className="page-container" style={{ overflowY: 'auto', padding: '18px 24px', gap: 16 }}>
       {/* Top View Mode Switcher: Store Sales & Item Analytics vs Owner's Executive Hub */}
       <div style={{
         display: 'flex',
@@ -882,10 +882,11 @@ export const ReportsPage: React.FC = () => {
         flexWrap: 'wrap',
         gap: 12,
         background: '#ffffff',
-        padding: '8px 14px',
+        padding: '10px 16px',
         borderRadius: 14,
-        border: '1px solid #e8ecf1',
-        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)'
+        border: '1px solid var(--border)',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+        flexShrink: 0
       }}>
         <div style={{
           display: 'inline-flex',
@@ -956,63 +957,66 @@ export const ReportsPage: React.FC = () => {
           display: 'flex',
           alignItems: 'center',
           gap: 6,
-          fontSize: 11,
-          fontWeight: 600,
-          color: '#64748b',
+          fontSize: 11.5,
+          fontWeight: 700,
+          color: '#475569',
           background: '#f8fafc',
-          padding: '4px 10px',
+          padding: '5px 12px',
           borderRadius: 8,
           border: '1px solid #e2e8f0'
         }}>
-          <ShieldCheck size={13} style={{ color: '#0f172a' }} />
+          <ShieldCheck size={14} style={{ color: '#16a34a' }} />
           <span>{viewMode === 'store' ? 'Operational Level Analytics' : 'C-Suite Financial Intelligence'}</span>
         </div>
       </div>
 
-      {/* Header & Controls */}
-      <div style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 16,
-        background: '#ffffff',
-        padding: '16px 20px',
-        borderRadius: 14,
-        border: '1px solid #e8ecf1',
-        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)'
-      }}>
+      {/* ── Page Header ── */}
+      <div className="page-header" style={{ alignItems: 'center', flexWrap: 'wrap', gap: 14, flexShrink: 0 }}>
         {/* Title & Branch */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ minWidth: 260, flex: '1 1 auto' }}>
+          <div className="page-title" style={{ fontSize: 20 }}>
             <div style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              background: '#0f172a',
+              width: 38,
+              height: 38,
+              borderRadius: 12,
+              background: viewMode === 'store'
+                ? 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)'
+                : 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#ffffff',
-              boxShadow: '0 2px 6px rgba(15, 23, 42, 0.15)'
+              color: viewMode === 'store' ? '#2563eb' : '#d97706',
+              boxShadow: viewMode === 'store'
+                ? '0 2px 6px rgba(37, 99, 235, 0.15)'
+                : '0 2px 6px rgba(217, 119, 6, 0.15)',
+              border: viewMode === 'store' ? '1px solid #bfdbfe' : '1px solid #fde68a'
             }}>
-              {viewMode === 'store' ? <BarChart3 size={18} /> : <Crown size={18} />}
+              {viewMode === 'store' ? <BarChart3 size={20} /> : <Crown size={20} />}
             </div>
-            <div>
-              <h1 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.3px' }}>
-                {viewMode === 'store' ? 'Sales & Revenue Analytics' : "Owner's Executive Business Hub"}
-              </h1>
-              <p style={{ fontSize: 12, color: '#64748b', margin: 0, fontWeight: 500, marginTop: 2 }}>
-                {viewMode === 'store'
-                  ? `${currentShop?.name || 'Main Branch'} · Performance Insights & Item Breakdown`
-                  : `${currentShop?.name || 'Main Branch'} · Profit & Loss, Expenses, Cash & Staff Audit`}
-              </p>
-            </div>
+            <span>{viewMode === 'store' ? 'Sales & Revenue Analytics' : "Owner's Executive Business Hub"}</span>
+            <span style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: viewMode === 'store' ? '#1e40af' : '#b45309',
+              background: viewMode === 'store' ? '#eff6ff' : '#fef3c7',
+              border: viewMode === 'store' ? '1px solid #bfdbfe' : '1px solid #fde68a',
+              padding: '2px 8px',
+              borderRadius: 99,
+              marginLeft: 4
+            }}>
+              {periodDisplayLabel}
+            </span>
+          </div>
+          <div className="page-subtitle" style={{ marginTop: 4 }}>
+            {viewMode === 'store'
+              ? 'Performance Insights, Item Breakdown, and Store Activity'
+              : 'Profit & Loss, Operational Outflow, Cash Drawer & Staff Audit'} ·{' '}
+            <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{currentShop?.name || 'Main Branch'}</span>
           </div>
         </div>
 
         {/* Period Selector Tabs (Daily, Weekly, Monthly, Custom) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flexShrink: 0 }}>
           <div style={{
             display: 'inline-flex',
             background: '#f1f5f9',
@@ -1167,30 +1171,43 @@ export const ReportsPage: React.FC = () => {
           )}
 
           {/* Action Buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <RefreshButton onClick={loadAnalytics} isLoading={loading} label="" />
 
             <button
               onClick={() => setShowReportGen(true)}
               style={{
-                display: 'flex',
+                height: 38,
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: 6,
-                padding: '6px 14px',
-                borderRadius: 8,
+                gap: 8,
+                padding: '0 16px',
+                borderRadius: 10,
                 border: 'none',
-                background: '#0f172a',
-                fontSize: 12,
+                background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                fontSize: 13,
                 fontWeight: 700,
                 cursor: 'pointer',
                 color: '#ffffff',
-                boxShadow: '0 2px 4px rgba(15, 23, 42, 0.15)',
-                transition: 'background 0.15s ease'
+                boxShadow: '0 2px 8px rgba(15, 23, 42, 0.25)',
+                transition: 'all 0.15s ease',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.opacity = '0.92'
+                e.currentTarget.style.transform = 'translateY(-1px)'
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(15, 23, 42, 0.35)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = '1'
+                e.currentTarget.style.transform = 'none'
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(15, 23, 42, 0.25)'
               }}
               title="Generate Official Business Report (වාර්තා සැකසීම)"
             >
-              <FileText size={14} />
-              <span>Generate Report</span>
+              <FileText size={15} style={{ flexShrink: 0 }} />
+              <span style={{ whiteSpace: 'nowrap' }}>Generate Report</span>
             </button>
 
             <Dropdown
@@ -1233,21 +1250,33 @@ export const ReportsPage: React.FC = () => {
               <button
                 onClick={handleExportCSV}
                 style={{
-                  display: 'flex',
+                  height: 38,
+                  display: 'inline-flex',
                   alignItems: 'center',
                   gap: 6,
-                  padding: '6px 12px',
-                  borderRadius: 8,
-                  border: '1px solid #e2e8f0',
+                  padding: '0 14px',
+                  borderRadius: 10,
+                  border: '1.5px solid var(--border)',
                   background: '#ffffff',
-                  fontSize: 12,
+                  fontSize: 12.5,
                   fontWeight: 600,
                   cursor: 'pointer',
-                  color: '#334155'
+                  color: 'var(--text-secondary)',
+                  transition: 'all 0.15s ease',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--primary)'
+                  e.currentTarget.style.color = 'var(--primary)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border)'
+                  e.currentTarget.style.color = 'var(--text-secondary)'
                 }}
                 title="Export Clean Tabular CSV (CSV බාගත කරගැනීම)"
               >
-                <Download size={14} style={{ color: '#475569' }} />
+                <Download size={14} style={{ color: 'inherit' }} />
                 <span>CSV</span>
               </button>
             </Dropdown>
@@ -1255,20 +1284,32 @@ export const ReportsPage: React.FC = () => {
             <button
               onClick={() => window.print()}
               style={{
-                display: 'flex',
+                height: 38,
+                display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                padding: '6px 12px',
-                borderRadius: 8,
-                border: '1px solid #e2e8f0',
+                padding: '0 14px',
+                borderRadius: 10,
+                border: '1.5px solid var(--border)',
                 background: '#ffffff',
-                fontSize: 12,
+                fontSize: 12.5,
                 fontWeight: 600,
                 cursor: 'pointer',
-                color: '#334155'
+                color: 'var(--text-secondary)',
+                transition: 'all 0.15s ease',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#0f172a'
+                e.currentTarget.style.color = '#0f172a'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border)'
+                e.currentTarget.style.color = 'var(--text-secondary)'
               }}
             >
-              <Printer size={14} style={{ color: '#475569' }} />
+              <Printer size={14} style={{ color: 'inherit' }} />
               <span>Print</span>
             </button>
           </div>

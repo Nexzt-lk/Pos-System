@@ -4,6 +4,7 @@ namespace CakeShop.Domain.Entities;
 public class Expense
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string ShopId { get; set; } = "b0000000-0000-0000-0000-000000000001";
     public string? Category { get; set; }                     // "Ingredients","Utilities","Restock"...
     public string Description { get; set; } = string.Empty;
     public decimal Amount { get; set; }

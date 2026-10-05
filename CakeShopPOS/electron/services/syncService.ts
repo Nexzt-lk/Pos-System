@@ -142,17 +142,18 @@ async function pullCloudCatalog(): Promise<void> {
       for (const p of prodRes.data) {
         try {
           const itemCode = p.item_code || p.barcode || 'ITEM'
-          // Clean up any stale record with same item_code under a different id
+          const pShopId = toValidUuid(p.shop_id) || defaultShopId
+          // Clean up any stale record with same item_code under a different id in the same shop
           db.run(
-            `DELETE FROM products WHERE (item_code = ? AND item_code != '') AND id != ?;`,
-            [itemCode, p.id]
+            `DELETE FROM products WHERE (item_code = ? AND item_code != '') AND id != ? AND shop_id = ?;`,
+            [itemCode, p.id, pShopId]
           )
           db.run(
             `
             INSERT INTO products (
               id, category_id, item_code, name, description, price, cost_price,
-              barcode, image_path, unit, track_inventory, is_active, sync_status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced')
+              barcode, image_path, unit, track_inventory, is_active, shop_id, sync_status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced')
             ON CONFLICT(id) DO UPDATE SET
               category_id = excluded.category_id,
               item_code = excluded.item_code,
@@ -168,6 +169,7 @@ async function pullCloudCatalog(): Promise<void> {
               unit = excluded.unit,
               track_inventory = excluded.track_inventory,
               is_active = excluded.is_active,
+              shop_id = excluded.shop_id,
               sync_status = 'synced';
           `,
             [
@@ -182,16 +184,17 @@ async function pullCloudCatalog(): Promise<void> {
               p.image_path || null,
               p.unit || 'pcs',
               p.track_inventory ? 1 : 0,
-              p.is_active !== false ? 1 : 0
+              p.is_active !== false ? 1 : 0,
+              pShopId
             ]
           )
 
           db.run(
             `
-            INSERT OR IGNORE INTO inventory (id, product_id, quantity, min_quantity)
-            VALUES (?, ?, 0, 5.0);
+            INSERT OR IGNORE INTO inventory (id, product_id, shop_id, quantity, min_quantity)
+            VALUES (?, ?, ?, 0, 5.0);
           `,
-            ['inv-' + p.id, p.id]
+            ['inv-' + p.id, p.id, pShopId]
           )
         } catch (itemErr: any) {
           console.warn(`[AutoSync] Could not pull product ${p.name}:`, itemErr.message)
@@ -212,18 +215,21 @@ async function pullCloudCatalog(): Promise<void> {
       if (invRes.data && Array.isArray(invRes.data) && invRes.data.length > 0) {
         for (const inv of invRes.data) {
           const invId = inv.id || ('inv-' + inv.product_id)
+          const invShopId = toValidUuid(inv.shop_id) || defaultShopId
           db.run(
             `
-            INSERT INTO inventory (id, product_id, quantity, min_quantity, updated_at)
-            VALUES (?, ?, ?, ?, datetime('now'))
+            INSERT INTO inventory (id, product_id, shop_id, quantity, min_quantity, updated_at)
+            VALUES (?, ?, ?, ?, ?, datetime('now'))
             ON CONFLICT(id) DO UPDATE SET
               quantity = excluded.quantity,
               min_quantity = excluded.min_quantity,
+              shop_id = excluded.shop_id,
               updated_at = datetime('now');
           `,
             [
               invId,
               inv.product_id,
+              invShopId,
               Number(inv.quantity) || 0,
               Number(inv.min_quantity) || 5
             ]
@@ -515,10 +521,11 @@ export const syncService = {
         for (const p of pendingProducts) {
           try {
             const validId = toValidUuid(p.id)!
+            const pShopId = toValidUuid(p.shop_id) || defaultShopId
             const row: any = {
               id: validId,
               tenant_id: defaultTenantId,
-              shop_id: defaultShopId,
+              shop_id: pShopId,
               category_id: toValidUuid(p.category_id),
               item_code: p.item_code || p.barcode || ('ITM-' + Date.now().toString().slice(-6)),
               name: p.name,
@@ -598,7 +605,7 @@ export const syncService = {
             const orderId = toValidUuid(o.id) || o.id
             const orderRow = {
               id: orderId,
-              shop_id: defaultShopId,
+              shop_id: toValidUuid(o.shop_id) || defaultShopId,
               order_no: o.order_no,
               terminal_id: o.terminal_id || 'T1',
               cashier_id: toValidUuid(o.cashier_id),
@@ -632,11 +639,12 @@ export const syncService = {
               }
             }
 
+            const orderShopId = toValidUuid(o.shop_id) || defaultShopId
             const orderItems = db.query<any>(`SELECT * FROM order_items WHERE order_id = ?;`, [o.id])
             if (orderItems && orderItems.length > 0) {
               const itemPayload = orderItems.map((i) => ({
                 id: toValidUuid(i.id) || undefined,
-                shop_id: defaultShopId,
+                shop_id: orderShopId,
                 order_id: orderId,
                 product_id: toValidUuid(i.product_id),
                 product_name: i.product_name || 'Item',
@@ -662,7 +670,7 @@ export const syncService = {
             if (payments && payments.length > 0) {
               const payPayload = payments.map((p) => ({
                 id: toValidUuid(p.id) || undefined,
-                shop_id: defaultShopId,
+                shop_id: orderShopId,
                 order_id: orderId,
                 method: (p.method || 'CASH').toUpperCase(),
                 amount: Number(p.amount) || 0,
@@ -697,6 +705,7 @@ export const syncService = {
         for (const s of pendingStock) {
           try {
             const movId = toValidUuid(s.id) || s.id
+            const sShopId = toValidUuid(s.shop_id) || defaultShopId
             let richNote = s.note || ''
             if (s.supplier_name && !richNote.includes(s.supplier_name)) {
               richNote = `[Supplier: ${s.supplier_name}] ` + richNote
@@ -710,7 +719,7 @@ export const syncService = {
 
             const movRow = {
               id: movId,
-              shop_id: defaultShopId,
+              shop_id: sShopId,
               product_id: toValidUuid(s.product_id),
               type: s.type || 'SALE',
               quantity: Number(s.quantity) || 0,
@@ -737,6 +746,7 @@ export const syncService = {
                 record_id: movId,
                 payload: {
                   id: movId,
+                  shop_id: sShopId,
                   product_id: s.product_id,
                   type: s.type,
                   quantity: s.quantity,
@@ -766,7 +776,7 @@ export const syncService = {
       // 6. DIRECT SYNC: Inventory Stock Levels
       // =========================================================================
       const invRecords = db.query<any>(`
-        SELECT i.* FROM inventory i
+        SELECT i.*, p.shop_id as prod_shop_id FROM inventory i
         INNER JOIN products p ON p.id = i.product_id
         WHERE p.sync_status = 'synced';
       `)
@@ -776,7 +786,7 @@ export const syncService = {
             const pId = toValidUuid(i.product_id)
             if (!pId) return null
             return {
-              shop_id: defaultShopId,
+              shop_id: toValidUuid(i.shop_id || i.prod_shop_id) || defaultShopId,
               product_id: pId,
               quantity: Number(i.quantity) || 0,
               min_quantity: Number(i.min_quantity) || 5
@@ -817,7 +827,7 @@ export const syncService = {
 
             const expRow: any = {
               id: expId,
-              shop_id: defaultShopId,
+              shop_id: toValidUuid(exp.shop_id) || defaultShopId,
               category: exp.category || 'General',
               description: richDesc,
               amount: Number(exp.amount) || 0,
@@ -848,7 +858,7 @@ export const syncService = {
                 record_id: expId,
                 payload: {
                   id: expId,
-                  shop_id: defaultShopId,
+                  shop_id: toValidUuid(exp.shop_id) || defaultShopId,
                   category: exp.category,
                   description: exp.description,
                   amount: exp.amount,

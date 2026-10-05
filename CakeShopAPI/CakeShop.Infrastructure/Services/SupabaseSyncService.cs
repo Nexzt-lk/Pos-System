@@ -283,17 +283,18 @@ public class SupabaseSyncService : ISyncService
             using (var conn = _connectionFactory.CreateConnection())
             {
                 using var cmd = conn.CreateCommand();
-                cmd.CommandText = "SELECT id, category_id, item_code, name, description, price, cost_price, barcode, image_path, unit, track_inventory, is_active FROM products WHERE sync_status = 'pending' LIMIT 50;";
+                cmd.CommandText = "SELECT id, category_id, item_code, name, description, price, cost_price, barcode, image_path, unit, track_inventory, is_active, shop_id FROM products WHERE sync_status = 'pending' LIMIT 50;";
                 using var reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
                     var pId = reader.GetString(0);
                     productIds.Add(pId);
+                    var itemShopId = reader.IsDBNull(12) ? DefaultShopId : reader.GetString(12);
                     pendingProducts.Add(new Dictionary<string, object?>
                     {
                         ["id"] = pId,
                         ["tenant_id"] = DefaultTenantId,
-                        ["shop_id"] = DefaultShopId,
+                        ["shop_id"] = string.IsNullOrWhiteSpace(itemShopId) ? DefaultShopId : itemShopId,
                         ["category_id"] = reader.IsDBNull(1) ? null : reader.GetString(1),
                         ["item_code"] = reader.IsDBNull(2) ? null : reader.GetString(2),
                         ["name"] = reader.GetString(3),

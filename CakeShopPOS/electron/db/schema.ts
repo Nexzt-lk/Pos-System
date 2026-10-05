@@ -59,9 +59,11 @@ CREATE TABLE IF NOT EXISTS products (
     created_at      TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
     updated_at      TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
     sync_status     TEXT DEFAULT 'pending' CHECK (sync_status IN ('pending','synced','conflict')),
-    UNIQUE(item_code),
-    UNIQUE(barcode)
+    shop_id         TEXT DEFAULT 'b0000000-0000-0000-0000-000000000001'
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_products_shop_barcode ON products(shop_id, barcode) WHERE barcode IS NOT NULL AND barcode != '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_products_shop_item_code ON products(shop_id, item_code) WHERE item_code IS NOT NULL AND item_code != '';
 
 -- 5. Inventory
 CREATE TABLE IF NOT EXISTS inventory (

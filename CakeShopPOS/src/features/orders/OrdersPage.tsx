@@ -24,10 +24,8 @@ import {
   Eye,
   Banknote,
   CreditCard,
-  Package,
   Clock,
   TrendingUp,
-  Lock,
   ShieldCheck,
   Download
 } from 'lucide-react'
@@ -620,106 +618,72 @@ export const OrdersPage: React.FC = () => {
   }, [selectedOrder, currentUser])
 
   return (
-    <div
-      style={{
-        padding: '16px 24px 28px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 16,
-        maxWidth: 1600,
-        margin: '0 auto',
-        height: '100%',
-        overflowY: 'auto'
-      }}
-    >
-      {/* ───── Top Header & Date Navigation ───── */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 12,
-          backgroundColor: '#ffffff',
-          padding: '14px 20px',
-          borderRadius: 12,
-          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-          border: '1px solid #f1f5f9'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 10,
-              backgroundColor: '#ecfdf5',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#16a34a'
-            }}
-          >
-            <ReceiptText size={24} />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <h1
-                style={{
-                  fontSize: 20,
-                  fontWeight: 800,
-                  color: '#0f172a',
-                  margin: 0,
-                  letterSpacing: '-0.3px'
-                }}
-              >
-                Daily Orders History
-              </h1>
-              <Tag
-                style={{
-                  borderRadius: 12,
-                  fontWeight: 600,
-                  backgroundColor: '#f1f5f9',
-                  color: '#475569',
-                  border: '1px solid #cbd5e1',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4
-                }}
-              >
-                <Lock size={12} color="#64748b" />
-                Strictly Read-Only
-              </Tag>
+    <div className="page-container" style={{ padding: '18px 24px', gap: 16 }}>
+      {/* ── Page Header ── */}
+      <div className="page-header" style={{ alignItems: 'center', flexWrap: 'wrap', gap: 14 }}>
+        <div style={{ minWidth: 260, flex: '1 1 auto' }}>
+          <div className="page-title" style={{ fontSize: 20 }}>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 12,
+                background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)',
+                color: '#7c3aed',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 6px rgba(124, 58, 237, 0.12)',
+                border: '1px solid #ddd6fe'
+              }}
+            >
+              <ReceiptText size={20} />
             </div>
-            <p style={{ margin: '2px 0 0', fontSize: 13, color: '#64748b' }}>
-              Inspect and reprint orders placed on {selectedDate.format('dddd, DD MMMM YYYY')}
-            </p>
+            <span>Daily Orders & Sales History</span>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: '#6d28d9',
+                background: '#f5f3ff',
+                border: '1px solid #ddd6fe',
+                padding: '2px 8px',
+                borderRadius: 99,
+                marginLeft: 4
+              }}
+            >
+              {filteredOrders.length} Orders
+            </span>
+          </div>
+          <div className="page-subtitle" style={{ marginTop: 4 }}>
+            Inspect, verify, and reprint completed customer orders for {selectedDate.format('dddd, DD MMMM YYYY')} ·{' '}
+            <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{currentShop?.name || 'Main Branch'}</span>
           </div>
         </div>
 
         {/* Date Selector Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'nowrap' }}>
           <Space.Compact>
             <Button
               icon={<ChevronLeft size={16} />}
               onClick={handlePrevDay}
               title="Previous Day"
-              style={{ borderRadius: '8px 0 0 8px' }}
+              style={{ borderRadius: '8px 0 0 8px', height: 38 }}
             />
             <DatePicker
               value={selectedDate}
               onChange={(date) => date && setSelectedDate(date)}
-              format="YYYY-MM-DD (dddd)"
+              format="YYYY-MM-DD"
               allowClear={false}
               disabledDate={(current) => current && current > dayjs().endOf('day')}
-              style={{ width: 200, textAlign: 'center', fontWeight: 600 }}
+              style={{ width: 140, textAlign: 'center', fontWeight: 700, height: 38 }}
             />
             <Button
               icon={<ChevronRight size={16} />}
               onClick={handleNextDay}
               disabled={selectedDate.isSame(dayjs(), 'day')}
               title="Next Day"
-              style={{ borderRadius: '0 8px 8px 0' }}
+              style={{ borderRadius: '0 8px 8px 0', height: 38 }}
             />
           </Space.Compact>
 
@@ -727,10 +691,12 @@ export const OrdersPage: React.FC = () => {
             type={selectedDate.isSame(dayjs(), 'day') ? 'primary' : 'default'}
             onClick={handleSetToday}
             style={{
-              fontWeight: 600,
+              fontWeight: 700,
               borderRadius: 8,
-              backgroundColor: selectedDate.isSame(dayjs(), 'day') ? '#16a34a' : undefined,
-              borderColor: selectedDate.isSame(dayjs(), 'day') ? '#16a34a' : undefined
+              height: 38,
+              backgroundColor: selectedDate.isSame(dayjs(), 'day') ? '#16a34a' : '#ffffff',
+              borderColor: selectedDate.isSame(dayjs(), 'day') ? '#16a34a' : '#cbd5e1',
+              color: selectedDate.isSame(dayjs(), 'day') ? '#ffffff' : '#334155'
             }}
           >
             Today
@@ -740,10 +706,12 @@ export const OrdersPage: React.FC = () => {
             type={selectedDate.isSame(dayjs().subtract(1, 'day'), 'day') ? 'primary' : 'default'}
             onClick={handleSetYesterday}
             style={{
-              fontWeight: 600,
+              fontWeight: 700,
               borderRadius: 8,
-              backgroundColor: selectedDate.isSame(dayjs().subtract(1, 'day'), 'day') ? '#16a34a' : undefined,
-              borderColor: selectedDate.isSame(dayjs().subtract(1, 'day'), 'day') ? '#16a34a' : undefined
+              height: 38,
+              backgroundColor: selectedDate.isSame(dayjs().subtract(1, 'day'), 'day') ? '#16a34a' : '#ffffff',
+              borderColor: selectedDate.isSame(dayjs().subtract(1, 'day'), 'day') ? '#16a34a' : '#cbd5e1',
+              color: selectedDate.isSame(dayjs().subtract(1, 'day'), 'day') ? '#ffffff' : '#334155'
             }}
           >
             Yesterday
@@ -753,203 +721,184 @@ export const OrdersPage: React.FC = () => {
             icon={<RotateCw size={14} className={loading ? 'animate-spin' : ''} />}
             onClick={() => loadOrdersForDate(selectedDate)}
             loading={loading}
-            style={{ borderRadius: 8 }}
+            style={{
+              borderRadius: 10,
+              height: 38,
+              fontWeight: 600,
+              border: '1.5px solid var(--border)',
+              background: '#ffffff',
+              color: 'var(--text-secondary)'
+            }}
           >
             Refresh
           </Button>
         </div>
       </div>
 
-      {/* ───── Daily KPI Metrics Summary ───── */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: 14
-        }}
-      >
+      {/* ───── Daily KPI Metrics Summary (Unified 4-Card Strip) ───── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, flexShrink: 0 }}>
         {/* Total Orders Card */}
         <div
           style={{
-            backgroundColor: '#ffffff',
-            borderRadius: 12,
-            padding: '16px 18px',
-            border: '1px solid #f1f5f9',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: 14,
+            padding: '14px 16px',
             display: 'flex',
-            flexDirection: 'column',
-            gap: 6
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Total Orders</span>
-            <div
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: 8,
-                backgroundColor: '#eff6ff',
-                color: '#3b82f6',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <ReceiptText size={16} />
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Total Orders
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: '#2563eb', marginTop: 2 }}>
+              {metrics.orderCount}
+            </div>
+            <div style={{ fontSize: 11, color: '#3b82f6', fontWeight: 600, marginTop: 1 }}>
+              {metrics.totalItemsSold} items sold today
             </div>
           </div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a' }}>
-            {metrics.orderCount}
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#2563eb'
+            }}
+          >
+            <ReceiptText size={22} />
           </div>
-          <span style={{ fontSize: 11, color: '#94a3b8' }}>Completed sales today</span>
         </div>
 
         {/* Total Net Revenue Card */}
         <div
           style={{
-            backgroundColor: '#ffffff',
-            borderRadius: 12,
-            padding: '16px 18px',
-            border: '1px solid #f1f5f9',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: 14,
+            padding: '14px 16px',
             display: 'flex',
-            flexDirection: 'column',
-            gap: 6
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Total Revenue</span>
-            <div
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: 8,
-                backgroundColor: '#ecfdf5',
-                color: '#16a34a',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <TrendingUp size={16} />
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Net Sales Revenue
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: '#15803d', marginTop: 2 }}>
+              {formatCurrency(metrics.totalRevenue)}
+            </div>
+            <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 600, marginTop: 1 }}>
+              Avg. Ticket: {formatCurrency(metrics.avgOrderValue)}
             </div>
           </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#16a34a' }}>
-            {formatCurrency(metrics.totalRevenue)}
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              background: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#16a34a'
+            }}
+          >
+            <TrendingUp size={22} />
           </div>
-          <span style={{ fontSize: 11, color: '#94a3b8' }}>
-            Avg. Ticket: {formatCurrency(metrics.avgOrderValue)}
-          </span>
         </div>
 
-        {/* Cash Sales Card */}
+        {/* Cash Collected Card */}
         <div
           style={{
-            backgroundColor: '#ffffff',
-            borderRadius: 12,
-            padding: '16px 18px',
-            border: '1px solid #f1f5f9',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: 14,
+            padding: '14px 16px',
             display: 'flex',
-            flexDirection: 'column',
-            gap: 6
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Cash Collected</span>
-            <div
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: 8,
-                backgroundColor: '#f0fdf4',
-                color: '#22c55e',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <Banknote size={16} />
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Cash In Drawer
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: '#d97706', marginTop: 2 }}>
+              {formatCurrency(metrics.totalCash)}
+            </div>
+            <div style={{ fontSize: 11, color: '#f59e0b', fontWeight: 600, marginTop: 1 }}>
+              Physical currency collected
             </div>
           </div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a' }}>
-            {formatCurrency(metrics.totalCash)}
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              background: '#fffbeb',
+              border: '1px solid #fde68a',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#d97706'
+            }}
+          >
+            <Banknote size={22} />
           </div>
-          <span style={{ fontSize: 11, color: '#94a3b8' }}>Direct cash payments</span>
         </div>
 
-        {/* Card Sales Card */}
+        {/* Card / Digital Payments */}
         <div
           style={{
-            backgroundColor: '#ffffff',
-            borderRadius: 12,
-            padding: '16px 18px',
-            border: '1px solid #f1f5f9',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: 14,
+            padding: '14px 16px',
             display: 'flex',
-            flexDirection: 'column',
-            gap: 6
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Card / Digital</span>
-            <div
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: 8,
-                backgroundColor: '#f5f3ff',
-                color: '#8b5cf6',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <CreditCard size={16} />
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#6d28d9', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Card / Digital Sales
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: '#7c3aed', marginTop: 2 }}>
+              {formatCurrency(metrics.totalCard)}
+            </div>
+            <div style={{ fontSize: 11, color: '#8b5cf6', fontWeight: 600, marginTop: 1 }}>
+              Discounts given: {formatCurrency(metrics.totalDiscounts)}
             </div>
           </div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a' }}>
-            {formatCurrency(metrics.totalCard)}
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              background: '#f5f3ff',
+              border: '1px solid #ddd6fe',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#7c3aed'
+            }}
+          >
+            <CreditCard size={22} />
           </div>
-          <span style={{ fontSize: 11, color: '#94a3b8' }}>POS Terminal swipes</span>
-        </div>
-
-        {/* Total Items Sold Card */}
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: 12,
-            padding: '16px 18px',
-            border: '1px solid #f1f5f9',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 6
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Items Sold</span>
-            <div
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: 8,
-                backgroundColor: '#fffbeb',
-                color: '#f59e0b',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <Package size={16} />
-            </div>
-          </div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a' }}>
-            {metrics.totalItemsSold} pcs
-          </div>
-          <span style={{ fontSize: 11, color: '#94a3b8' }}>
-            Discounts: {formatCurrency(metrics.totalDiscounts)}
-          </span>
         </div>
       </div>
 
@@ -963,8 +912,10 @@ export const OrdersPage: React.FC = () => {
           flexWrap: 'wrap',
           backgroundColor: '#ffffff',
           padding: '12px 16px',
-          borderRadius: 10,
-          border: '1px solid #f1f5f9'
+          borderRadius: 14,
+          border: '1px solid var(--border)',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+          flexShrink: 0
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 260 }}>
@@ -974,13 +925,15 @@ export const OrdersPage: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             allowClear
-            style={{ borderRadius: 8, maxWidth: 380 }}
+            size="large"
+            style={{ borderRadius: 8, maxWidth: 360, fontSize: 13 }}
           />
 
           <Select
             value={paymentFilter}
             onChange={setPaymentFilter}
-            style={{ width: 150 }}
+            size="large"
+            style={{ width: 160 }}
             options={[
               { value: 'all', label: 'All Payments' },
               { value: 'cash', label: 'Cash Only' },
@@ -989,8 +942,8 @@ export const OrdersPage: React.FC = () => {
           />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: '#64748b' }}>
             Showing <strong>{filteredOrders.length}</strong> of <strong>{orders.length}</strong> orders
           </span>
           <Dropdown
@@ -1015,7 +968,15 @@ export const OrdersPage: React.FC = () => {
               icon={<Download size={14} />}
               onClick={handleExportOrdersSummaryCSV}
               disabled={loading || filteredOrders.length === 0}
-              style={{ borderRadius: 8, fontWeight: 600 }}
+              size="large"
+              style={{
+                borderRadius: 8,
+                fontWeight: 700,
+                fontSize: 12.5,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6
+              }}
             >
               Export CSV
             </Button>
@@ -1025,12 +986,14 @@ export const OrdersPage: React.FC = () => {
 
       {/* ───── Orders Table ───── */}
       <div
+        className="data-table"
         style={{
           backgroundColor: '#ffffff',
-          borderRadius: 12,
-          border: '1px solid #f1f5f9',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-          overflow: 'hidden'
+          borderRadius: 14,
+          border: '1px solid var(--border)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+          overflow: 'hidden',
+          flex: 1
         }}
       >
         <Table

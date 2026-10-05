@@ -70,7 +70,7 @@ export const InventoryPage: React.FC = () => {
     setIsLoading(true)
     try {
       const [rawProds, rawCats, sups, purchases] = await Promise.all([
-        productsApi.getAll(true).catch(() => []),
+        productsApi.getAll(true, currentShop.id).catch(() => []),
         categoriesApi.getAll().catch(() => []),
         suppliersApi.getAll().catch(() => []),
         inventoryApi.getStockPurchases().catch(() => [])
@@ -478,6 +478,8 @@ export const InventoryPage: React.FC = () => {
 
         if (priceChanged || costChanged) {
           await productsApi.update(selectedProd.id, {
+            shopId: currentShop?.id,
+            shop_id: currentShop?.id,
             categoryId: selectedProd.category_id,
             name: selectedProd.name,
             description: selectedProd.description,
@@ -525,7 +527,9 @@ export const InventoryPage: React.FC = () => {
           trackInventory: true,
           initialStock: finalNewStock,
           imagePath: values.new_image_path || getAutoMatchedProductImage(values.new_name, selectedCat?.name),
-          minStockAlert: 5
+          minStockAlert: 5,
+          shopId: currentShop?.id,
+          shop_id: currentShop?.id
         })
 
         // Also record supplier details and expense for the initial stock batch if stock > 0

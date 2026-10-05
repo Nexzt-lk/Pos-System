@@ -19,6 +19,7 @@ export interface StockMovementInput {
 }
 
 export interface StockPurchaseFilter {
+  shopId?: string
   from?: string
   to?: string
   productId?: string
@@ -27,10 +28,9 @@ export interface StockPurchaseFilter {
 }
 
 export const inventoryRepo = {
-  getLowStock: async (_shopId?: string) => {
+  getLowStock: async (shopId?: string) => {
     const db = await getDatabase()
-    return db.query(
-      `
+    let query = `
       SELECT 
         p.id as product_id,
         p.name as product_name,
@@ -38,12 +38,17 @@ export const inventoryRepo = {
         COALESCE(i.quantity, 0) as current_stock,
         COALESCE(i.min_quantity, 5) as min_quantity
       FROM products p
-      LEFT JOIN inventory i ON p.id = i.product_id
+      LEFT JOIN inventory i ON p.id = i.product_id AND (i.shop_id = p.shop_id OR i.shop_id IS NULL)
       WHERE p.track_inventory = 1 AND p.is_active = 1
         AND COALESCE(i.quantity, 0) <= COALESCE(i.min_quantity, 5)
-      ORDER BY current_stock ASC
     `
-    )
+    const sqlParams: any[] = []
+    if (shopId) {
+      query += ` AND p.shop_id = ?`
+      sqlParams.push(shopId)
+    }
+    query += ` ORDER BY current_stock ASC`
+    return db.query(query, sqlParams)
   },
 
   recordMovement: async (movement: StockMovementInput) => {
@@ -56,10 +61,12 @@ export const inventoryRepo = {
       [movement.productId]
     )
 
-    const product = db.queryOne<{ name: string; unit: string; cost_price: number }>(
-      `SELECT name, unit, cost_price FROM products WHERE id = ?`,
+    const product = db.queryOne<{ name: string; unit: string; cost_price: number; shop_id?: string }>(
+      `SELECT name, unit, cost_price, shop_id FROM products WHERE id = ?`,
       [movement.productId]
     )
+
+    const shopId = movement.shopId || product?.shop_id || 'b0000000-0000-0000-0000-000000000001'
 
     const qtyBefore = inv?.quantity || 0
     let qtyAfter = qtyBefore
@@ -76,13 +83,14 @@ export const inventoryRepo = {
     // 1. Update Inventory Table
     db.run(
       `
-      INSERT INTO inventory (id, product_id, quantity, updated_at)
-      VALUES (?, ?, ?, datetime('now'))
+      INSERT INTO inventory (id, product_id, shop_id, quantity, updated_at)
+      VALUES (?, ?, ?, ?, datetime('now'))
       ON CONFLICT(product_id) DO UPDATE SET
         quantity = excluded.quantity,
+        shop_id = excluded.shop_id,
         updated_at = datetime('now')
     `,
-      [uuidv4(), movement.productId, qtyAfter]
+      [uuidv4(), movement.productId, shopId, qtyAfter]
     )
 
     // Calculate final total cost
@@ -98,14 +106,15 @@ export const inventoryRepo = {
     db.run(
       `
       INSERT INTO stock_movements (
-        id, product_id, type, quantity, quantity_before,
+        id, shop_id, product_id, type, quantity, quantity_before,
         quantity_after, note, cost_per_unit, supplier_id,
         supplier_name, total_cost, invoice_no, payment_method,
         done_by, created_at, sync_status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'pending')
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'pending')
     `,
       [
         movementId,
+        shopId,
         movement.productId,
         movement.type,
         movement.quantity,
@@ -135,14 +144,15 @@ export const inventoryRepo = {
       db.run(
         `
         INSERT INTO expenses (
-          id, category, description, amount, expense_date,
+          id, shop_id, category, description, amount, expense_date,
           linked_product_id, linked_stock_movement_id, supplier_id,
           supplier_name, invoice_no, payment_method, added_by,
           created_at, local_id, sync_status
-        ) VALUES (?, 'Stock Purchase', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, 'pending')
+        ) VALUES (?, ?, 'Stock Purchase', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, 'pending')
       `,
         [
           expId,
+          shopId,
           expDescription,
           effectiveTotalCost,
           expDate,
@@ -167,6 +177,7 @@ export const inventoryRepo = {
           expId,
           JSON.stringify({
             id: expId,
+            shop_id: shopId,
             local_id: expLocalId,
             category: 'Stock Purchase',
             description: expDescription,
@@ -252,6 +263,11 @@ export const inventoryRepo = {
       WHERE UPPER(sm.type) = 'IN'
     `
     const sqlParams: any[] = []
+
+    if (params?.shopId && params.shopId !== 'all') {
+      query += ` AND (sm.shop_id = ? OR p.shop_id = ?)`
+      sqlParams.push(params.shopId, params.shopId)
+    }
 
     if (params?.from) {
       query += ` AND substr(sm.created_at, 1, 10) >= ?`

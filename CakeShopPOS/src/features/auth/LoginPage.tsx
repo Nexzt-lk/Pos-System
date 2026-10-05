@@ -10,7 +10,33 @@ import loginBgImage from '../../assets/nexzt-login-bg.jpg'
 import nexztBrandWhite from '../../assets/nexzt-brand-white.png'
 import nexztStackedLogo from '../../assets/nexzt-logo-stacked.png'
 
+import { Shop } from '../../types/shop'
+
 type AuthMode = 'credentials' | 'passcode'
+
+export const KATUGASTOTA_SHOP: Shop = {
+  id: 'b0000000-0000-0000-0000-000000000001',
+  tenant_id: 'a0000000-0000-0000-0000-000000000001',
+  name: 'Wasana Cake - Katugastota',
+  branch_code: 'B1',
+  address: 'Horana Wasana Bakers Galagedara Road Katugastota',
+  phone: '071-1172201',
+  email: 'wasana@cakes.lk',
+  currency: 'LKR',
+  is_active: true
+}
+
+export const POOJAPITIYA_SHOP: Shop = {
+  id: 'b0000000-0000-0000-0000-000000000002',
+  tenant_id: 'a0000000-0000-0000-0000-000000000001',
+  name: 'Wasana Cake - Poojapitiya',
+  branch_code: 'B2',
+  address: 'Wasana Cake, Poojapitiya Road, Poojapitiya',
+  phone: '071-1172201',
+  email: 'poojapitiya@wasanacake.com',
+  currency: 'LKR',
+  is_active: true
+}
 
 interface OperatorProfile {
   id: string
@@ -26,14 +52,14 @@ const PRESET_OPERATORS: OperatorProfile[] = [
     name: 'Cashier 01',
     email: 'cashier1@wasanabakes.lk',
     role: 'cashier',
-    roleTitle: 'Cashier 01'
+    roleTitle: 'Cashier 01 (Katugastota)'
   },
   {
     id: 'u0000000-0000-0000-0000-000000000004',
     name: 'Cashier 02',
     email: 'cashier2@wasanabakes.lk',
     role: 'cashier',
-    roleTitle: 'Cashier 02'
+    roleTitle: 'Cashier 02 (Katugastota)'
   },
   {
     id: 'u0000000-0000-0000-0000-000000000002',
@@ -48,12 +74,20 @@ const PRESET_OPERATORS: OperatorProfile[] = [
     email: 'owner@wasanabakes.lk',
     role: 'owner',
     roleTitle: 'Store Owner'
+  },
+  {
+    id: 'u0000000-0000-0000-0000-000000000005',
+    name: 'Wasana Cake - Poojapitiya',
+    email: 'branch2@wasanacake.com',
+    role: 'cashier',
+    roleTitle: 'Poojapitiya Branch'
   }
 ]
 
 export const LoginPage: React.FC = () => {
   const [mode, setMode] = useState<AuthMode>('credentials')
-  const [selectedOperator] = useState<OperatorProfile | null>(PRESET_OPERATORS[0])
+  const [selectedBranch, setSelectedBranch] = useState<'katugastota' | 'poojapitiya'>('katugastota')
+  const [selectedOperator, setSelectedOperator] = useState<OperatorProfile | null>(PRESET_OPERATORS[0])
   const [email, setEmail] = useState('cashier1@wasanabakes.lk')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -68,6 +102,21 @@ export const LoginPage: React.FC = () => {
   const currentShop = useAppStore((state) => state.currentShop)
   const currentTerminalId = useAppStore((state) => state.currentTerminalId)
   const setUser = useAppStore((state) => state.setUser)
+  const setShop = useAppStore((state) => state.setShop)
+
+  const handleBranchSelect = (branch: 'katugastota' | 'poojapitiya') => {
+    setSelectedBranch(branch)
+    setError(null)
+    if (branch === 'poojapitiya') {
+      setEmail('branch2@wasanacake.com')
+      setSelectedOperator(PRESET_OPERATORS[4])
+      setShop(POOJAPITIYA_SHOP)
+    } else {
+      setEmail('cashier1@wasanabakes.lk')
+      setSelectedOperator(PRESET_OPERATORS[0])
+      setShop(KATUGASTOTA_SHOP)
+    }
+  }
 
   // Verify PIN
   const verifyPasscode = useCallback(async (code: string) => {
@@ -75,18 +124,22 @@ export const LoginPage: React.FC = () => {
     setError(null)
     try {
       let loggedInUser: any = null
+      const isPoojapitiyaPin = code === '886655'
 
       // 1. Electron IPC (Desktop App)
       if (window.electronAPI) {
         try {
           const result = await window.electronAPI.dbQuery('auth:verify-pin', {
-            shopId: currentShop?.id,
+            shopId: isPoojapitiyaPin ? POOJAPITIYA_SHOP.id : currentShop?.id,
             pin: code,
-            operatorId: selectedOperator?.id,
-            email: selectedOperator?.email || email
+            operatorId: isPoojapitiyaPin ? 'u0000000-0000-0000-0000-000000000005' : selectedOperator?.id,
+            email: isPoojapitiyaPin ? 'branch2@wasanacake.com' : (selectedOperator?.email || email)
           })
           if (result?.success && result.user) {
             loggedInUser = result.user
+            if (result.shop) {
+              setShop(result.shop)
+            }
           } else if (result?.message) {
             setError(result.message)
           }
@@ -95,7 +148,22 @@ export const LoginPage: React.FC = () => {
         }
       }
 
-      // 2. REST API (Web browser / any device connecting to backend / cloud)
+      // 2. Direct match for Poojapitiya PIN (886655)
+      if (!loggedInUser && isPoojapitiyaPin) {
+        const poojaOp = PRESET_OPERATORS.find((o) => o.id === 'u0000000-0000-0000-0000-000000000005') || PRESET_OPERATORS[4]
+        loggedInUser = {
+          id: poojaOp.id,
+          tenant_id: 'a0000000-0000-0000-0000-000000000001',
+          shop_id: POOJAPITIYA_SHOP.id,
+          name: poojaOp.name,
+          email: poojaOp.email,
+          role: poojaOp.role,
+          is_active: true
+        }
+        setShop(POOJAPITIYA_SHOP)
+      }
+
+      // 3. REST API (Web browser / any device connecting to backend / cloud)
       if (!loggedInUser) {
         try {
           const apiRes = await authApi.verifyPin({
@@ -103,10 +171,13 @@ export const LoginPage: React.FC = () => {
             userId: selectedOperator?.id
           })
           if (apiRes?.success && apiRes.user) {
+            const returnedShopId = (apiRes.user as any).shopId || (apiRes.user as any).shop_id
+            const finalShopId = returnedShopId || (isPoojapitiyaPin ? POOJAPITIYA_SHOP.id : (selectedBranch === 'poojapitiya' ? POOJAPITIYA_SHOP.id : KATUGASTOTA_SHOP.id))
             loggedInUser = {
               ...apiRes.user,
-              tenant_id: currentShop?.tenant_id || 'a0000000-0000-0000-0000-000000000001',
-              shop_id: currentShop?.id || 'b0000000-0000-0000-0000-000000000001'
+              tenant_id: (apiRes.user as any).tenantId || (apiRes.user as any).tenant_id || 'a0000000-0000-0000-0000-000000000001',
+              shop_id: finalShopId,
+              shopId: finalShopId
             }
           }
         } catch (apiErr) {
@@ -114,13 +185,15 @@ export const LoginPage: React.FC = () => {
         }
       }
 
-      // 3. Offline fallback verification (Current PIN: 843522 & default 123456)
+      // 4. Offline fallback verification (Current PIN: 843522 & default 123456)
       if (!loggedInUser && (code === '843522' || code === '123456' || code === '112233')) {
         const targetOp = selectedOperator || PRESET_OPERATORS[0]
+        const fallbackShop = (selectedBranch === 'poojapitiya') ? POOJAPITIYA_SHOP : KATUGASTOTA_SHOP
         loggedInUser = {
           id: targetOp.id,
-          tenant_id: currentShop?.tenant_id || 'a0000000-0000-0000-0000-000000000001',
-          shop_id: currentShop?.id || 'b0000000-0000-0000-0000-000000000001',
+          tenant_id: fallbackShop.tenant_id,
+          shop_id: fallbackShop.id,
+          shopId: fallbackShop.id,
           name: targetOp.name,
           email: targetOp.email,
           role: targetOp.role,
@@ -129,7 +202,11 @@ export const LoginPage: React.FC = () => {
       }
 
       if (loggedInUser) {
-        setUser(loggedInUser)
+        const activeShop = (loggedInUser.shop_id === POOJAPITIYA_SHOP.id || loggedInUser.shopId === POOJAPITIYA_SHOP.id)
+          ? POOJAPITIYA_SHOP
+          : KATUGASTOTA_SHOP
+        setShop(activeShop)
+        setUser({ ...loggedInUser, shop_id: activeShop.id, shopId: activeShop.id })
       } else {
         setError('Invalid 6-digit PIN. Please check and try again.')
         setPasscode('')
@@ -140,7 +217,7 @@ export const LoginPage: React.FC = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [currentShop, selectedOperator, email, setUser])
+  }, [currentShop, selectedOperator, email, setUser, setShop])
 
   // Keypad button press
   const handlePasscodeKey = useCallback((digit: string) => {
@@ -208,6 +285,9 @@ export const LoginPage: React.FC = () => {
           })
           if (result?.success && result.user) {
             loggedInUser = result.user
+            if (result.shop) {
+              setShop(result.shop)
+            }
           } else if (result?.message) {
             setError(result.message)
           }
@@ -224,10 +304,14 @@ export const LoginPage: React.FC = () => {
             password: cleanPassword
           })
           if (apiRes?.success && apiRes.user) {
+            const returnedShopId = (apiRes.user as any).shopId || (apiRes.user as any).shop_id
+            const isPoojaEmail = cleanEmail.includes('branch2') || cleanEmail.includes('poojapitiya')
+            const finalShopId = returnedShopId || (isPoojaEmail ? POOJAPITIYA_SHOP.id : (selectedBranch === 'poojapitiya' ? POOJAPITIYA_SHOP.id : KATUGASTOTA_SHOP.id))
             loggedInUser = {
               ...apiRes.user,
-              tenant_id: currentShop?.tenant_id || 'a0000000-0000-0000-0000-000000000001',
-              shop_id: currentShop?.id || 'b0000000-0000-0000-0000-000000000001'
+              tenant_id: (apiRes.user as any).tenantId || (apiRes.user as any).tenant_id || 'a0000000-0000-0000-0000-000000000001',
+              shop_id: finalShopId,
+              shopId: finalShopId
             }
           }
         } catch (apiErr) {
@@ -237,30 +321,42 @@ export const LoginPage: React.FC = () => {
 
       // 3. Offline fallback login
       if (!loggedInUser) {
-        const foundOp = PRESET_OPERATORS.find(
-          (o) =>
-            o.email.toLowerCase() === cleanEmail ||
-            cleanEmail.startsWith(o.role) ||
-            cleanEmail.includes(o.name.toLowerCase().split(' ')[0])
-        )
+        const isPoojapitiya =
+          (cleanEmail === 'branch2@wasanacake.com' ||
+           cleanEmail === 'poojapitiya@wasanacake.com' ||
+           cleanEmail === 'branch2' ||
+           cleanEmail === 'poojapitiya') &&
+          (cleanPassword === '886655' || cleanPassword === '123456' || cleanPassword === 'cashier123')
+
+        const foundOp = isPoojapitiya
+          ? (PRESET_OPERATORS.find((o) => o.id === 'u0000000-0000-0000-0000-000000000005') || PRESET_OPERATORS[4])
+          : PRESET_OPERATORS.find(
+              (o) =>
+                o.email.toLowerCase() === cleanEmail ||
+                cleanEmail.startsWith(o.role) ||
+                cleanEmail.includes(o.name.toLowerCase().split(' ')[0])
+            )
 
         const validRolePasswords: Record<string, string[]> = {
           owner: ['JanakaW@2024!', 'owner123', '843522', '123456'],
           manager: ['manager123', '843522', '123456'],
-          cashier: ['WB_Cash1#2024', 'WB_Cash2#2024', 'cashier123', '843522', '123456']
+          cashier: ['WB_Cash1#2024', 'WB_Cash2#2024', 'cashier123', '843522', '123456', '886655']
         }
 
-        const isAllowed = foundOp && (
+        const isAllowed = isPoojapitiya || (foundOp && (
           (validRolePasswords[foundOp.role] && validRolePasswords[foundOp.role].includes(cleanPassword)) ||
           cleanPassword === '843522' ||
           cleanPassword === '123456'
-        )
+        ))
 
         if (foundOp && isAllowed) {
+          const isPooja = isPoojapitiya || foundOp.id === 'u0000000-0000-0000-0000-000000000005'
+          const fallbackShop = isPooja ? POOJAPITIYA_SHOP : KATUGASTOTA_SHOP
           loggedInUser = {
             id: foundOp.id,
-            tenant_id: currentShop?.tenant_id || 'a0000000-0000-0000-0000-000000000001',
-            shop_id: currentShop?.id || 'b0000000-0000-0000-0000-000000000001',
+            tenant_id: fallbackShop.tenant_id,
+            shop_id: fallbackShop.id,
+            shopId: fallbackShop.id,
             name: foundOp.name,
             email: foundOp.email,
             role: foundOp.role,
@@ -270,7 +366,11 @@ export const LoginPage: React.FC = () => {
       }
 
       if (loggedInUser) {
-        setUser(loggedInUser)
+        const activeShop = (loggedInUser.shop_id === POOJAPITIYA_SHOP.id || loggedInUser.shopId === POOJAPITIYA_SHOP.id)
+          ? POOJAPITIYA_SHOP
+          : KATUGASTOTA_SHOP
+        setShop(activeShop)
+        setUser({ ...loggedInUser, shop_id: activeShop.id, shopId: activeShop.id })
       } else if (!error) {
         setError('Invalid Username or Password. Please try again.')
       }
@@ -983,6 +1083,54 @@ export const LoginPage: React.FC = () => {
             <p className="nx-card-subtitle">
               Log in to your {currentShop?.name ? currentShop.name : 'NEXZT POS'} account • Terminal #{currentTerminalId || '01'}
             </p>
+
+            {/* Branch Selector: Katugastota (B1) vs Poojapitiya (B2) */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 12, width: '100%' }}>
+              <button
+                type="button"
+                onClick={() => handleBranchSelect('katugastota')}
+                style={{
+                  flex: 1,
+                  padding: '7px 8px',
+                  borderRadius: 10,
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  border: selectedBranch === 'katugastota' ? '2px solid #0d7a46' : '1px solid #e2e8f0',
+                  background: selectedBranch === 'katugastota' ? '#f0fdf4' : '#ffffff',
+                  color: selectedBranch === 'katugastota' ? '#0d7a46' : '#64748b',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 5,
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span>🏢 Katugastota (B1)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleBranchSelect('poojapitiya')}
+                style={{
+                  flex: 1,
+                  padding: '7px 8px',
+                  borderRadius: 10,
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  border: selectedBranch === 'poojapitiya' ? '2px solid #0d7a46' : '1px solid #e2e8f0',
+                  background: selectedBranch === 'poojapitiya' ? '#f0fdf4' : '#ffffff',
+                  color: selectedBranch === 'poojapitiya' ? '#0d7a46' : '#64748b',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 5,
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span>🎂 Poojapitiya (B2)</span>
+              </button>
+            </div>
 
             {/* Dual Mode Switcher: Password vs Quick PIN */}
             <div className="nx-mode-switcher">

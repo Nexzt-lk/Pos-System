@@ -53,6 +53,7 @@ public class OrderService
         var order = new Order
         {
             LocalId = !string.IsNullOrWhiteSpace(idempotencyKey) ? idempotencyKey : Guid.NewGuid().ToString(),
+            ShopId = string.IsNullOrWhiteSpace(request.ShopId) ? "b0000000-0000-0000-0000-000000000001" : request.ShopId,
             CashierId = request.CashierId,
             OrderNo = await _orders.GetNextOrderNumberAsync(request.TerminalId),
             DiscountType = request.DiscountType,
@@ -151,21 +152,22 @@ public class OrderService
         return order == null ? null : MapToDto(order);
     }
 
-    public async Task<List<OrderDto>> GetAllAsync(int limit = 100)
+    public async Task<List<OrderDto>> GetAllAsync(int limit = 100, string? shopId = null)
     {
-        var orders = await _orders.GetAllAsync(limit);
+        var orders = await _orders.GetAllAsync(limit, shopId);
         return orders.Select(MapToDto).ToList();
     }
 
-    public async Task<List<OrderDto>> GetByDateRangeAsync(DateTime fromUtc, DateTime toUtc)
+    public async Task<List<OrderDto>> GetByDateRangeAsync(DateTime fromUtc, DateTime toUtc, string? shopId = null)
     {
-        var orders = await _orders.GetByDateRangeAsync(fromUtc, toUtc);
+        var orders = await _orders.GetByDateRangeAsync(fromUtc, toUtc, shopId);
         return orders.Select(MapToDto).ToList();
     }
 
     private static OrderDto MapToDto(Order order) => new()
     {
         Id = order.Id,
+        ShopId = order.ShopId,
         LocalId = order.LocalId,
         OrderNo = order.OrderNo,
         CashierId = order.CashierId,

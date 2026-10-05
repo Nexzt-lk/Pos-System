@@ -15,15 +15,16 @@ public class ExpensesController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? from,
-        [FromQuery] string? to)
+        [FromQuery] string? to,
+        [FromQuery] string? shopId = null)
     {
         if (!string.IsNullOrEmpty(from) && !string.IsNullOrEmpty(to)
             && DateOnly.TryParse(from, out var fromDate)
             && DateOnly.TryParse(to, out var toDate))
         {
-            return Ok(await _service.GetByDateRangeAsync(fromDate, toDate));
+            return Ok(await _service.GetByDateRangeAsync(fromDate, toDate, shopId));
         }
-        return Ok(await _service.GetAllAsync());
+        return Ok(await _service.GetAllAsync(shopId));
     }
 
     [HttpPost]

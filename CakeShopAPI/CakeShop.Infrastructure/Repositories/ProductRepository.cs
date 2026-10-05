@@ -11,13 +11,20 @@ public class ProductRepository : IProductRepository
     private readonly SqliteConnectionFactory _factory;
     public ProductRepository(SqliteConnectionFactory factory) => _factory = factory;
 
-    public async Task<List<Product>> GetAllAsync(bool includeInactive = false)
+    public async Task<List<Product>> GetAllAsync(bool includeInactive = false, string? shopId = null)
     {
         using var connection = _factory.CreateConnection();
         using var cmd = connection.CreateCommand();
-        cmd.CommandText = includeInactive
-            ? "SELECT * FROM products ORDER BY name;"
-            : "SELECT * FROM products WHERE is_active = 1 ORDER BY name;";
+        var sql = includeInactive
+            ? "SELECT * FROM products WHERE 1=1"
+            : "SELECT * FROM products WHERE is_active = 1";
+        if (!string.IsNullOrWhiteSpace(shopId))
+        {
+            sql += " AND shop_id = $shopId";
+            cmd.Parameters.AddWithValue("$shopId", shopId);
+        }
+        sql += " ORDER BY name;";
+        cmd.CommandText = sql;
         using var reader = await cmd.ExecuteReaderAsync();
 
         var result = new List<Product>();
@@ -36,12 +43,19 @@ public class ProductRepository : IProductRepository
         return await reader.ReadAsync() ? Map(reader) : null;
     }
 
-    public async Task<Product?> GetByBarcodeAsync(string barcode)
+    public async Task<Product?> GetByBarcodeAsync(string barcode, string? shopId = null)
     {
         using var connection = _factory.CreateConnection();
         using var cmd = connection.CreateCommand();
-        cmd.CommandText = "SELECT * FROM products WHERE barcode = $barcode;";
+        var sql = "SELECT * FROM products WHERE barcode = $barcode";
         cmd.Parameters.AddWithValue("$barcode", barcode);
+        if (!string.IsNullOrWhiteSpace(shopId))
+        {
+            sql += " AND shop_id = $shopId";
+            cmd.Parameters.AddWithValue("$shopId", shopId);
+        }
+        sql += ";";
+        cmd.CommandText = sql;
         using var reader = await cmd.ExecuteReaderAsync();
         return await reader.ReadAsync() ? Map(reader) : null;
     }
@@ -65,14 +79,15 @@ public class ProductRepository : IProductRepository
             cmd.Transaction = transaction;
             cmd.CommandText = @"
                 INSERT INTO products
-                    (id, category_id, item_code, name, description, price, cost_price,
+                    (id, category_id, shop_id, item_code, name, description, price, cost_price,
                      barcode, image_path, unit, track_inventory, is_active,
                      created_at, updated_at, sync_status)
                 VALUES
-                    ($id, $catId, $code, $name, $desc, $price, $cost,
+                    ($id, $catId, $shopId, $code, $name, $desc, $price, $cost,
                      $barcode, $img, $unit, $track, 1,
                      $created, $updated, 'pending');";
             BindProductParams(cmd, product);
+            cmd.Parameters.AddWithValue("$shopId", string.IsNullOrWhiteSpace(product.ShopId) ? "b0000000-0000-0000-0000-000000000001" : product.ShopId);
             cmd.Parameters.AddWithValue("$created", product.CreatedAt.ToString("o"));
             cmd.Parameters.AddWithValue("$updated", product.UpdatedAt.ToString("o"));
             await cmd.ExecuteNonQueryAsync();
@@ -88,6 +103,7 @@ public class ProductRepository : IProductRepository
             qCmd.Parameters.AddWithValue("$payload", System.Text.Json.JsonSerializer.Serialize(new
             {
                 id = product.Id,
+                shop_id = string.IsNullOrWhiteSpace(product.ShopId) ? "b0000000-0000-0000-0000-000000000001" : product.ShopId,
                 category_id = product.CategoryId,
                 item_code = product.ItemCode,
                 name = product.Name,
@@ -116,13 +132,16 @@ public class ProductRepository : IProductRepository
             cmd.Transaction = transaction;
             cmd.CommandText = @"
                 UPDATE products SET
-                    category_id = $catId, name = $name, description = $desc,
+                    category_id = $catId,
+                    shop_id = CASE WHEN $shopId IS NOT NULL AND $shopId != '' THEN $shopId ELSE shop_id END,
+                    name = $name, description = $desc,
                     price = $price, cost_price = $cost, barcode = $barcode,
                     image_path = $img,
                     unit = $unit, track_inventory = $track, is_active = $active,
                     updated_at = $updated, sync_status = 'pending'
                 WHERE id = $id;";
             BindProductParams(cmd, product);
+            cmd.Parameters.AddWithValue("$shopId", (object?)product.ShopId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("$active", product.IsActive ? 1 : 0);
             cmd.Parameters.AddWithValue("$updated", product.UpdatedAt.ToString("o"));
             await cmd.ExecuteNonQueryAsync();
@@ -138,6 +157,7 @@ public class ProductRepository : IProductRepository
             qCmd.Parameters.AddWithValue("$payload", System.Text.Json.JsonSerializer.Serialize(new
             {
                 id = product.Id,
+                shop_id = string.IsNullOrWhiteSpace(product.ShopId) ? "b0000000-0000-0000-0000-000000000001" : product.ShopId,
                 category_id = product.CategoryId,
                 item_code = product.ItemCode,
                 name = product.Name,
@@ -202,6 +222,7 @@ public class ProductRepository : IProductRepository
     {
         Id = r.GetString(r.GetOrdinal("id")),
         CategoryId = r.IsDBNull(r.GetOrdinal("category_id")) ? null : r.GetString(r.GetOrdinal("category_id")),
+        ShopId = r.IsDBNull(r.GetOrdinal("shop_id")) ? "b0000000-0000-0000-0000-000000000001" : r.GetString(r.GetOrdinal("shop_id")),
         ItemCode = r.GetString(r.GetOrdinal("item_code")),
         Name = r.GetString(r.GetOrdinal("name")),
         Description = r.IsDBNull(r.GetOrdinal("description")) ? null : r.GetString(r.GetOrdinal("description")),

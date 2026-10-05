@@ -17,12 +17,13 @@ public class ExpenseRepository : IExpenseRepository
         using var cmd = connection.CreateCommand();
         cmd.CommandText = @"
             INSERT INTO expenses
-                (id, category, description, amount, expense_date, linked_product_id,
+                (id, shop_id, category, description, amount, expense_date, linked_product_id,
                  linked_stock_movement_id, added_by, created_at, local_id, sync_status)
             VALUES
-                ($id, $cat, $desc, $amount, $date, $prodId,
+                ($id, $shopId, $cat, $desc, $amount, $date, $prodId,
                  $stockMoveId, $by, $created, $localId, 'pending');";
         cmd.Parameters.AddWithValue("$id", expense.Id);
+        cmd.Parameters.AddWithValue("$shopId", string.IsNullOrWhiteSpace(expense.ShopId) ? "b0000000-0000-0000-0000-000000000001" : expense.ShopId);
         cmd.Parameters.AddWithValue("$cat", (object?)expense.Category ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$desc", expense.Description);
         cmd.Parameters.AddWithValue("$amount", expense.Amount);
@@ -35,11 +36,18 @@ public class ExpenseRepository : IExpenseRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
-    public async Task<List<Expense>> GetAllAsync()
+    public async Task<List<Expense>> GetAllAsync(string? shopId = null)
     {
         using var connection = _factory.CreateConnection();
         using var cmd = connection.CreateCommand();
-        cmd.CommandText = "SELECT * FROM expenses ORDER BY expense_date DESC;";
+        var sql = "SELECT * FROM expenses WHERE 1=1";
+        if (!string.IsNullOrWhiteSpace(shopId))
+        {
+            sql += " AND shop_id = $shopId";
+            cmd.Parameters.AddWithValue("$shopId", shopId);
+        }
+        sql += " ORDER BY expense_date DESC;";
+        cmd.CommandText = sql;
         using var reader = await cmd.ExecuteReaderAsync();
 
         var result = new List<Expense>();
@@ -48,11 +56,18 @@ public class ExpenseRepository : IExpenseRepository
         return result;
     }
 
-    public async Task<List<Expense>> GetByDateRangeAsync(DateOnly from, DateOnly to)
+    public async Task<List<Expense>> GetByDateRangeAsync(DateOnly from, DateOnly to, string? shopId = null)
     {
         using var connection = _factory.CreateConnection();
         using var cmd = connection.CreateCommand();
-        cmd.CommandText = "SELECT * FROM expenses WHERE expense_date BETWEEN $from AND $to ORDER BY expense_date;";
+        var sql = "SELECT * FROM expenses WHERE expense_date BETWEEN $from AND $to";
+        if (!string.IsNullOrWhiteSpace(shopId))
+        {
+            sql += " AND shop_id = $shopId";
+            cmd.Parameters.AddWithValue("$shopId", shopId);
+        }
+        sql += " ORDER BY expense_date;";
+        cmd.CommandText = sql;
         cmd.Parameters.AddWithValue("$from", from.ToString("yyyy-MM-dd"));
         cmd.Parameters.AddWithValue("$to", to.ToString("yyyy-MM-dd"));
         using var reader = await cmd.ExecuteReaderAsync();
@@ -90,6 +105,7 @@ public class ExpenseRepository : IExpenseRepository
     private static Expense Map(SqliteDataReader r) => new()
     {
         Id = r.GetString(r.GetOrdinal("id")),
+        ShopId = r.IsDBNull(r.GetOrdinal("shop_id")) ? "b0000000-0000-0000-0000-000000000001" : r.GetString(r.GetOrdinal("shop_id")),
         Category = r.IsDBNull(r.GetOrdinal("category")) ? null : r.GetString(r.GetOrdinal("category")),
         Description = r.GetString(r.GetOrdinal("description")),
         Amount = Convert.ToDecimal(r.GetDouble(r.GetOrdinal("amount"))),

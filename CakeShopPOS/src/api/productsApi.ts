@@ -25,6 +25,7 @@ export interface ProductDto {
   current_stock?: number
   isLowStock?: boolean
   imagePath?: string
+  shop_id?: string
 }
 
 export interface CreateProductRequest {
@@ -43,6 +44,8 @@ export interface CreateProductRequest {
   initialStock?: number
   minStockAlert?: number
   imagePath?: string
+  shopId?: string
+  shop_id?: string
 }
 
 export interface UpdateProductRequest {
@@ -56,12 +59,14 @@ export interface UpdateProductRequest {
   trackInventory: boolean
   isActive: boolean
   imagePath?: string
+  shop_id?: string
+  shopId?: string
 }
 
 export const productsApi = {
   getAll: async (includeInactive: boolean = false, shopId: string = 'b0000000-0000-0000-0000-000000000001'): Promise<ProductDto[]> => {
     try {
-      return await apiClient.get<ProductDto[]>('/products', { params: { includeInactive } })
+      return await apiClient.get<ProductDto[]>('/products', { params: { includeInactive, shopId } })
     } catch (err) {
       console.warn('[ProductsApi] REST API failed, trying Electron IPC SQLite:', err)
       const api = typeof window !== 'undefined' ? (window as any).electronAPI : undefined
@@ -76,6 +81,7 @@ export const productsApi = {
         if (Array.isArray(local) && local.length > 0) {
           return local.map((p: any) => ({
             id: p.id,
+            shop_id: p.shop_id || shopId,
             categoryId: p.category_id || p.categoryId,
             category_id: p.category_id || p.categoryId,
             categoryName: p.category_name || p.categoryName,
@@ -101,7 +107,7 @@ export const productsApi = {
   
   getByBarcode: async (barcode: string, shopId: string = 'b0000000-0000-0000-0000-000000000001'): Promise<ProductDto> => {
     try {
-      return await apiClient.get<ProductDto>(`/products/by-barcode/${encodeURIComponent(barcode)}`)
+      return await apiClient.get<ProductDto>(`/products/by-barcode/${encodeURIComponent(barcode)}`, { params: { shopId } })
     } catch (err) {
       const api = typeof window !== 'undefined' ? (window as any).electronAPI : undefined
       if (api) {
@@ -118,8 +124,14 @@ export const productsApi = {
   },
   
   create: async (data: CreateProductRequest): Promise<ProductDto> => {
+    const shopId = data.shopId || data.shop_id || 'b0000000-0000-0000-0000-000000000001'
+    const payload = {
+      ...data,
+      shopId,
+      shop_id: shopId
+    }
     try {
-      return await apiClient.post<ProductDto>('/products', data)
+      return await apiClient.post<ProductDto>('/products', payload)
     } catch (err) {
       const api = typeof window !== 'undefined' ? (window as any).electronAPI : undefined
       if (api) {
@@ -141,7 +153,9 @@ export const productsApi = {
           track_inventory: data.trackInventory ? 1 : 0,
           is_active: 1,
           image_path: data.imagePath || null,
-          initialStock: data.initialStock || 0
+          initialStock: data.initialStock || 0,
+          shop_id: shopId,
+          shopId: shopId
         }
         if (api.upsertProduct) {
           await api.upsertProduct(newProduct)
@@ -161,12 +175,17 @@ export const productsApi = {
   },
   
   update: async (id: string, data: UpdateProductRequest): Promise<void> => {
+    const shopId = data.shopId || data.shop_id
+    const payload = {
+      ...data,
+      ...(shopId ? { shopId, shop_id: shopId } : {})
+    }
     try {
-      await apiClient.put<void>(`/products/${id}`, data)
+      await apiClient.put<void>(`/products/${id}`, payload)
     } catch (err) {
       const api = typeof window !== 'undefined' ? (window as any).electronAPI : undefined
       if (api) {
-        const payload = {
+        const payloadIpc = {
           id,
           category_id: data.categoryId,
           name: data.name,
@@ -178,12 +197,13 @@ export const productsApi = {
           unit: data.unit,
           track_inventory: data.trackInventory ? 1 : 0,
           is_active: data.isActive ? 1 : 0,
-          image_path: data.imagePath
+          image_path: data.imagePath,
+          ...(shopId ? { shop_id: shopId, shopId: shopId } : {})
         }
         if (api.upsertProduct) {
-          await api.upsertProduct(payload)
+          await api.upsertProduct(payloadIpc)
         } else if (api.dbQuery) {
-          await api.dbQuery('db:upsert-product', payload)
+          await api.dbQuery('db:upsert-product', payloadIpc)
         }
         return
       }

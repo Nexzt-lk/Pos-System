@@ -1,9 +1,17 @@
+using System.Text.Json.Serialization;
+
 namespace CakeShop.Application.DTOs;
 
 public class UserDto
 {
     public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("shopId")]
     public string? ShopId { get; set; }
+
+    [JsonPropertyName("shop_id")]
+    public string? ShopIdSnake { get => ShopId; set => ShopId = value; }
+
     public string Name { get; set; } = string.Empty;
     public string? Email { get; set; }
     public string Role { get; set; } = "cashier";

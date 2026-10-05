@@ -27,9 +27,9 @@ public class ProductService
         _codeGenerator = codeGenerator;
     }
 
-    public async Task<List<ProductDto>> GetAllAsync(bool includeInactive = false)
+    public async Task<List<ProductDto>> GetAllAsync(bool includeInactive = false, string? shopId = null)
     {
-        var products = await _products.GetAllAsync(includeInactive);
+        var products = await _products.GetAllAsync(includeInactive, shopId);
         var categories = await _categories.GetAllAsync();
         var result = new List<ProductDto>();
 
@@ -41,6 +41,7 @@ public class ProductService
             result.Add(new ProductDto
             {
                 Id = p.Id,
+                ShopId = p.ShopId,
                 CategoryId = p.CategoryId,
                 CategoryName = category?.Name,
                 ItemCode = p.ItemCode,
@@ -59,9 +60,9 @@ public class ProductService
         return result;
     }
 
-    public async Task<ProductDto?> GetByBarcodeAsync(string barcode)
+    public async Task<ProductDto?> GetByBarcodeAsync(string barcode, string? shopId = null)
     {
-        var p = await _products.GetByBarcodeAsync(barcode);
+        var p = await _products.GetByBarcodeAsync(barcode, shopId);
         if (p == null) return null;
 
         var stock = await _inventory.GetByProductIdAsync(p.Id);
@@ -70,6 +71,7 @@ public class ProductService
         return new ProductDto
         {
             Id = p.Id,
+            ShopId = p.ShopId,
             CategoryId = p.CategoryId,
             CategoryName = category?.Name,
             ItemCode = p.ItemCode,
@@ -119,7 +121,7 @@ public class ProductService
         string? barcode = string.IsNullOrWhiteSpace(request.Barcode) ? null : request.Barcode.Trim();
         if (!string.IsNullOrWhiteSpace(barcode))
         {
-            var existing = await _products.GetByBarcodeAsync(barcode);
+            var existing = await _products.GetByBarcodeAsync(barcode, request.ShopId);
             if (existing != null)
             {
                 // Ensure unique barcode to prevent SQLite UNIQUE constraint failure
@@ -131,6 +133,7 @@ public class ProductService
 
         var product = new Product
         {
+            ShopId = string.IsNullOrWhiteSpace(request.ShopId) ? "b0000000-0000-0000-0000-000000000001" : request.ShopId,
             CategoryId = category.Id,
             ItemCode = itemCode,
             Name = request.Name,
@@ -172,6 +175,7 @@ public class ProductService
         return new ProductDto
         {
             Id = product.Id,
+            ShopId = product.ShopId,
             CategoryId = product.CategoryId,
             CategoryName = category.Name,
             ItemCode = product.ItemCode,
@@ -193,6 +197,10 @@ public class ProductService
         var product = await _products.GetByIdAsync(id)
             ?? throw new InvalidOperationException("Product not found.");
 
+        if (!string.IsNullOrWhiteSpace(request.ShopId))
+        {
+            product.ShopId = request.ShopId;
+        }
         product.CategoryId = request.CategoryId;
         product.Name = request.Name;
         product.Description = request.Description;

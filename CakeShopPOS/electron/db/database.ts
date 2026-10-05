@@ -50,7 +50,7 @@ export const getDatabase = async (): Promise<POSDatabase> => {
   const dbPath = path.join(projectDbDir, 'cakeshop_local.db')
   console.log(`[Database] Initializing SQLite database (packaged=${isPackaged}) at: ${dbPath}`)
 
-  const MASTER_DB_VERSION = 7 // v7: Suppliers sync_status & Event-driven Supabase Sync
+  const MASTER_DB_VERSION = 10 // v10: Products barcode & item_code unique per shop_id
 
   // Helper: read product count from a DB buffer
   const getProductCount = (buf: Buffer): number => {
@@ -316,6 +316,166 @@ export const getDatabase = async (): Promise<POSDatabase> => {
       db.run(`ALTER TABLE suppliers ADD COLUMN sync_status TEXT DEFAULT 'pending';`)
     } catch (_) { /* column already exists */ }
 
+    // Migration 8: Branch 2 (Wasana Cake - Poojapitiya) support and shop_id columns
+    try {
+      try {
+        db.run(`ALTER TABLE orders ADD COLUMN shop_id TEXT DEFAULT 'b0000000-0000-0000-0000-000000000001';`)
+      } catch (_) {}
+      try {
+        db.run(`ALTER TABLE expenses ADD COLUMN shop_id TEXT DEFAULT 'b0000000-0000-0000-0000-000000000001';`)
+      } catch (_) {}
+
+      // Ensure Branch 2 (Wasana Cake - Poojapitiya) shop exists
+      db.run(`
+        INSERT OR IGNORE INTO shops (id, name, branch_code, address, phone, email, currency, receipt_footer)
+        VALUES (
+          'b0000000-0000-0000-0000-000000000002',
+          'Wasana Cake - Poojapitiya',
+          'B2',
+          'Wasana Cake, Poojapitiya Road, Poojapitiya',
+          '071-1172201',
+          'poojapitiya@wasanacake.com',
+          'LKR',
+          'Thank you for visiting Wasana Cake - Poojapitiya! 🎂'
+        );
+        UPDATE shops
+        SET name = 'Wasana Cake - Poojapitiya',
+            branch_code = 'B2',
+            address = 'Wasana Cake, Poojapitiya Road, Poojapitiya',
+            phone = '071-1172201',
+            email = 'poojapitiya@wasanacake.com',
+            receipt_footer = 'Thank you for visiting Wasana Cake - Poojapitiya! 🎂'
+        WHERE id = 'b0000000-0000-0000-0000-000000000002';
+      `)
+
+      // Ensure Branch 2 operator exists with PIN 886655
+      db.run(`
+        INSERT OR IGNORE INTO users (id, shop_id, name, email, pin_hash, password_hash, role, is_active)
+        VALUES (
+          'u0000000-0000-0000-0000-000000000005',
+          'b0000000-0000-0000-0000-000000000002',
+          'Wasana Cake - Poojapitiya',
+          'branch2@wasanacake.com',
+          '886655',
+          '886655',
+          'cashier',
+          1
+        );
+        UPDATE users
+        SET shop_id = 'b0000000-0000-0000-0000-000000000002',
+            name = 'Wasana Cake - Poojapitiya',
+            email = 'branch2@wasanacake.com',
+            pin_hash = '886655',
+            password_hash = '886655',
+            role = 'cashier',
+            is_active = 1
+        WHERE id = 'u0000000-0000-0000-0000-000000000005';
+      `)
+    } catch (e) { console.warn('[Migration-8] Poojapitiya branch setup:', e) }
+
+    // Migration 9: Add shop_id to products and inventory tables for multi-branch support
+    try {
+      // Add shop_id to products (default to Katugastota = B1)
+      try {
+        db.run(`ALTER TABLE products ADD COLUMN shop_id TEXT DEFAULT 'b0000000-0000-0000-0000-000000000001';`)
+        console.log('[Migration-9] Added shop_id to products table.')
+      } catch (_) { /* column already exists */ }
+
+      // Add shop_id to inventory
+      try {
+        db.run(`ALTER TABLE inventory ADD COLUMN shop_id TEXT DEFAULT 'b0000000-0000-0000-0000-000000000001';`)
+        console.log('[Migration-9] Added shop_id to inventory table.')
+      } catch (_) { /* column already exists */ }
+
+      // Add shop_id to categories (shared by default, but can be branch-specific)
+      try {
+        db.run(`ALTER TABLE categories ADD COLUMN shop_id TEXT DEFAULT NULL;`)
+        console.log('[Migration-9] Added shop_id to categories table.')
+      } catch (_) { /* column already exists */ }
+
+      // Update existing products to explicitly belong to Katugastota (B1)
+      try {
+        db.run(`UPDATE products SET shop_id = 'b0000000-0000-0000-0000-000000000001' WHERE shop_id IS NULL;`)
+        db.run(`UPDATE inventory SET shop_id = 'b0000000-0000-0000-0000-000000000001' WHERE shop_id IS NULL;`)
+      } catch (_) {}
+    } catch (e) { console.warn('[Migration-9] Products shop_id migration:', e) }
+
+    // Migration 10: Scope product barcode and item_code uniqueness per branch (shop_id)
+    try {
+      const schemaRes = db.exec("SELECT sql FROM sqlite_master WHERE type='table' AND name='products'")
+      const currentSql = schemaRes[0]?.values[0]?.[0] || ''
+      const hasGlobalBarcodeUnique = currentSql.includes('UNIQUE(barcode)') || currentSql.includes('UNIQUE (barcode)')
+      const hasGlobalItemCodeUnique = currentSql.includes('UNIQUE(item_code)') || currentSql.includes('UNIQUE (item_code)')
+
+      if (hasGlobalBarcodeUnique || hasGlobalItemCodeUnique) {
+        console.log('[Migration-10] Rebuilding products table to support per-branch barcode/item_code uniqueness...')
+        const colInfo = db.exec('PRAGMA table_info(products)')
+        const existingCols = colInfo[0]?.values.map((v: any[]) => v[1]) || []
+        const hasShopId = existingCols.includes('shop_id')
+        const hasLocalId = existingCols.includes('local_id')
+
+        db.run(`
+          CREATE TABLE products_new (
+            id              TEXT PRIMARY KEY,
+            category_id     TEXT REFERENCES categories(id) ON DELETE SET NULL,
+            item_code       TEXT NOT NULL,
+            name            TEXT NOT NULL,
+            description     TEXT,
+            price           REAL NOT NULL,
+            cost_price      REAL,
+            barcode         TEXT,
+            image_path      TEXT,
+            unit            TEXT DEFAULT 'pcs',
+            track_inventory INTEGER DEFAULT 1,
+            is_active       INTEGER DEFAULT 1,
+            shop_id         TEXT DEFAULT 'b0000000-0000-0000-0000-000000000001',
+            created_at      TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+            updated_at      TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+            local_id        TEXT,
+            sync_status     TEXT DEFAULT 'pending' CHECK (sync_status IN ('pending','synced','conflict'))
+          );
+        `)
+
+        const shopIdExpr = hasShopId ? "COALESCE(shop_id, 'b0000000-0000-0000-0000-000000000001')" : "'b0000000-0000-0000-0000-000000000001'"
+        const localIdExpr = hasLocalId ? 'local_id' : 'NULL'
+
+        db.run(`
+          INSERT INTO products_new (
+            id, category_id, item_code, name, description, price, cost_price,
+            barcode, image_path, unit, track_inventory, is_active, shop_id,
+            created_at, updated_at, local_id, sync_status
+          )
+          SELECT 
+            id, category_id, item_code, name, description, price, cost_price,
+            barcode, image_path, unit, track_inventory, is_active,
+            ${shopIdExpr},
+            created_at, updated_at,
+            ${localIdExpr},
+            sync_status
+          FROM products;
+        `)
+
+        db.run(`DROP TABLE products;`)
+        db.run(`ALTER TABLE products_new RENAME TO products;`)
+        console.log('[Migration-10] Successfully rebuilt products table.')
+      }
+
+      db.run(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_products_shop_barcode 
+        ON products(shop_id, barcode) 
+        WHERE barcode IS NOT NULL AND barcode != '';
+      `)
+      db.run(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_products_shop_item_code 
+        ON products(shop_id, item_code) 
+        WHERE item_code IS NOT NULL AND item_code != '';
+      `)
+      db.run(`CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);`)
+      db.run(`CREATE INDEX IF NOT EXISTS idx_products_shop ON products(shop_id);`)
+    } catch (e) {
+      console.warn('[Migration-10] products per-branch uniqueness migration:', e)
+    }
+
     console.log(`[Migration] All migrations applied. DB version set to ${MASTER_DB_VERSION}.`)
   }
 
@@ -410,29 +570,41 @@ export const getDatabase = async (): Promise<POSDatabase> => {
 export const seedInitialLocalData = (db: any) => {
   console.log('[Database] Seeding complete default branch, categories, products and operators...')
 
-  // 1. Seed Shop
+  // 1. Seed Shops (Katugastota & Poojapitiya)
   db.run(`
     INSERT OR REPLACE INTO shops (id, name, branch_code, address, phone, email, currency, receipt_footer)
-    VALUES (
-      'b0000000-0000-0000-0000-000000000001',
-      'Wasana Cake - Katugastota',
-      'B1',
-      'Horana Wasana Bakers Galagedara Road Katugastota',
-      '071-1172201',
-      'wasana@cakes.lk',
-      'LKR',
-      'Thank you for visiting Wasana Cake - Katugastota! 🎂'
-    );
+    VALUES 
+      (
+        'b0000000-0000-0000-0000-000000000001',
+        'Wasana Cake - Katugastota',
+        'B1',
+        'Horana Wasana Bakers Galagedara Road Katugastota',
+        '071-1172201',
+        'wasana@cakes.lk',
+        'LKR',
+        'Thank you for visiting Wasana Cake - Katugastota! 🎂'
+      ),
+      (
+        'b0000000-0000-0000-0000-000000000002',
+        'Wasana Cake - Poojapitiya',
+        'B2',
+        'Wasana Cake, Poojapitiya Road, Poojapitiya',
+        '071-1172201',
+        'poojapitiya@wasanacake.com',
+        'LKR',
+        'Thank you for visiting Wasana Cake - Poojapitiya! 🎂'
+      );
   `)
 
-  // 2. Seed Default Operators (PIN: 123456)
+  // 2. Seed Default Operators (PIN: 123456 / 843522 / 886655)
   db.run(`
     INSERT OR REPLACE INTO users (id, shop_id, name, email, pin_hash, password_hash, role, is_active)
     VALUES 
       ('u0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Janaka Ariyarathna (Owner)', 'owner@wasanabakes.lk', '843522', 'JanakaW@2024!', 'owner', 1),
       ('u0000000-0000-0000-0000-000000000002', 'b0000000-0000-0000-0000-000000000001', 'Sunil Jayasinghe (Manager)', 'manager@wasanabakes.lk', '843522', 'manager123', 'manager', 1),
       ('u0000000-0000-0000-0000-000000000003', 'b0000000-0000-0000-0000-000000000001', 'Cashier 01', 'cashier1@wasanabakes.lk', '843522', 'WB_Cash1#2024', 'cashier', 1),
-      ('u0000000-0000-0000-0000-000000000004', 'b0000000-0000-0000-0000-000000000001', 'Cashier 02', 'cashier2@wasanabakes.lk', '843522', 'WB_Cash2#2024', 'cashier', 1);
+      ('u0000000-0000-0000-0000-000000000004', 'b0000000-0000-0000-0000-000000000001', 'Cashier 02', 'cashier2@wasanabakes.lk', '843522', 'WB_Cash2#2024', 'cashier', 1),
+      ('u0000000-0000-0000-0000-000000000005', 'b0000000-0000-0000-0000-000000000002', 'Wasana Cake - Poojapitiya', 'branch2@wasanacake.com', '886655', '886655', 'cashier', 1);
   `)
 
   // 3. Seed 8 Main Categories

@@ -15,9 +15,9 @@ public interface ICategoryRepository
 
 public interface IProductRepository
 {
-    Task<List<Product>> GetAllAsync(bool includeInactive = false);
+    Task<List<Product>> GetAllAsync(bool includeInactive = false, string? shopId = null);
     Task<Product?> GetByIdAsync(string id);
-    Task<Product?> GetByBarcodeAsync(string barcode);
+    Task<Product?> GetByBarcodeAsync(string barcode, string? shopId = null);
     Task<int> CountByCategoryAsync(string categoryId);
     Task AddAsync(Product product);
     Task UpdateAsync(Product product);
@@ -43,15 +43,15 @@ public interface IOrderRepository
     Task AddAsync(Order order); // saves order + items + payments in one transaction
     Task<Order?> GetByIdAsync(string id);
     Task<Order?> GetByLocalIdAsync(string localId); // idempotency check
-    Task<List<Order>> GetByDateRangeAsync(DateTime fromUtc, DateTime toUtc);
-    Task<List<Order>> GetAllAsync(int limit = 100);
+    Task<List<Order>> GetByDateRangeAsync(DateTime fromUtc, DateTime toUtc, string? shopId = null);
+    Task<List<Order>> GetAllAsync(int limit = 100, string? shopId = null);
 }
 
 public interface IExpenseRepository
 {
     Task AddAsync(Expense expense);
-    Task<List<Expense>> GetAllAsync();
-    Task<List<Expense>> GetByDateRangeAsync(DateOnly from, DateOnly to);
+    Task<List<Expense>> GetAllAsync(string? shopId = null);
+    Task<List<Expense>> GetByDateRangeAsync(DateOnly from, DateOnly to, string? shopId = null);
     Task UpdateAsync(Expense expense);
     Task DeleteAsync(string id);
 }
