@@ -204,7 +204,26 @@ export const orderRepo = {
     startDate?: string
     endDate?: string
   }) => {
-    const db = await getDatabase()
+    const rawDb = await getDatabase()
+    // Fail-safe wrappers: a single failing section must never blank the whole report
+    const db = {
+      query: <T = any>(sql: string, sqlParams: any[] = []): T[] => {
+        try {
+          return rawDb.query<T>(sql, sqlParams)
+        } catch (err) {
+          console.error('[Analytics] Query failed:', err)
+          return []
+        }
+      },
+      queryOne: <T = any>(sql: string, sqlParams: any[] = []): T | undefined => {
+        try {
+          return rawDb.queryOne<T>(sql, sqlParams)
+        } catch (err) {
+          console.error('[Analytics] Query failed:', err)
+          return undefined
+        }
+      }
+    }
     const period = params.period || 'daily'
 
     let startDateStr = ''
@@ -291,9 +310,10 @@ export const orderRepo = {
       `
       SELECT 
         COALESCE(sum(oi.quantity), 0) as total_items_sold,
-        COALESCE(sum(oi.quantity * COALESCE(oi.cost_price, 0)), 0) as total_cost
+        COALESCE(sum(oi.quantity * COALESCE(oi.cost_price, p.cost_price, 0)), 0) as total_cost
       FROM order_items oi
       JOIN orders o ON oi.order_id = o.id
+      LEFT JOIN products p ON oi.product_id = p.id
       WHERE COALESCE(strftime('%Y-%m-%d', o.created_at, 'localtime'), substr(o.created_at, 1, 10)) >= ? 
         AND COALESCE(strftime('%Y-%m-%d', o.created_at, 'localtime'), substr(o.created_at, 1, 10)) <= ? 
         AND (LOWER(o.status) = 'completed' OR o.status IS NULL OR o.status = '')
@@ -306,7 +326,7 @@ export const orderRepo = {
     const totalDiscount = summaryRow?.total_discount || 0
     const totalCost = itemsStats?.total_cost || 0
     const netRevenue = totalRevenue
-    const estimatedProfit = Math.max(0, netRevenue - totalCost)
+    const estimatedProfit = netRevenue - totalCost
     const profitMargin = totalRevenue > 0 ? ((estimatedProfit / totalRevenue) * 100) : 0
 
     const prevRevenue = prevSummaryRow?.total_revenue || 0
@@ -467,11 +487,12 @@ export const orderRepo = {
       [startDateStr, endDateStr]
     )
 
+    const totalPaymentsAmount = paymentRows.reduce((sum, p) => sum + (Number(p.total_amount) || 0), 0)
     const paymentBreakdown = paymentRows.map((p) => ({
       method: p.method,
       total_amount: p.total_amount,
       count: p.payment_count,
-      percent: totalRevenue > 0 ? Number(((p.total_amount / totalRevenue) * 100).toFixed(1)) : 0
+      percent: totalPaymentsAmount > 0 ? Number(((p.total_amount / totalPaymentsAmount) * 100).toFixed(1)) : 0
     }))
 
     // 4. Top Selling Products
@@ -708,8 +729,8 @@ export const orderRepo = {
       `
       SELECT 
         count(p.id) as total_products,
-        COALESCE(sum(COALESCE(i.quantity, 0) * COALESCE(p.cost_price, 0)), 0) as total_cost_value,
-        COALESCE(sum(COALESCE(i.quantity, 0) * COALESCE(p.price, 0)), 0) as total_retail_value,
+        COALESCE(sum(MAX(COALESCE(i.quantity, 0), 0) * COALESCE(p.cost_price, 0)), 0) as total_cost_value,
+        COALESCE(sum(MAX(COALESCE(i.quantity, 0), 0) * COALESCE(p.price, 0)), 0) as total_retail_value,
         sum(CASE WHEN COALESCE(i.quantity, 0) <= COALESCE(i.min_quantity, 5) AND COALESCE(i.quantity, 0) > 0 THEN 1 ELSE 0 END) as low_stock_count,
         sum(CASE WHEN COALESCE(i.quantity, 0) <= 0 THEN 1 ELSE 0 END) as out_of_stock_count
       FROM products p
@@ -756,8 +777,8 @@ export const orderRepo = {
         COALESCE(amount, 0) as amount,
         COALESCE(expense_date, '') as expense_date,
         COALESCE(added_by, 'Staff') as added_by,
-        COALESCE(payment_method, 'CASH') as payment_method,
-        COALESCE(notes, '') as notes
+        'CASH' as payment_method,
+        '' as notes
       FROM expenses
       WHERE substr(expense_date, 1, 10) >= ? AND substr(expense_date, 1, 10) <= ?
       ORDER BY expense_date DESC, created_at DESC
@@ -837,7 +858,7 @@ export const orderRepo = {
 
     // Cash in drawer estimation
     const cashPayments = paymentRows.find(p => p.method === 'CASH')?.total_amount || 0
-    const netCashInDrawer = Math.max(0, cashPayments - totalExpenses)
+    const netCashInDrawer = cashPayments - totalExpenses
 
     const ownerMetrics = {
       grossProfit: estimatedProfit,

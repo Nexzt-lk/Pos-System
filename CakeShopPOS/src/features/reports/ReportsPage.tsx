@@ -236,11 +236,10 @@ export const ReportsPage: React.FC = () => {
           endDate: period === 'custom' ? customEndDate : undefined
         })
 
-        if (localReport) {
-          setAnalytics(localReport)
-          setLoading(false)
-          return
-        }
+        // Desktop mode: the local POS database is the single source of truth.
+        // Never substitute backend/estimated figures here.
+        setAnalytics(localReport || generateEmptyAnalytics(period, selectedDate, customStartDate, customEndDate))
+        return
       }
 
       // 2. Fallback to Backend REST API (if in Web Browser mode)
@@ -299,21 +298,28 @@ export const ReportsPage: React.FC = () => {
           payment_method: o.payments && o.payments.length > 0 ? o.payments[0].method : 'CASH'
         }))
 
+        const totalSales = backendReport.totalSales || 0
+        const totalCogs = backendReport.costOfGoodsSold || 0
+        const grossProfit = totalSales - totalCogs
+        const totalExpenses = backendReport.totalExpenses || 0
+        const netProfit = grossProfit - totalExpenses
+        const cashSales = backendReport.paymentBreakdown?.cashAmount || 0
+
         setAnalytics({
           period,
           startDate: backendReport.fromDate ? dayjs(backendReport.fromDate).format('YYYY-MM-DD') : selectedDate,
           endDate: backendReport.toDate ? dayjs(backendReport.toDate).format('YYYY-MM-DD') : selectedDate,
           summary: {
             total_orders: backendReport.orderCount || 0,
-            total_revenue: backendReport.totalSales || 0,
-            total_subtotal: (backendReport.totalSales || 0) + (backendReport.totalDiscount || 0),
+            total_revenue: totalSales,
+            total_subtotal: totalSales + (backendReport.totalDiscount || 0),
             total_discount: backendReport.totalDiscount || 0,
             total_tax: backendReport.totalTax || 0,
-            avg_order_value: backendReport.orderCount > 0 ? (backendReport.totalSales / backendReport.orderCount) : 0,
-            net_revenue: backendReport.netIncome || backendReport.totalSales || 0,
-            total_cost: backendReport.costOfGoodsSold || 0,
-            estimated_profit: backendReport.profitEstimate || (backendReport.totalSales - (backendReport.costOfGoodsSold || 0)),
-            profit_margin_pct: backendReport.totalSales > 0 ? Number((((backendReport.profitEstimate || 0) / backendReport.totalSales) * 100).toFixed(1)) : 0,
+            avg_order_value: backendReport.orderCount > 0 ? (totalSales / backendReport.orderCount) : 0,
+            net_revenue: totalSales,
+            total_cost: totalCogs,
+            estimated_profit: grossProfit,
+            profit_margin_pct: totalSales > 0 ? Number(((grossProfit / totalSales) * 100).toFixed(1)) : 0,
             total_items_sold: mappedTopProducts.reduce((sum, p) => sum + p.total_qty, 0),
             revenue_growth_pct: 0,
             orders_growth_pct: 0,
@@ -324,32 +330,33 @@ export const ReportsPage: React.FC = () => {
           paymentBreakdown: mappedPayments,
           topProducts: mappedTopProducts,
           categoryBreakdown: mappedCategories,
+          // Backend report has no per-item cost data, so only real sales figures are shown (no estimated COGS)
           itemBreakdown: mappedTopProducts.map((tp, idx) => ({
             product_id: `p-${idx}`,
             product_name: tp.product_name,
-            item_code: `ITEM-${(idx + 1).toString().padStart(3, '0')}`,
-            category_name: 'General',
+            item_code: '-',
+            category_name: '-',
             avg_unit_price: tp.total_qty > 0 ? Math.round(tp.total_revenue / tp.total_qty) : 0,
-            avg_cost_price: tp.total_qty > 0 ? Math.round((tp.total_revenue * 0.6) / tp.total_qty) : 0,
+            avg_cost_price: 0,
             total_qty: tp.total_qty,
             total_discount: 0,
             total_revenue: tp.total_revenue,
-            total_cogs: Math.round(tp.total_revenue * 0.6),
-            gross_profit: Math.round(tp.total_revenue * 0.4),
-            margin_pct: 40.0,
-            revenue_share_pct: (backendReport.totalSales || 1) > 0 ? Number(((tp.total_revenue / (backendReport.totalSales || 1)) * 100).toFixed(1)) : 0
+            total_cogs: 0,
+            gross_profit: tp.total_revenue,
+            margin_pct: 0,
+            revenue_share_pct: totalSales > 0 ? Number(((tp.total_revenue / totalSales) * 100).toFixed(1)) : 0
           })),
           ownerMetrics: {
-            grossProfit: backendReport.profitEstimate || ((backendReport.totalSales || 0) - (backendReport.costOfGoodsSold || 0)),
-            grossProfitMargin: backendReport.totalSales > 0 ? Number((((backendReport.profitEstimate || 0) / backendReport.totalSales) * 100).toFixed(1)) : 0,
-            totalExpenses: 0,
-            netProfit: backendReport.netIncome || backendReport.profitEstimate || 0,
-            netProfitMargin: backendReport.totalSales > 0 ? Number((((backendReport.netIncome || 0) / backendReport.totalSales) * 100).toFixed(1)) : 0,
+            grossProfit,
+            grossProfitMargin: totalSales > 0 ? Number(((grossProfit / totalSales) * 100).toFixed(1)) : 0,
+            totalExpenses,
+            netProfit,
+            netProfitMargin: totalSales > 0 ? Number(((netProfit / totalSales) * 100).toFixed(1)) : 0,
             expenseCategories: [],
             cashierPerformance: [],
-            terminalPerformance: [{ terminal_id: 'T1', orders_count: backendReport.orderCount || 0, total_revenue: backendReport.totalSales || 0 }],
+            terminalPerformance: [],
             inventoryValuation: {
-              totalProducts: mappedTopProducts.length,
+              totalProducts: 0,
               totalCostValue: 0,
               totalRetailValue: 0,
               potentialMarginValue: 0,
@@ -358,9 +365,9 @@ export const ReportsPage: React.FC = () => {
             },
             damageLoss: { cost: 0, quantity: 0, events: 0 },
             cashDrawer: {
-              cashSales: backendReport.paymentBreakdown?.cashAmount || 0,
-              cashExpenses: 0,
-              netCashEstimated: backendReport.paymentBreakdown?.cashAmount || 0
+              cashSales,
+              cashExpenses: totalExpenses,
+              netCashEstimated: cashSales - totalExpenses
             }
           },
           peakSlot: backendReport.peakSlot ? {
