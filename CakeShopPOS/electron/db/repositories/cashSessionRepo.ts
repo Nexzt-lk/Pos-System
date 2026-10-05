@@ -4,6 +4,7 @@ import dayjs from 'dayjs'
 
 interface CashSession {
   id: string
+  shop_id?: string
   session_date: string
   terminal_id: string
   cashier_id: string | null
@@ -11,6 +12,7 @@ interface CashSession {
   opening_float: number
   notes: string | null
   created_at: string
+  sync_status?: string
 }
 
 export const cashSessionRepo = {
@@ -26,13 +28,15 @@ export const cashSessionRepo = {
     if (!row) return null
     return {
       id: row.id,
+      shopId: row.shop_id || 'b0000000-0000-0000-0000-000000000001',
       sessionDate: row.session_date,
       terminalId: row.terminal_id,
       cashierId: row.cashier_id,
       cashierName: row.cashier_name,
       openingFloat: Number(row.opening_float) || 0,
       notes: row.notes,
-      createdAt: row.created_at
+      createdAt: row.created_at,
+      syncStatus: row.sync_status || 'pending'
     }
   },
 
@@ -49,6 +53,7 @@ export const cashSessionRepo = {
    */
   create: async (data: {
     openingFloat: number
+    shopId?: string
     cashierId?: string
     cashierName?: string
     terminalId?: string
@@ -59,13 +64,15 @@ export const cashSessionRepo = {
     const id = uuidv4()
     const sessionDate = data.sessionDate || dayjs().format('YYYY-MM-DD')
     const terminalId = data.terminalId || 'T1'
+    const shopId = data.shopId || 'b0000000-0000-0000-0000-000000000001'
 
     db.run(
       `INSERT OR REPLACE INTO cash_sessions
-        (id, session_date, terminal_id, cashier_id, cashier_name, opening_float, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        (id, shop_id, session_date, terminal_id, cashier_id, cashier_name, opening_float, notes, sync_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
       [
         id,
+        shopId,
         sessionDate,
         terminalId,
         data.cashierId || null,
@@ -75,8 +82,11 @@ export const cashSessionRepo = {
       ]
     )
 
+    db.save()
+
     return {
       id,
+      shopId,
       sessionDate,
       terminalId,
       cashierId: data.cashierId || null,

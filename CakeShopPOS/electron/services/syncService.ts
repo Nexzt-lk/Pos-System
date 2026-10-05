@@ -360,7 +360,8 @@ export function countPendingDatabaseUpdates(db: any): number {
         (SELECT COUNT(*) FROM orders WHERE sync_status = 'pending' OR sync_status IS NULL) +
         (SELECT COUNT(*) FROM stock_movements WHERE sync_status = 'pending' OR sync_status IS NULL) +
         (SELECT COUNT(*) FROM expenses WHERE sync_status = 'pending' OR sync_status IS NULL) +
-        (SELECT COUNT(*) FROM suppliers WHERE sync_status = 'pending' OR sync_status IS NULL)
+        (SELECT COUNT(*) FROM suppliers WHERE sync_status = 'pending' OR sync_status IS NULL) +
+        (SELECT COUNT(*) FROM cash_sessions WHERE sync_status = 'pending' OR sync_status IS NULL)
       ) AS cnt;
     `) as { cnt: number } | undefined
     return res?.cnt || 0
@@ -886,7 +887,62 @@ export const syncService = {
       }
 
       // =========================================================================
-      // 8. PROCESS SYNC QUEUE TABLE
+      // 8. DIRECT SYNC: Cash Sessions (Opening Float per Terminal/Shop)
+      // =========================================================================
+      const pendingCashSessions = db.query<any>(
+        `SELECT * FROM cash_sessions WHERE sync_status = 'pending' OR sync_status IS NULL LIMIT 50;`
+      )
+      if (pendingCashSessions && pendingCashSessions.length > 0) {
+        for (const cs of pendingCashSessions) {
+          try {
+            const csId = toValidUuid(cs.id) || cs.id
+            const csShopId = toValidUuid(cs.shop_id) || defaultShopId
+            const sessionDate = cs.session_date ? cs.session_date.slice(0, 10) : new Date().toISOString().split('T')[0]
+
+            const csPayload: any = {
+              id: csId,
+              shop_id: csShopId,
+              session_date: sessionDate,
+              terminal_id: cs.terminal_id || 'T1',
+              cashier_id: toValidUuid(cs.cashier_id),
+              cashier_name: cs.cashier_name || 'Cashier',
+              opening_float: Number(cs.opening_float) || 0,
+              notes: cs.notes || null,
+              created_at: cs.created_at || new Date().toISOString()
+            }
+
+            try {
+              await postSupabase('cash_sessions', [csPayload])
+            } catch (postErr: any) {
+              console.warn('[AutoSync] Retrying cash_session post with detached FKs:', postErr.message)
+              csPayload.cashier_id = null
+              await postSupabase('cash_sessions', [csPayload])
+            }
+
+            // Also mirror into Supabase sync_queue table
+            try {
+              await postSupabase('sync_queue', [{
+                table_name: 'cash_sessions',
+                operation: 'UPSERT',
+                record_id: csId,
+                payload: csPayload,
+                status: 'synced',
+                created_at: new Date().toISOString()
+              }])
+            } catch (_) {}
+
+            db.run(`UPDATE cash_sessions SET sync_status = 'synced' WHERE id = ?;`, [cs.id])
+            db.run(`UPDATE sync_queue SET status = 'synced', synced_at = datetime('now') WHERE table_name = 'cash_sessions' AND record_id = ?;`, [cs.id])
+            totalSynced++
+            console.log(`[AutoSync] ✅ Mirrored Cash Session (${sessionDate} / Terminal ${csPayload.terminal_id} / Rs. ${csPayload.opening_float}) to Supabase Cloud.`)
+          } catch (csErr: any) {
+            console.error('[AutoSync] ❌ Cash session sync error:', csErr.message)
+          }
+        }
+      }
+
+      // =========================================================================
+      // 9. PROCESS SYNC QUEUE TABLE
       // =========================================================================
       const pendingQueue = (await syncRepo.getPendingItems(50)) || []
       if (pendingQueue.length > 0) {

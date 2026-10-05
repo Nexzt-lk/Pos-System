@@ -218,9 +218,11 @@ function setupIpcHandlers() {
   ipcMain.handle('db:get-cash-session-by-date', async (_, { date, terminalId }) =>
     await cashSessionRepo.getByDate(date, terminalId || 'T1')
   )
-  ipcMain.handle('db:create-cash-session', async (_, data) =>
-    await cashSessionRepo.create(data)
-  )
+  ipcMain.handle('db:create-cash-session', async (_, data) => {
+    const res = await cashSessionRepo.create(data)
+    syncService.triggerSync()
+    return res
+  })
   ipcMain.handle('db:get-recent-cash-sessions', async (_, limit?: number) =>
     await cashSessionRepo.getRecent(limit || 30)
   )

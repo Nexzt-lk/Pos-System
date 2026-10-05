@@ -32,7 +32,7 @@ export interface ElectronAPI {
   // Cash Session (Opening Float)
   getTodayCashSession: (terminalId?: string) => Promise<any | null>
   getCashSessionByDate: (date: string, terminalId?: string) => Promise<any | null>
-  createCashSession: (data: { openingFloat: number; cashierId?: string; cashierName?: string; terminalId?: string; notes?: string }) => Promise<any>
+  createCashSession: (data: { openingFloat: number; shopId?: string; cashierId?: string; cashierName?: string; terminalId?: string; notes?: string }) => Promise<any>
   getRecentCashSessions: (limit?: number) => Promise<any[]>
 
   // Hardware & Printing

@@ -50,7 +50,7 @@ export const getDatabase = async (): Promise<POSDatabase> => {
   const dbPath = path.join(projectDbDir, 'cakeshop_local.db')
   console.log(`[Database] Initializing SQLite database (packaged=${isPackaged}) at: ${dbPath}`)
 
-  const MASTER_DB_VERSION = 10 // v10: Products barcode & item_code unique per shop_id
+  const MASTER_DB_VERSION = 11 // v11: Cash sessions sync_status and shop_id for Supabase cloud sync
 
   // Helper: read product count from a DB buffer
   const getProductCount = (buf: Buffer): number => {
@@ -474,6 +474,18 @@ export const getDatabase = async (): Promise<POSDatabase> => {
       db.run(`CREATE INDEX IF NOT EXISTS idx_products_shop ON products(shop_id);`)
     } catch (e) {
       console.warn('[Migration-10] products per-branch uniqueness migration:', e)
+    }
+
+    // Migration 11: Add shop_id and sync_status to cash_sessions
+    try {
+      try {
+        db.run(`ALTER TABLE cash_sessions ADD COLUMN shop_id TEXT DEFAULT 'b0000000-0000-0000-0000-000000000001';`)
+      } catch (_) {}
+      try {
+        db.run(`ALTER TABLE cash_sessions ADD COLUMN sync_status TEXT DEFAULT 'pending';`)
+      } catch (_) {}
+    } catch (e) {
+      console.warn('[Migration-11] cash_sessions columns:', e)
     }
 
     console.log(`[Migration] All migrations applied. DB version set to ${MASTER_DB_VERSION}.`)

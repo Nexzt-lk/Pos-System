@@ -62,8 +62,10 @@ export const App: React.FC = () => {
   const handleFloatConfirm = async (amount: number, notes: string) => {
     const api = (window as any).electronAPI
     const terminalId = currentTerminalId || 'T1'
+    const shopId = (currentUser as any)?.shop_id || (currentUser as any)?.shopId || 'b0000000-0000-0000-0000-000000000001'
     await api.createCashSession({
       openingFloat: amount,
+      shopId,
       cashierId: currentUser?.id,
       cashierName: currentUser?.name,
       terminalId,
