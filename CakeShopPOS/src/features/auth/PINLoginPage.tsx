@@ -117,7 +117,7 @@ export const PINLoginPage: React.FC = () => {
         <h1 className="pin-title">Wasana Cake</h1>
         <p className="pin-subtitle">
           <span className="pin-branch-badge">
-            {currentShop?.name || 'Katugastota'} · Terminal {currentTerminalId}
+            POS Terminal {currentTerminalId || '01'}
           </span>
         </p>
 

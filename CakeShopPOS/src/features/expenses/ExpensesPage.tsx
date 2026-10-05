@@ -179,6 +179,7 @@ export const ExpensesPage: React.FC = () => {
   ])
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL')
   const [searchQuery, setSearchQuery] = useState<string>('')
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('all')
 
   // ─── Data Loading ───────────────────────────────────────────────────────────
 
@@ -186,7 +187,7 @@ export const ExpensesPage: React.FC = () => {
     setIsLoading(true)
     try {
       let data: ExpenseDto[] = []
-      const shopId = currentShop?.id || 'b0000000-0000-0000-0000-000000000001'
+      const shopId = selectedBranchId !== 'all' ? selectedBranchId : undefined
 
       if (dateMode === 'day') {
         const dStr = selectedDate.format('YYYY-MM-DD')
@@ -210,7 +211,7 @@ export const ExpensesPage: React.FC = () => {
 
   useEffect(() => {
     loadExpenses()
-  }, [dateMode, selectedDate, selectedRange, currentShop?.id])
+  }, [dateMode, selectedDate, selectedRange, currentShop?.id, selectedBranchId])
 
   // ─── Category counts ────────────────────────────────────────────────────────
 
@@ -227,6 +228,13 @@ export const ExpensesPage: React.FC = () => {
 
   const filtered = useMemo(() => {
     let result = expenses
+
+    if (selectedBranchId !== 'all') {
+      result = result.filter((e) => {
+        const sid = e.shopId || e.shop_id || 'b0000000-0000-0000-0000-000000000001'
+        return sid === selectedBranchId
+      })
+    }
 
     if (selectedCategory !== 'ALL') {
       result = result.filter(
@@ -246,7 +254,7 @@ export const ExpensesPage: React.FC = () => {
     }
 
     return result
-  }, [expenses, selectedCategory, searchQuery])
+  }, [expenses, selectedCategory, searchQuery, selectedBranchId])
 
   // ─── Metrics Calculation ────────────────────────────────────────────────────
 
@@ -1052,17 +1060,30 @@ export const ExpensesPage: React.FC = () => {
           </Button>
         </div>
 
-        {/* Right: Search Input */}
-        <div style={{ width: 280 }}>
-          <Input
-            prefix={<Search size={15} style={{ color: 'var(--text-muted)', marginRight: 6 }} />}
-            placeholder="Search expenses, cashier..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            allowClear
+        {/* Right: Search Input & Branch Filter */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Select
+            value={selectedBranchId}
+            onChange={setSelectedBranchId}
             size="middle"
-            style={{ borderRadius: 8 }}
+            style={{ width: 190 }}
+            options={[
+              { value: 'all', label: '🌐 All Branches' },
+              { value: 'b0000000-0000-0000-0000-000000000001', label: '🏢 Katugastota (B1)' },
+              { value: 'b0000000-0000-0000-0000-000000000002', label: '🎂 Poojapitiya (B2)' }
+            ]}
           />
+          <div style={{ width: 240 }}>
+            <Input
+              prefix={<Search size={15} style={{ color: 'var(--text-muted)', marginRight: 6 }} />}
+              placeholder="Search expenses, cashier..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              allowClear
+              size="middle"
+              style={{ borderRadius: 8 }}
+            />
+          </div>
         </div>
       </div>
 
@@ -1174,6 +1195,19 @@ export const ExpensesPage: React.FC = () => {
                   <th
                     style={{
                       padding: '13px 16px',
+                      width: 140,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: '#64748b',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em'
+                    }}
+                  >
+                    Branch
+                  </th>
+                  <th
+                    style={{
+                      padding: '13px 16px',
                       width: 170,
                       fontSize: 11,
                       fontWeight: 700,
@@ -1256,7 +1290,7 @@ export const ExpensesPage: React.FC = () => {
                 {filtered.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={8}
                       style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}
                     >
                       <Receipt
@@ -1310,6 +1344,30 @@ export const ExpensesPage: React.FC = () => {
                           >
                             {exp.localId ? exp.localId.slice(-8) : exp.id.slice(0, 8)}
                           </span>
+                        </td>
+
+                        {/* Branch Badge */}
+                        <td style={{ padding: '12px 16px' }}>
+                          {(() => {
+                            const sid = exp.shopId || exp.shop_id || 'b0000000-0000-0000-0000-000000000001'
+                            const isB2 = sid === 'b0000000-0000-0000-0000-000000000002'
+                            return (
+                              <span
+                                style={{
+                                  backgroundColor: isB2 ? '#fdf2f8' : '#eff6ff',
+                                  color: isB2 ? '#db2777' : '#2563eb',
+                                  border: `1px solid ${isB2 ? '#fbcfe8' : '#bfdbfe'}`,
+                                  fontWeight: 700,
+                                  fontSize: 11,
+                                  padding: '2px 8px',
+                                  borderRadius: 6,
+                                  display: 'inline-block'
+                                }}
+                              >
+                                {isB2 ? '🎂 Poojapitiya' : '🏢 Katugastota'}
+                              </span>
+                            )
+                          })()}
                         </td>
 
                         {/* Category Badge */}

@@ -46,6 +46,7 @@ export const OrdersPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false)
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [paymentFilter, setPaymentFilter] = useState<string>('all')
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('all')
 
   // Modal / Receipt preview state
   const [selectedOrder, setSelectedOrder] = useState<OrderDto | null>(null)
@@ -53,24 +54,41 @@ export const OrdersPage: React.FC = () => {
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState<boolean>(false)
 
   // Fetch orders for the chosen date
-  const loadOrdersForDate = async (targetDate: Dayjs) => {
+  const loadOrdersForDate = async (targetDate: Dayjs, branchId: string = selectedBranchId) => {
     setLoading(true)
     try {
       const fromStr = targetDate.startOf('day').toISOString()
       const toStr = targetDate.endOf('day').toISOString()
+      const dateKey = targetDate.format('YYYY-MM-DD')
 
-      // Fetch from API with date range, or fallback to getAll and filter
+      // Fetch from local SQLite DB first if running in Electron, or fallback to API
       let fetchedOrders: OrderDto[] = []
-      try {
-        fetchedOrders = await ordersApi.getByDateRange(fromStr, toStr)
-      } catch {
-        // Fallback: fetch latest orders and filter client-side
-        const all = await ordersApi.getAll(500)
-        const dateKey = targetDate.format('YYYY-MM-DD')
-        fetchedOrders = all.filter((o) => {
-          if (!o.createdAt) return false
-          return dayjs(o.createdAt).format('YYYY-MM-DD') === dateKey
-        })
+      if (window.electronAPI) {
+        try {
+          const res = await window.electronAPI.dbQuery('db:get-orders', {
+            shopId: branchId !== 'all' ? branchId : undefined,
+            dateStr: dateKey,
+            limit: 500
+          })
+          if (Array.isArray(res) && res.length > 0) {
+            fetchedOrders = res
+          }
+        } catch (e) {
+          console.warn('Failed to load orders from local db, falling back to API:', e)
+        }
+      }
+
+      if (fetchedOrders.length === 0) {
+        try {
+          fetchedOrders = await ordersApi.getByDateRange(fromStr, toStr)
+        } catch {
+          // Fallback: fetch latest orders and filter client-side
+          const all = await ordersApi.getAll(500)
+          fetchedOrders = all.filter((o) => {
+            if (!o.createdAt) return false
+            return dayjs(o.createdAt).format('YYYY-MM-DD') === dateKey
+          })
+        }
       }
 
       // Sort descending (latest first)
@@ -87,10 +105,10 @@ export const OrdersPage: React.FC = () => {
     }
   }
 
-  // Load when selectedDate changes
+  // Load when selectedDate or selectedBranchId changes
   useEffect(() => {
-    loadOrdersForDate(selectedDate)
-  }, [selectedDate])
+    loadOrdersForDate(selectedDate, selectedBranchId)
+  }, [selectedDate, selectedBranchId])
 
   // Listen to POS order completion events to automatically update in real-time
   useEffect(() => {
@@ -119,6 +137,12 @@ export const OrdersPage: React.FC = () => {
   // Filtered orders list based on search and payment method
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
+      // Branch filter
+      if (selectedBranchId !== 'all') {
+        const orderShopId = (order as any).shopId || (order as any).shop_id || 'b0000000-0000-0000-0000-000000000001'
+        if (orderShopId !== selectedBranchId) return false
+      }
+
       // Payment filter
       if (paymentFilter !== 'all') {
         const primaryPayment = order.payments?.[0]?.method?.toUpperCase() || 'CASH'
@@ -444,6 +468,29 @@ export const OrdersPage: React.FC = () => {
               <span>{timeFormatted}</span>
             </div>
           </div>
+        )
+      }
+    },
+    {
+      title: 'Branch / ශාඛාව',
+      key: 'branch',
+      width: 150,
+      render: (_, record) => {
+        const sId = (record as any).shopId || (record as any).shop_id
+        const isB2 = sId === 'b0000000-0000-0000-0000-000000000002'
+        return (
+          <Tag
+            color={isB2 ? 'magenta' : 'blue'}
+            style={{
+              borderRadius: 6,
+              fontWeight: 700,
+              fontSize: 11,
+              padding: '2px 8px',
+              margin: 0
+            }}
+          >
+            {isB2 ? '🎂 Poojapitiya (B2)' : '🏢 Katugastota (B1)'}
+          </Tag>
         )
       }
     },
@@ -933,11 +980,23 @@ export const OrdersPage: React.FC = () => {
             value={paymentFilter}
             onChange={setPaymentFilter}
             size="large"
-            style={{ width: 160 }}
+            style={{ width: 140 }}
             options={[
               { value: 'all', label: 'All Payments' },
               { value: 'cash', label: 'Cash Only' },
               { value: 'card', label: 'Card Only' }
+            ]}
+          />
+
+          <Select
+            value={selectedBranchId}
+            onChange={setSelectedBranchId}
+            size="large"
+            style={{ width: 210 }}
+            options={[
+              { value: 'all', label: '🌐 All Branches (සියල්ල)' },
+              { value: 'b0000000-0000-0000-0000-000000000001', label: '🏢 Katugastota (B1)' },
+              { value: 'b0000000-0000-0000-0000-000000000002', label: '🎂 Poojapitiya (B2)' }
             ]}
           />
         </div>

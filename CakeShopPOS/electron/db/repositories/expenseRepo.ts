@@ -52,8 +52,8 @@ export const expenseRepo = {
     const sqlParams: any[] = []
 
     if (params?.shopId && params.shopId !== 'all') {
-      query += ` AND shop_id = ?`
-      sqlParams.push(params.shopId)
+      query += ` AND (shop_id = ? OR (shop_id IS NULL AND ? = 'b0000000-0000-0000-0000-000000000001'))`
+      sqlParams.push(params.shopId, params.shopId)
     }
 
     if (params?.from) {
@@ -319,8 +319,8 @@ export const expenseRepo = {
     const sqlParams: any[] = []
 
     if (params?.shopId && params.shopId !== 'all') {
-      whereClause += ` AND shop_id = ?`
-      sqlParams.push(params.shopId)
+      whereClause += ` AND (shop_id = ? OR (shop_id IS NULL AND ? = 'b0000000-0000-0000-0000-000000000001'))`
+      sqlParams.push(params.shopId, params.shopId)
     }
 
     if (params?.from) {
@@ -372,8 +372,8 @@ export const expenseRepo = {
     let todayQuery = `SELECT COALESCE(sum(amount), 0) as today_total, count(*) as today_count FROM expenses WHERE substr(expense_date, 1, 10) = ?`
     const todayParams: any[] = [todayStr]
     if (params?.shopId && params.shopId !== 'all') {
-      todayQuery += ` AND shop_id = ?`
-      todayParams.push(params.shopId)
+      todayQuery += ` AND (shop_id = ? OR (shop_id IS NULL AND ? = 'b0000000-0000-0000-0000-000000000001'))`
+      todayParams.push(params.shopId, params.shopId)
     }
     const todayRow = db.queryOne<{ today_total: number; today_count: number }>(todayQuery, todayParams)
 
@@ -381,8 +381,8 @@ export const expenseRepo = {
     let monthQuery = `SELECT COALESCE(sum(amount), 0) as month_total FROM expenses WHERE substr(expense_date, 1, 7) = ?`
     const monthParams: any[] = [monthPrefix]
     if (params?.shopId && params.shopId !== 'all') {
-      monthQuery += ` AND shop_id = ?`
-      monthParams.push(params.shopId)
+      monthQuery += ` AND (shop_id = ? OR (shop_id IS NULL AND ? = 'b0000000-0000-0000-0000-000000000001'))`
+      monthParams.push(params.shopId, params.shopId)
     }
     const monthRow = db.queryOne<{ month_total: number }>(monthQuery, monthParams)
 

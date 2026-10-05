@@ -57,7 +57,31 @@ import { ReportGeneratorModal } from './ReportGeneratorModal'
 import { Dropdown, message } from 'antd'
 import { downloadCsv, money, qty, pct, csvDate, csvTime, CsvRow } from '../../lib/csvExport'
 
-type PeriodType = 'daily' | 'weekly' | 'monthly' | 'custom'
+export type PeriodType = 'daily' | 'weekly' | 'monthly' | 'custom'
+
+export interface BranchMetric {
+  shopId: string
+  shopName: string
+  branchCode: string
+  address?: string
+  phone?: string
+  totalOrders: number
+  totalRevenue: number
+  avgTicket: number
+  costOfGoods: number
+  grossProfit: number
+  grossProfitMargin: number
+  totalExpenses: number
+  netProfit: number
+  netProfitMargin: number
+  cashSales: number
+  cashExpenses: number
+  netCashInDrawer: number
+  totalProducts: number
+  inventoryCostValue: number
+  inventoryRetailValue: number
+  lowStockCount: number
+}
 
 interface AnalyticsState {
   period: PeriodType
@@ -178,7 +202,9 @@ interface AnalyticsState {
       note: string
       created_at: string
     }>
+    branchBreakdown?: BranchMetric[]
   }
+  branchBreakdown?: BranchMetric[]
   peakSlot: { label: string; revenue: number; orders: number } | null
   recentOrders: Array<{
     id: string
@@ -213,6 +239,7 @@ const PAYMENT_ICONS: Record<string, React.ReactNode> = {
 export const ReportsPage: React.FC = () => {
   const currentShop = useAppStore((state) => state.currentShop)
   const [viewMode, setViewMode] = useState<'store' | 'owner'>('store')
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('all')
   const [period, setPeriod] = useState<PeriodType>('daily')
   const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'))
   const [customStartDate, setCustomStartDate] = useState<string>(dayjs().subtract(7, 'day').format('YYYY-MM-DD'))
@@ -229,7 +256,7 @@ export const ReportsPage: React.FC = () => {
 
   // Fetch real analytics data from Local Electron DB or Backend API
   const loadAnalytics = async () => {
-    const shopId = currentShop?.id || 'b0000000-0000-0000-0000-000000000001'
+    const shopId = selectedBranchId
     setLoading(true)
     try {
       // 1. First priority: Direct Local SQLite Query via Electron IPC (Offline-first & 100% Real-Time)
@@ -413,7 +440,7 @@ export const ReportsPage: React.FC = () => {
       window.removeEventListener('focus', handleOrderEvent)
       clearInterval(intervalId)
     }
-  }, [currentShop?.id, period, selectedDate, customStartDate, customEndDate])
+  }, [selectedBranchId, currentShop?.id, period, selectedDate, customStartDate, customEndDate])
 
   // Date Navigation Handlers
   const handlePrevPeriod = () => {
@@ -953,6 +980,78 @@ export const ReportsPage: React.FC = () => {
           </button>
         </div>
 
+        {/* Branch Filter Switcher for Multi-Branch / Owner */}
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
+          background: '#f8fafc',
+          padding: '4px',
+          borderRadius: 10,
+          border: '1px solid #e2e8f0'
+        }}>
+          <button
+            onClick={() => setSelectedBranchId('all')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 12px',
+              borderRadius: 6,
+              border: selectedBranchId === 'all' ? '1px solid #0f172a' : '1px solid transparent',
+              fontSize: 12,
+              fontWeight: selectedBranchId === 'all' ? 700 : 500,
+              cursor: 'pointer',
+              background: selectedBranchId === 'all' ? '#0f172a' : 'transparent',
+              color: selectedBranchId === 'all' ? '#ffffff' : '#64748b',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Building2 size={13} />
+            <span>All Branches (සියල්ල)</span>
+          </button>
+
+          <button
+            onClick={() => setSelectedBranchId('b0000000-0000-0000-0000-000000000001')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 12px',
+              borderRadius: 6,
+              border: selectedBranchId === 'b0000000-0000-0000-0000-000000000001' ? '1px solid #16a34a' : '1px solid transparent',
+              fontSize: 12,
+              fontWeight: selectedBranchId === 'b0000000-0000-0000-0000-000000000001' ? 700 : 500,
+              cursor: 'pointer',
+              background: selectedBranchId === 'b0000000-0000-0000-0000-000000000001' ? '#16a34a' : 'transparent',
+              color: selectedBranchId === 'b0000000-0000-0000-0000-000000000001' ? '#ffffff' : '#64748b',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <span>🏢 Katugastota (B1)</span>
+          </button>
+
+          <button
+            onClick={() => setSelectedBranchId('b0000000-0000-0000-0000-000000000002')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 12px',
+              borderRadius: 6,
+              border: selectedBranchId === 'b0000000-0000-0000-0000-000000000002' ? '1px solid #ea580c' : '1px solid transparent',
+              fontSize: 12,
+              fontWeight: selectedBranchId === 'b0000000-0000-0000-0000-000000000002' ? 700 : 500,
+              cursor: 'pointer',
+              background: selectedBranchId === 'b0000000-0000-0000-0000-000000000002' ? '#ea580c' : 'transparent',
+              color: selectedBranchId === 'b0000000-0000-0000-0000-000000000002' ? '#ffffff' : '#64748b',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <span>🎂 Poojapitiya (B2)</span>
+          </button>
+        </div>
+
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -1011,7 +1110,20 @@ export const ReportsPage: React.FC = () => {
             {viewMode === 'store'
               ? 'Performance Insights, Item Breakdown, and Store Activity'
               : 'Profit & Loss, Operational Outflow, Cash Drawer & Staff Audit'} ·{' '}
-            <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{currentShop?.name || 'Main Branch'}</span>
+            <span style={{
+              color: selectedBranchId === 'b0000000-0000-0000-0000-000000000002' ? '#ea580c' : (selectedBranchId === 'all' ? '#0f172a' : '#16a34a'),
+              fontWeight: 700,
+              background: selectedBranchId === 'b0000000-0000-0000-0000-000000000002' ? '#fff7ed' : (selectedBranchId === 'all' ? '#f1f5f9' : '#f0fdf4'),
+              padding: '1px 8px',
+              borderRadius: 6,
+              border: `1px solid ${selectedBranchId === 'b0000000-0000-0000-0000-000000000002' ? '#fed7aa' : (selectedBranchId === 'all' ? '#e2e8f0' : '#bbf7d0')}`
+            }}>
+              {selectedBranchId === 'all'
+                ? '🏢 All Branches Combined (සියලුම ශාඛා)'
+                : selectedBranchId === 'b0000000-0000-0000-0000-000000000002'
+                ? '🎂 Wasana Cake - Poojapitiya (B2)'
+                : '🏢 Wasana Cake - Katugastota (B1)'}
+            </span>
           </div>
         </div>
 
@@ -2782,6 +2894,233 @@ export const ReportsPage: React.FC = () => {
       {/* ───── VIEW MODE 2: OWNER'S EXECUTIVE BUSINESS INTELLIGENCE HUB ───── */}
       {viewMode === 'owner' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+          {/* ── Multi-Branch Executive Comparison (ශාඛා කාර්යසාධනය වෙන වෙනම) ── */}
+          {analytics?.branchBreakdown && analytics.branchBreakdown.length > 0 && (
+            <div style={{
+              background: '#ffffff',
+              borderRadius: 14,
+              border: '1px solid #cbd5e1',
+              padding: 24,
+              boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 18 }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Building2 size={20} color="#0f172a" />
+                    <h3 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
+                      Multi-Branch Executive Breakdown (ශාඛා මට්ටමේ සාරාංශය)
+                    </h3>
+                    <span style={{
+                      fontSize: 11,
+                      fontWeight: 800,
+                      background: '#eff6ff',
+                      color: '#2563eb',
+                      padding: '2px 8px',
+                      borderRadius: 6,
+                      border: '1px solid #bfdbfe'
+                    }}>
+                      {analytics.branchBreakdown.length} Active Branches
+                    </span>
+                  </div>
+                  <p style={{ fontSize: 12.5, color: '#64748b', margin: '4px 0 0' }}>
+                    Revenue, net profit, operating expenses, and cash in drawer comparison for {periodDisplayLabel}.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => setSelectedBranchId('all')}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: selectedBranchId === 'all' ? 700 : 500,
+                      border: selectedBranchId === 'all' ? '1px solid #0f172a' : '1px solid #cbd5e1',
+                      background: selectedBranchId === 'all' ? '#0f172a' : '#ffffff',
+                      color: selectedBranchId === 'all' ? '#ffffff' : '#334155',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    Combined (සියල්ල)
+                  </button>
+                  {analytics.branchBreakdown.map((b) => (
+                    <button
+                      key={b.shopId}
+                      onClick={() => setSelectedBranchId(b.shopId)}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 6,
+                        fontSize: 12,
+                        fontWeight: selectedBranchId === b.shopId ? 700 : 500,
+                        border: `1px solid ${b.branchCode === 'B1' ? '#16a34a' : '#ea580c'}`,
+                        background: selectedBranchId === b.shopId ? (b.branchCode === 'B1' ? '#16a34a' : '#ea580c') : '#ffffff',
+                        color: selectedBranchId === b.shopId ? '#ffffff' : (b.branchCode === 'B1' ? '#16a34a' : '#ea580c'),
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {b.branchCode === 'B1' ? '🏢 Katugastota (B1)' : '🎂 Poojapitiya (B2)'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Branch Cards Grid */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+                gap: 16
+              }}>
+                {analytics.branchBreakdown.map((b) => {
+                  const isSelected = selectedBranchId === b.shopId
+                  const isB1 = b.branchCode === 'B1'
+                  const accentColor = isB1 ? '#16a34a' : '#ea580c'
+                  const accentBg = isB1 ? '#f0fdf4' : '#fff7ed'
+                  const accentBorder = isB1 ? '#bbf7d0' : '#fed7aa'
+
+                  return (
+                    <div
+                      key={b.shopId}
+                      style={{
+                        background: '#ffffff',
+                        borderRadius: 12,
+                        border: isSelected ? `2px solid ${accentColor}` : '1px solid #e2e8f0',
+                        boxShadow: isSelected ? `0 6px 20px ${accentColor}25` : '0 1px 3px rgba(0,0,0,0.04)',
+                        padding: 20,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 14,
+                        transition: 'all 0.2s ease',
+                        position: 'relative'
+                      }}
+                    >
+                      {/* Branch Header */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{
+                              background: accentBg,
+                              border: `1px solid ${accentBorder}`,
+                              color: accentColor,
+                              fontWeight: 800,
+                              fontSize: 11,
+                              padding: '2px 8px',
+                              borderRadius: 6
+                            }}>
+                              {b.branchCode}
+                            </span>
+                            <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#0f172a' }}>
+                              {b.shopName}
+                            </h4>
+                          </div>
+                          <div style={{ fontSize: 11.5, color: '#64748b', marginTop: 4 }}>
+                            {b.address || 'Wasana Cake'} · Phone: <strong>{b.phone || '071-1172201'}</strong>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => setSelectedBranchId(isSelected ? 'all' : b.shopId)}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: 6,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            border: `1px solid ${accentColor}`,
+                            background: isSelected ? accentColor : '#ffffff',
+                            color: isSelected ? '#ffffff' : accentColor,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {isSelected ? '✓ Viewing This Branch' : 'Isolate This Branch'}
+                        </button>
+                      </div>
+
+                      {/* 4 Financial Tiles */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #f1f5f9' }}>
+                          <div style={{ fontSize: 10.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                            Gross Revenue
+                          </div>
+                          <div style={{ fontSize: 19, fontWeight: 800, color: '#0f172a', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+                            {formatCurrency(b.totalRevenue)}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                            {b.totalOrders} orders (Avg: {formatCurrency(b.avgTicket)})
+                          </div>
+                        </div>
+
+                        <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #f1f5f9' }}>
+                          <div style={{ fontSize: 10.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                            Expenses Paid
+                          </div>
+                          <div style={{ fontSize: 19, fontWeight: 800, color: '#e11d48', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+                            {formatCurrency(b.totalExpenses)}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                            Operational &amp; Petty Cash
+                          </div>
+                        </div>
+
+                        <div style={{ background: b.netProfit >= 0 ? '#f0fdf4' : '#fff1f2', padding: 12, borderRadius: 8, border: `1px solid ${b.netProfit >= 0 ? '#dcfce7' : '#ffe4e6'}` }}>
+                          <div style={{ fontSize: 10.5, fontWeight: 700, color: b.netProfit >= 0 ? '#15803d' : '#be123c', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                            Net Profit
+                          </div>
+                          <div style={{ fontSize: 19, fontWeight: 800, color: b.netProfit >= 0 ? '#15803d' : '#be123c', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+                            {formatCurrency(b.netProfit)}
+                          </div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: b.netProfit >= 0 ? '#15803d' : '#be123c', marginTop: 2 }}>
+                            {b.netProfitMargin}% Net Margin
+                          </div>
+                        </div>
+
+                        <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #f1f5f9' }}>
+                          <div style={{ fontSize: 10.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                            Cash in Drawer
+                          </div>
+                          <div style={{ fontSize: 19, fontWeight: 800, color: b.netCashInDrawer >= 0 ? '#0f766e' : '#e11d48', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+                            {formatCurrency(b.netCashInDrawer)}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                            Cash Sales: {formatCurrency(b.cashSales)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Stock & Catalog snapshot */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        background: '#f8fafc',
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        border: '1px solid #e2e8f0',
+                        fontSize: 12
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                          <div><strong style={{ color: '#0f172a' }}>{b.totalProducts}</strong> <span style={{ color: '#64748b' }}>Products</span></div>
+                          <div><strong style={{ color: '#0f172a' }}>{formatCurrency(b.inventoryCostValue)}</strong> <span style={{ color: '#64748b' }}>Stock Cost</span></div>
+                        </div>
+                        <div>
+                          {b.lowStockCount > 0 ? (
+                            <span style={{ color: '#d97706', fontWeight: 700, background: '#fef3c7', padding: '2px 8px', borderRadius: 4 }}>
+                              ⚠ {b.lowStockCount} Low Stock
+                            </span>
+                          ) : (
+                            <span style={{ color: '#16a34a', fontWeight: 700, background: '#f0fdf4', padding: '2px 8px', borderRadius: 4 }}>
+                              ✓ Stock Healthy
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* ── P&L Scoreboard Card ── */}
           <div style={{
