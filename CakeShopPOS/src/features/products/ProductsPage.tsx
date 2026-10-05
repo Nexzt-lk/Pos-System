@@ -97,7 +97,7 @@ export const ProductsPage: React.FC = () => {
         unit: product.unit || 'pcs',
         track_inventory: Boolean(product.track_inventory),
         description: product.description || '',
-        image_path: product.image_path
+        image_path: product.image_path || (product as any).imagePath || undefined
       })
     } else {
       setEditingProduct(null)
@@ -162,8 +162,8 @@ export const ProductsPage: React.FC = () => {
         }
       }
 
-      // Automatically match image if none was explicitly picked
-      const finalImagePath = values.image_path || getAutoMatchedProductImage(values.name, selCat?.name)
+      // Automatically match image if none was explicitly picked or keep existing
+      const finalImagePath = values.image_path || (editingProduct ? (editingProduct.image_path || (editingProduct as any).imagePath) : undefined) || getAutoMatchedProductImage(values.name, selCat?.name)
 
       if (editingProduct) {
         await productsApi.update(editingProduct.id, {
@@ -1220,7 +1220,10 @@ export const ProductsPage: React.FC = () => {
                 <>
                   <ProductImagePicker
                     value={currentImagePath}
-                    onChange={(newPath) => setFieldsValue({ image_path: newPath })}
+                    onChange={(newPath) => {
+                      form.setFieldsValue({ image_path: newPath })
+                      setFieldsValue({ image_path: newPath })
+                    }}
                     productName={currentName}
                     categoryName={selectedCat?.name}
                   />

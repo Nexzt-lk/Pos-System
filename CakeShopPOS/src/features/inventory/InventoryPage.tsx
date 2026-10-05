@@ -2732,7 +2732,10 @@ export const InventoryPage: React.FC = () => {
                       <>
                         <ProductImagePicker
                           value={currentImagePath}
-                          onChange={(newPath) => setFieldsValue({ new_image_path: newPath })}
+                          onChange={(newPath) => {
+                            form.setFieldsValue({ new_image_path: newPath })
+                            setFieldsValue({ new_image_path: newPath })
+                          }}
                           productName={currentName}
                           categoryName={selectedCat?.name}
                         />

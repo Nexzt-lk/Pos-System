@@ -50,6 +50,7 @@ public class ProductService
                 Price = p.Price,
                 CostPrice = p.CostPrice,
                 Barcode = p.Barcode,
+                ImagePath = p.ImagePath,
                 Unit = p.Unit,
                 TrackInventory = p.TrackInventory,
                 IsActive = p.IsActive,
@@ -80,6 +81,7 @@ public class ProductService
             Price = p.Price,
             CostPrice = p.CostPrice,
             Barcode = p.Barcode,
+            ImagePath = p.ImagePath,
             Unit = p.Unit,
             TrackInventory = p.TrackInventory,
             IsActive = p.IsActive,
@@ -141,6 +143,7 @@ public class ProductService
             Price = request.Price,
             CostPrice = request.CostPrice,
             Barcode = barcode,
+            ImagePath = request.ImagePath,
             Unit = string.IsNullOrWhiteSpace(request.Unit) ? "pcs" : request.Unit,
             TrackInventory = request.TrackInventory,
             IsActive = true
@@ -184,6 +187,7 @@ public class ProductService
             Price = product.Price,
             CostPrice = product.CostPrice,
             Barcode = product.Barcode,
+            ImagePath = product.ImagePath,
             Unit = product.Unit,
             TrackInventory = product.TrackInventory,
             IsActive = product.IsActive,
@@ -207,6 +211,10 @@ public class ProductService
         product.Price = request.Price;
         product.CostPrice = request.CostPrice;
         product.Barcode = string.IsNullOrWhiteSpace(request.Barcode) ? null : request.Barcode;
+        if (request.ImagePath != null)
+        {
+            product.ImagePath = string.IsNullOrWhiteSpace(request.ImagePath) ? null : request.ImagePath;
+        }
         product.Unit = request.Unit;
         product.TrackInventory = request.TrackInventory;
         product.IsActive = request.IsActive;
