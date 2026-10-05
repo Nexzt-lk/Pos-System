@@ -254,12 +254,31 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
         <header className="topbar">
           <div className="topbar-left">
             <button className="branch-pill" onClick={toggleBranch} title="Click to switch branch">
-              <Store size={13} />
+              <Store size={14} style={{ color: '#16a34a' }} />
               <span>{currentShop?.name || 'Kandy Branch'}</span>
-              <span style={{ background: 'var(--primary)', color: 'white', borderRadius: '6px', padding: '1px 6px', fontSize: '10px', fontWeight: 700 }}>{currentShop?.branch_code || 'B1'}</span>
+              <span style={{
+                background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+                color: 'white',
+                borderRadius: '99px',
+                padding: '2px 8px',
+                fontSize: '10.5px',
+                fontWeight: 800,
+                letterSpacing: '0.02em',
+                boxShadow: '0 1px 3px rgba(22, 163, 74, 0.25)'
+              }}>
+                {currentShop?.branch_code || 'B1'}
+              </span>
             </button>
             <div className="terminal-pill">
-              <Monitor size={13} style={{ color: 'var(--info)' }} />
+              <span style={{
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                background: '#10b981',
+                boxShadow: '0 0 0 2px rgba(16, 185, 129, 0.2)',
+                display: 'inline-block'
+              }} />
+              <Monitor size={13} style={{ color: '#0284c7' }} />
               <span>Terminal {currentTerminalId}</span>
             </div>
           </div>
@@ -267,9 +286,22 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
           <div className="topbar-right">
             <StockNotificationBell onNavigateToInventory={() => setActiveTab('inventory')} />
             <SyncIndicator />
-            <div className="clock-pill">
-              <Clock size={12} style={{ display: 'inline', marginRight: 4 }} />
-              {currentTime}
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              background: '#ffffff',
+              border: '1.5px solid #e2e8f0',
+              borderRadius: '99px',
+              padding: '6px 14px',
+              fontSize: '12px',
+              fontWeight: 700,
+              color: '#334155',
+              fontFeatureSettings: "'tnum'",
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)'
+            }}>
+              <Clock size={13} style={{ color: '#64748b' }} />
+              <span>{currentTime}</span>
             </div>
           </div>
         </header>

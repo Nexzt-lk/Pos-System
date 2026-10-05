@@ -25,7 +25,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
       className={`product-card ${isOutOfStock ? 'out-of-stock' : ''} ${isFocused ? 'keyboard-focused' : ''}`}
       style={isFocused ? {
         border: '2px solid var(--primary)',
-        boxShadow: '0 0 0 3px rgba(236, 72, 153, 0.35)',
+        boxShadow: '0 0 0 3px rgba(22, 163, 74, 0.25)',
         transform: 'translateY(-3px)'
       } : undefined}
       onClick={() => !isOutOfStock && onAddToCart(product)}
@@ -55,7 +55,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
           />
         ) : (
           <div className="product-card-img-placeholder">
-            <Cake size={36} color="#db2777" style={{ opacity: 0.6 }} />
+            <Cake size={36} color="#16a34a" style={{ opacity: 0.6 }} />
           </div>
         )}
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+﻿import React, { useState, useEffect, useMemo } from 'react'
 import {
   Package,
   Package2,
@@ -1034,17 +1034,17 @@ export const InventoryPage: React.FC = () => {
                           <div style={{ minWidth: 0 }}>
                             <div
                               style={{
-                                color: '#64748b',
-                                fontWeight: 600,
-                                fontSize: 13.5,
+                                color: '#0f172a',
+                                fontWeight: 700,
+                                fontSize: 14,
                                 lineHeight: 1.3
                               }}
                             >
                               {product.name}
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-                              <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>
-                                Unit: <strong>{product.unit}</strong>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
+                              <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>
+                                Unit: <strong style={{ color: '#0f172a' }}>{product.unit}</strong>
                               </span>
                             </div>
                           </div>
@@ -1053,7 +1053,21 @@ export const InventoryPage: React.FC = () => {
 
                       {/* Category */}
                       <td style={{ padding: '12px 16px' }}>
-                        <span style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            padding: '3px 10px',
+                            borderRadius: 99,
+                            background: `${catColor}12`,
+                            border: `1px solid ${catColor}30`,
+                            color: catColor,
+                            fontSize: 12,
+                            fontWeight: 700
+                          }}
+                        >
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: catColor }} />
                           {product.category_name || 'General'}
                         </span>
                       </td>
@@ -1061,13 +1075,14 @@ export const InventoryPage: React.FC = () => {
                       {/* Barcode / SKU */}
                       <td style={{ padding: '12px 16px' }}>
                         {product.barcode ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                            <Barcode size={14} style={{ color: '#94a3b8' }} />
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '2px 8px' }}>
+                            <Barcode size={13} style={{ color: '#64748b' }} />
                             <span
                               style={{
-                                fontFamily: 'monospace',
-                                color: '#64748b',
-                                fontSize: 13
+                                fontFamily: 'ui-monospace, monospace',
+                                color: '#334155',
+                                fontWeight: 600,
+                                fontSize: 12
                               }}
                             >
                               {product.barcode}
@@ -1080,7 +1095,7 @@ export const InventoryPage: React.FC = () => {
 
                       {/* Selling Price */}
                       <td style={{ padding: '12px 16px' }}>
-                        <div style={{ fontWeight: 600, color: '#64748b', fontSize: 12.5 }}>
+                        <div style={{ fontWeight: 800, color: '#0f172a', fontSize: 14 }}>
                           {formatCurrency(product.price)}
                         </div>
                       </td>
@@ -1088,7 +1103,7 @@ export const InventoryPage: React.FC = () => {
                       {/* Cost Price */}
                       <td style={{ padding: '12px 16px' }}>
                         {product.cost_price ? (
-                          <span style={{ color: '#64748b', fontWeight: 600, fontSize: 12.5 }}>
+                          <span style={{ color: '#475569', fontWeight: 600, fontSize: 13 }}>
                             {formatCurrency(product.cost_price)}
                           </span>
                         ) : (
@@ -1341,7 +1356,7 @@ export const InventoryPage: React.FC = () => {
               </div>
               <div>
                 <div style={{ fontSize: 17, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
-                  Step 2: Supplier & Purchase Expense (සැපයුම්කරු හා වියදම් විස්තර)
+                  Step 2: Supplier & Purchase Expense
                 </div>
                 <div style={{ fontSize: 12, color: '#64748b', fontWeight: 500, marginTop: 1 }}>
                   Select supplier, verify auto-calculated or manual stock cost, and record store expense
@@ -1368,7 +1383,7 @@ export const InventoryPage: React.FC = () => {
               </div>
               <div>
                 <div style={{ fontSize: 17, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
-                  {entryMode === 'NEW' ? 'Receive & Register New Cake Item' : 'Inventory Stock Update (තොග යාවත්කාලීන කිරීම)'}
+                  {entryMode === 'NEW' ? 'Receive & Register New Cake Item' : 'Inventory Stock Update'}
                 </div>
                 <div style={{ fontSize: 12, color: '#64748b', fontWeight: 500, marginTop: 1 }}>
                   {entryMode === 'NEW' ? 'Add new item to catalog and receive initial stock balance' : 'Step 1: Set quantities, weights, money amounts, or pricing'}
@@ -1403,7 +1418,7 @@ export const InventoryPage: React.FC = () => {
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#ffffff' }}
                 >
                   <ArrowLeft size={16} />
-                  <span>Back to Quantities (ආපසු)</span>
+                  <span>Back to Quantities</span>
                 </button>
               ) : (
                 <button
@@ -1456,7 +1471,7 @@ export const InventoryPage: React.FC = () => {
                   onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.92'; e.currentTarget.style.transform = 'translateY(-1px)' }}
                   onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none' }}
                 >
-                  <span>Next: Supplier & Cost Details (ඊළඟ පියවර)</span>
+                  <span>Next: Supplier & Cost Details</span>
                   <ArrowRight size={16} />
                 </button>
               ) : (
@@ -1483,7 +1498,7 @@ export const InventoryPage: React.FC = () => {
                   onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none' }}
                 >
                   <Check size={17} />
-                  <span>Confirm & Update Stock (තොගය සටහන් කරන්න)</span>
+                  <span>Confirm & Update Stock</span>
                 </button>
               )}
             </div>
@@ -1541,7 +1556,7 @@ export const InventoryPage: React.FC = () => {
             </div>
             <div>
               <div style={{ fontSize: 13, fontWeight: 800, color: modalStep === 0 ? '#0f172a' : '#475569' }}>
-                1. Product & Quantities (අයිතමය හා ප්‍රමාණය)
+                1. Product & Quantities
               </div>
               <div style={{ fontSize: 11, color: '#64748b' }}>
                 Item selection, weights, prices & live stock preview
@@ -1581,7 +1596,7 @@ export const InventoryPage: React.FC = () => {
             </div>
             <div>
               <div style={{ fontSize: 13, fontWeight: 800, color: modalStep === 1 ? '#0f172a' : '#94a3b8' }}>
-                2. Supplier & Cost Details (සැපයුම්කරු හා වියදම්)
+                2. Supplier & Cost Details
               </div>
               <div style={{ fontSize: 11, color: modalStep === 1 ? '#64748b' : '#94a3b8' }}>
                 Supplier, invoice #, auto/manual total cost & expense
@@ -1624,7 +1639,7 @@ export const InventoryPage: React.FC = () => {
                   label: (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '4px 0', fontWeight: 700, fontSize: 13.5 }}>
                       <Package size={17} />
-                      <span>Existing Item Restock (දැනට ඇති අයිතමයක්)</span>
+                      <span>Existing Item Restock</span>
                     </div>
                   ),
                   value: 'EXISTING'
@@ -1633,7 +1648,7 @@ export const InventoryPage: React.FC = () => {
                   label: (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '4px 0', fontWeight: 700, fontSize: 13.5 }}>
                       <PlusCircle size={17} />
-                      <span>+ New Item Registration (අලුත් අයිතමයක්)</span>
+                      <span>+ New Item Registration</span>
                     </div>
                   ),
                   value: 'NEW'
@@ -1720,7 +1735,7 @@ export const InventoryPage: React.FC = () => {
                               <Package size={15} />
                             </div>
                             <span className="form-section-title" style={{ color: '#0f172a', fontSize: 12.5 }}>
-                              1. Target Product (අයිතමය තෝරන්න)
+                              1. Target Product
                             </span>
                           </div>
                         </div>
@@ -1843,7 +1858,7 @@ export const InventoryPage: React.FC = () => {
                               <DollarSign size={15} />
                             </div>
                             <span className="form-section-title" style={{ color: '#0f172a', fontSize: 12.5 }}>
-                              2. Pricing & Reference (මිල හා විස්තර)
+                              2. Pricing & Reference
                             </span>
                           </div>
                         </div>
@@ -1994,7 +2009,7 @@ export const InventoryPage: React.FC = () => {
                               <Layers size={15} />
                             </div>
                             <span className="form-section-title" style={{ color: '#0f172a', fontSize: 12.5 }}>
-                              3. Movement & Quantities (තොග ප්‍රමාණය)
+                              3. Movement & Quantities
                             </span>
                           </div>
                           {isWeight && (
@@ -2030,7 +2045,7 @@ export const InventoryPage: React.FC = () => {
                                 label: (
                                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontWeight: 700, padding: '3px 0' }}>
                                     <Scale size={15} />
-                                    <span>{isWeight ? 'By Weight (බරින්)' : 'By Qty (ප්‍රමාණයෙන්)'}</span>
+                                    <span>{isWeight ? 'By Weight' : 'By Qty'}</span>
                                   </div>
                                 ),
                                 value: 'weight'
@@ -2039,7 +2054,7 @@ export const InventoryPage: React.FC = () => {
                                 label: (
                                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontWeight: 700, color: '#15803d', padding: '3px 0' }}>
                                     <Banknote size={15} />
-                                    <span>By Cash (මුදල් ගාණෙන්)</span>
+                                    <span>By Cash</span>
                                   </div>
                                 ),
                                 value: 'amount'
@@ -2078,7 +2093,7 @@ export const InventoryPage: React.FC = () => {
                               <div>
                                 <Form.Item
                                   name="stock_value"
-                                  label={<span style={{ fontWeight: 700, fontSize: 12.5, color: '#15803d' }}>Total Cash (මුදල් - Rs.)</span>}
+                                  label={<span style={{ fontWeight: 700, fontSize: 12.5, color: '#15803d' }}>Total Cash (Rs.)</span>}
                                   style={{ marginBottom: 0 }}
                                 >
                                   <InputNumber
@@ -2123,7 +2138,7 @@ export const InventoryPage: React.FC = () => {
                                 <CheckCircle2 size={18} color="#16a34a" />
                                 <div>
                                   <div style={{ fontSize: 12.5, fontWeight: 800, color: '#166534' }}>
-                                    එකතු වන තොගය (Calculated Stock):
+                                    Calculated Stock:
                                   </div>
                                   <div style={{ fontSize: 11, color: '#65a30d', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
                                     <span>Rate: Rs. {((priceBasis === 'cost' && selectedProd?.cost_price ? selectedProd.cost_price : (selectedProd?.price || 0))).toLocaleString()}/{selectedProd?.unit || 'pcs'}</span>
@@ -2448,7 +2463,7 @@ export const InventoryPage: React.FC = () => {
 
                               <div style={{ textAlign: 'right' }}>
                                 <div style={{ fontSize: 10.5, color: '#15803d', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                  Projected Balance (නව තොගය)
+                                  Projected Balance
                                 </div>
                                 <div style={{ fontSize: 17, fontWeight: 900, color: '#15803d', marginTop: 2 }}>
                                   {formatStockQty(projectedStock, selectedProd.unit)}
@@ -2490,7 +2505,7 @@ export const InventoryPage: React.FC = () => {
                         <Package size={15} />
                       </div>
                       <span className="form-section-title" style={{ color: '#0f172a', fontSize: 12.5 }}>
-                        1. Product Information (අයිතම තොරතුරු)
+                        1. Product Information
                       </span>
                     </div>
                   </div>
@@ -2645,7 +2660,7 @@ export const InventoryPage: React.FC = () => {
                         <DollarSign size={15} />
                       </div>
                       <span className="form-section-title" style={{ color: '#0f172a', fontSize: 12.5 }}>
-                        2. Catalog Pricing (මිල ගණන්)
+                        2. Catalog Pricing
                       </span>
                     </div>
                   </div>
@@ -2799,7 +2814,7 @@ export const InventoryPage: React.FC = () => {
                                   label: (
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontWeight: 700, padding: '3px 0' }}>
                                       <Scale size={15} />
-                                      <span>{isNewWeight ? 'By Weight (බරින්)' : 'By Qty (ප්‍රමාණයෙන්)'}</span>
+                                      <span>{isNewWeight ? 'By Weight' : 'By Qty'}</span>
                                     </div>
                                   ),
                                   value: 'weight'
@@ -2808,7 +2823,7 @@ export const InventoryPage: React.FC = () => {
                                   label: (
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontWeight: 700, color: '#15803d', padding: '3px 0' }}>
                                       <Banknote size={15} />
-                                      <span>By Cash (මුදල් ගාණෙන්)</span>
+                                      <span>By Cash</span>
                                     </div>
                                   ),
                                   value: 'amount'
@@ -2822,7 +2837,7 @@ export const InventoryPage: React.FC = () => {
                               <div style={{ marginBottom: 10 }}>
                                 <Form.Item
                                   name="new_stock_value"
-                                  label={<span style={{ fontWeight: 700, fontSize: 12.5, color: '#15803d' }}>Initial Stock Value (මුදල් ගාණ - Rs.)</span>}
+                                  label={<span style={{ fontWeight: 700, fontSize: 12.5, color: '#15803d' }}>Initial Stock Value (Rs.)</span>}
                                   style={{ marginBottom: 0 }}
                                 >
                                   <InputNumber
@@ -2866,7 +2881,7 @@ export const InventoryPage: React.FC = () => {
                                   <CheckCircle2 size={18} color="#16a34a" />
                                   <div>
                                     <div style={{ fontSize: 12, fontWeight: 800, color: '#166534' }}>
-                                      ගණනය වූ තොගය (Calculated Stock):
+                                      Calculated Stock:
                                     </div>
                                     <div style={{ fontSize: 10.5, color: '#65a30d', fontWeight: 600 }}>
                                       @ Rs. {unitPrice.toLocaleString()}/{chosenUnit}
@@ -3235,7 +3250,7 @@ export const InventoryPage: React.FC = () => {
                                 <Truck size={15} />
                               </div>
                               <span className="form-section-title" style={{ color: '#0f172a', fontSize: 12.5 }}>
-                                1. Supplier & Billing (සැපයුම්කරු හා බිල්පත්)
+                                1. Supplier & Billing
                               </span>
                             </div>
                             <button
@@ -3276,7 +3291,7 @@ export const InventoryPage: React.FC = () => {
 
                           <Form.Item
                             name="supplier_id"
-                            label={<span style={{ fontWeight: 700, fontSize: 12.5, color: '#334155' }}>Select Supplier (අදාල සැපයුම්කරු තෝරන්න)</span>}
+                            label={<span style={{ fontWeight: 700, fontSize: 12.5, color: '#334155' }}>Select Supplier</span>}
                             rules={[{ required: true, message: 'Please select a supplier for this stock' }]}
                             style={{ marginBottom: 12 }}
                           >
@@ -3316,13 +3331,13 @@ export const InventoryPage: React.FC = () => {
                             >
                               <Select size="large" style={{ borderRadius: 8 }}>
                                 <Select.Option value="CASH">
-                                  <span style={{ fontWeight: 700, color: '#16a34a' }}>Cash Drawer (මුදල්)</span>
+                                  <span style={{ fontWeight: 700, color: '#16a34a' }}>Cash Drawer</span>
                                 </Select.Option>
                                 <Select.Option value="BANK">
-                                  <span style={{ fontWeight: 700, color: '#2563eb' }}>Bank Transfer (බැංකු)</span>
+                                  <span style={{ fontWeight: 700, color: '#2563eb' }}>Bank Transfer</span>
                                 </Select.Option>
                                 <Select.Option value="CREDIT">
-                                  <span style={{ fontWeight: 700, color: '#d97706' }}>Credit / Pay Later (ණයට)</span>
+                                  <span style={{ fontWeight: 700, color: '#d97706' }}>Credit / Pay Later</span>
                                 </Select.Option>
                               </Select>
                             </Form.Item>
@@ -3349,7 +3364,7 @@ export const InventoryPage: React.FC = () => {
                                 <Banknote size={15} />
                               </div>
                               <span className="form-section-title" style={{ color: '#0f172a', fontSize: 12.5 }}>
-                                2. Stock Total Value & Expense (තොගයේ වටිනාකම)
+                                2. Stock Total Value & Expense
                               </span>
                             </div>
                           </div>
@@ -3357,46 +3372,9 @@ export const InventoryPage: React.FC = () => {
                           <Form.Item
                             name="total_stock_cost"
                             label={
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                <span style={{ fontWeight: 700, fontSize: 12.5, color: '#0f172a' }}>
-                                  Total Stock Amount (සම්පූර්ණ මුදල - Rs.)
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => setFieldsValue({ total_stock_cost: computedAutoCost })}
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: 5,
-                                    fontSize: 11,
-                                    fontWeight: 700,
-                                    color: '#2563eb',
-                                    background: '#eff6ff',
-                                    border: '1px solid #bfdbfe',
-                                    padding: '3px 10px',
-                                    borderRadius: 7,
-                                    cursor: 'pointer',
-                                    transition: 'all 0.15s ease',
-                                    boxShadow: '0 1px 2px rgba(37, 99, 235, 0.08)'
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.background = '#2563eb'
-                                    e.currentTarget.style.color = '#ffffff'
-                                    e.currentTarget.style.borderColor = '#2563eb'
-                                    e.currentTarget.style.boxShadow = '0 2px 6px rgba(37, 99, 235, 0.25)'
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.background = '#eff6ff'
-                                    e.currentTarget.style.color = '#2563eb'
-                                    e.currentTarget.style.borderColor = '#bfdbfe'
-                                    e.currentTarget.style.boxShadow = '0 1px 2px rgba(37, 99, 235, 0.08)'
-                                  }}
-                                  title="Reset to automatically calculated cost"
-                                >
-                                  <RotateCcw size={12} />
-                                  <span>Reset to Auto (Rs. {computedAutoCost.toLocaleString()})</span>
-                                </button>
-                              </div>
+                              <span style={{ fontWeight: 700, fontSize: 12.5, color: '#0f172a' }}>
+                                Total Stock Amount (Rs.)
+                              </span>
                             }
                             rules={[
                               { required: true, message: 'Please enter total stock value' },
@@ -3442,8 +3420,8 @@ export const InventoryPage: React.FC = () => {
                               <div>
                                 <div style={{ fontSize: 12, fontWeight: 800, color: isAuto ? '#166534' : '#92400e' }}>
                                   {isAuto
-                                    ? 'Auto-Calculated Value (ස්වයංක්‍රීයව ගණනය වූ අගය)'
-                                    : 'Manual Amount Override (වෙනස් කළ මුදල)'}
+                                    ? 'Auto-Calculated Value'
+                                    : 'Manual Amount Override'}
                                 </div>
                                 <div style={{ fontSize: 11, color: isAuto ? '#15803d' : '#b45309', marginTop: 1 }}>
                                   {isAuto
@@ -3475,7 +3453,7 @@ export const InventoryPage: React.FC = () => {
                                 Record as Store Expense for Owner Visibility
                               </div>
                               <div style={{ fontSize: 11, color: '#64748b', marginTop: 2, lineHeight: 1.35 }}>
-                                මෙම මුදල Owner Hub සහ Store Expenses ලේඛනයට "Stock Purchase" ලෙස ඇතුලත් වේ.
+                                This expense will be logged under Store Expenses as "Stock Purchase".
                               </div>
                             </div>
                             <Form.Item name="record_expense" valuePropName="checked" noStyle initialValue={true}>

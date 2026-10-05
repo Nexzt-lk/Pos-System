@@ -435,8 +435,8 @@ export const ExpensesPage: React.FC = () => {
       dateMode === 'day'
         ? selectedDate.format('YYYY-MM-DD')
         : selectedRange && selectedRange[0] && selectedRange[1]
-        ? `${selectedRange[0].format('YYYY-MM-DD')} to ${selectedRange[1].format('YYYY-MM-DD')}`
-        : 'All'
+          ? `${selectedRange[0].format('YYYY-MM-DD')} to ${selectedRange[1].format('YYYY-MM-DD')}`
+          : 'All'
     const headers = [
       'Voucher ID',
       'Date',
@@ -1068,9 +1068,9 @@ export const ExpensesPage: React.FC = () => {
             size="middle"
             style={{ width: 190 }}
             options={[
-              { value: 'all', label: '🌐 All Branches' },
-              { value: 'b0000000-0000-0000-0000-000000000001', label: '🏢 Katugastota (B1)' },
-              { value: 'b0000000-0000-0000-0000-000000000002', label: '🎂 Poojapitiya (B2)' }
+              { value: 'all', label: 'All Branches' },
+              { value: 'b0000000-0000-0000-0000-000000000001', label: 'Katugastota (B1)' },
+              { value: 'b0000000-0000-0000-0000-000000000002', label: 'Poojapitiya (B2)' }
             ]}
           />
           <div style={{ width: 240 }}>

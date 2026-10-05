@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Modal, Form, Input, message } from 'antd'
-import { Truck, Building, User, Phone, MapPin, FileText } from 'lucide-react'
+import { Truck } from 'lucide-react'
 import { suppliersApi, SupplierDto } from '../../api/suppliersApi'
 
 interface AddSupplierModalProps {
@@ -16,6 +16,13 @@ export const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
 }) => {
   const [form] = Form.useForm()
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const fieldLabel = (text: string, required?: boolean) => (
+    <span style={{ fontWeight: 600, fontSize: 12.5, color: '#334155' }}>
+      {text}
+      {required && <span style={{ color: '#ef4444', marginLeft: 2 }}>*</span>}
+    </span>
+  )
 
   const handleSubmit = async (values: any) => {
     setIsSubmitting(true)
@@ -50,8 +57,8 @@ export const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingBottom: 6 }}>
           <div
             style={{
-              width: 40,
-              height: 40,
+              width: 38,
+              height: 38,
               borderRadius: 10,
               background: '#ecfdf5',
               border: '1.5px solid #a7f3d0',
@@ -62,19 +69,19 @@ export const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
               flexShrink: 0
             }}
           >
-            <Truck size={20} />
+            <Truck size={19} />
           </div>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em' }}>
-              Add New Supplier (නව සැපයුම්කරු)
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', letterSpacing: '-0.01em' }}>
+              Add New Supplier
             </div>
             <div style={{ fontSize: 11.5, color: '#64748b', fontWeight: 500, marginTop: 1 }}>
-              Register a new vendor for stock purchases and owner expense audit
+              Register a new vendor for stock purchases
             </div>
           </div>
         </div>
       }
-      okText="Save Supplier (සැපයුම්කරු සුරකින්න)"
+      okText="Save Supplier"
       okButtonProps={{
         style: {
           background: 'var(--primary)',
@@ -98,11 +105,7 @@ export const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
         <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: '16px 18px', marginBottom: 12 }}>
           <Form.Item
             name="name"
-            label={
-              <span style={{ fontWeight: 700, fontSize: 12.5, color: '#1e293b' }}>
-                Supplier / Business Name <span style={{ color: '#ef4444' }}>*</span>
-              </span>
-            }
+            label={fieldLabel('Supplier / Business Name', true)}
             rules={[
               { required: true, message: 'Please enter supplier name' },
               { whitespace: true, message: 'Name cannot be empty' },
@@ -111,7 +114,6 @@ export const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
             style={{ marginBottom: 12 }}
           >
             <Input
-              prefix={<Building size={16} color="#94a3b8" style={{ marginRight: 4 }} />}
               placeholder="e.g. Ceylon Biscuits Ltd, Maliban, Prima"
               size="large"
               style={{ borderRadius: 8 }}
@@ -121,11 +123,10 @@ export const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Form.Item
               name="contactPerson"
-              label={<span style={{ fontWeight: 700, fontSize: 12, color: '#475569' }}>Contact Person</span>}
+              label={fieldLabel('Contact Person')}
               style={{ marginBottom: 0 }}
             >
               <Input
-                prefix={<User size={15} color="#94a3b8" style={{ marginRight: 4 }} />}
                 placeholder="e.g. Mr. Kamal"
                 size="large"
                 style={{ borderRadius: 8 }}
@@ -134,11 +135,10 @@ export const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
 
             <Form.Item
               name="phone"
-              label={<span style={{ fontWeight: 700, fontSize: 12, color: '#475569' }}>Phone Number</span>}
+              label={fieldLabel('Phone Number')}
               style={{ marginBottom: 0 }}
             >
               <Input
-                prefix={<Phone size={15} color="#94a3b8" style={{ marginRight: 4 }} />}
                 placeholder="e.g. 077-1234567"
                 size="large"
                 style={{ borderRadius: 8 }}
@@ -150,11 +150,10 @@ export const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
         <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '14px 18px' }}>
           <Form.Item
             name="address"
-            label={<span style={{ fontWeight: 700, fontSize: 12, color: '#475569' }}>Address / Branch</span>}
+            label={fieldLabel('Address / Branch')}
             style={{ marginBottom: 12 }}
           >
             <Input
-              prefix={<MapPin size={15} color="#94a3b8" style={{ marginRight: 4 }} />}
               placeholder="e.g. Katugastota, Kandy"
               size="large"
               style={{ borderRadius: 8 }}
@@ -163,11 +162,10 @@ export const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
 
           <Form.Item
             name="notes"
-            label={<span style={{ fontWeight: 700, fontSize: 12, color: '#475569' }}>Supplied Goods / Notes</span>}
+            label={fieldLabel('Supplied Goods / Notes')}
             style={{ marginBottom: 0 }}
           >
             <Input
-              prefix={<FileText size={15} color="#94a3b8" style={{ marginRight: 4 }} />}
               placeholder="e.g. Flour, Sugar, Cake Boxes, Dairy Supplies"
               size="large"
               style={{ borderRadius: 8 }}

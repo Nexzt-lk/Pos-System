@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+﻿import React, { useState, useMemo } from 'react'
 import {
   Truck,
   DollarSign,
@@ -346,7 +346,7 @@ export const StockPurchasesLedger: React.FC<StockPurchasesLedgerProps> = ({
             onChange={setSelectedSupplier}
             style={{ width: 220 }}
             options={[
-              { value: 'all', label: 'All Suppliers (සියලු සැපයුම්කරුවන්)' },
+              { value: 'all', label: 'All Suppliers' },
               ...suppliers.map((s) => ({ value: s.name, label: s.name }))
             ]}
           />
@@ -473,7 +473,7 @@ export const StockPurchasesLedger: React.FC<StockPurchasesLedgerProps> = ({
                   Product
                 </th>
                 <th style={{ padding: '12px 16px', fontWeight: 800, color: '#475569', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Supplier (සැපයුම්කරු)
+                  Supplier
                 </th>
                 <th style={{ padding: '12px 16px', fontWeight: 800, color: '#475569', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'right' }}>
                   Inward Qty
@@ -482,7 +482,7 @@ export const StockPurchasesLedger: React.FC<StockPurchasesLedgerProps> = ({
                   Unit Cost (Rs.)
                 </th>
                 <th style={{ padding: '12px 16px', fontWeight: 800, color: '#475569', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'right' }}>
-                  Total Cost (වියදම)
+                  Total Cost
                 </th>
                 <th style={{ padding: '12px 16px', fontWeight: 800, color: '#475569', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center' }}>
                   Payment Source

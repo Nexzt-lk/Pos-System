@@ -144,11 +144,54 @@ export const App: React.FC = () => {
       theme={{
         algorithm: theme.defaultAlgorithm,
         token: {
-          colorPrimary: '#16a34a',
+          colorPrimary: '#059669',
+          colorSuccess: '#10b981',
+          colorWarning: '#f59e0b',
+          colorError: '#ef4444',
+          colorInfo: '#0284c7',
           colorBgBase: '#f8fafc',
+          colorBgContainer: '#ffffff',
           colorTextBase: '#0f172a',
-          borderRadius: 10,
-          fontFamily: "'Poppins', 'Noto Sans Sinhala', system-ui, sans-serif"
+          colorTextSecondary: '#475569',
+          colorBorder: '#e2e8f0',
+          borderRadius: 12,
+          controlHeight: 38,
+          fontFamily: "'Poppins', 'Noto Sans Sinhala', system-ui, -apple-system, sans-serif"
+        },
+        components: {
+          Button: {
+            borderRadius: 10,
+            controlHeight: 38,
+            fontWeight: 600,
+            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)'
+          },
+          Input: {
+            borderRadius: 10,
+            controlHeight: 38,
+            activeBorderColor: '#059669',
+            hoverBorderColor: '#94a3b8'
+          },
+          Select: {
+            borderRadius: 10,
+            controlHeight: 38
+          },
+          Modal: {
+            borderRadiusLG: 20,
+            boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)'
+          },
+          Table: {
+            borderRadius: 14,
+            headerBg: '#f8fafc',
+            headerColor: '#475569',
+            rowHoverBg: '#f0fdf4'
+          },
+          Card: {
+            borderRadiusLG: 16,
+            boxShadow: '0 1px 3px rgba(15, 23, 42, 0.05)'
+          },
+          Tag: {
+            borderRadius: 6
+          }
         }
       }}
     >

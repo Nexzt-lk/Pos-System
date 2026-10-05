@@ -728,20 +728,20 @@ export const ProductsPage: React.FC = () => {
                             <div style={{ minWidth: 0 }}>
                               <div
                                 style={{
-                                  color: '#64748b',
-                                  fontWeight: 600,
-                                  fontSize: 13.5,
+                                  color: '#0f172a',
+                                  fontWeight: 700,
+                                  fontSize: 14,
                                   lineHeight: 1.3
                                 }}
                               >
                                 {product.name}
                               </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-                                <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>
-                                  Unit: <strong>{product.unit}</strong>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
+                                <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>
+                                  Unit: <strong style={{ color: '#0f172a' }}>{product.unit}</strong>
                                 </span>
                                 {!isTracked && (
-                                  <span style={{ fontSize: 10, background: 'var(--surface-2)', color: 'var(--text-muted)', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>
+                                  <span style={{ fontSize: 10, background: '#f1f5f9', color: '#64748b', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
                                     Service Item
                                   </span>
                                 )}
@@ -752,7 +752,21 @@ export const ProductsPage: React.FC = () => {
 
                         {/* Category */}
                         <td style={{ padding: '12px 16px' }}>
-                          <span style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              padding: '3px 10px',
+                              borderRadius: 99,
+                              background: `${catColor}12`,
+                              border: `1px solid ${catColor}30`,
+                              color: catColor,
+                              fontSize: 12,
+                              fontWeight: 700
+                            }}
+                          >
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: catColor }} />
                             {product.category_name || 'General'}
                           </span>
                         </td>
@@ -760,13 +774,14 @@ export const ProductsPage: React.FC = () => {
                         {/* Barcode / SKU */}
                         <td style={{ padding: '12px 16px' }}>
                           {product.barcode ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                              <Barcode size={14} style={{ color: '#94a3b8' }} />
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '2px 8px' }}>
+                              <Barcode size={13} style={{ color: '#64748b' }} />
                               <span
                                 style={{
-                                  fontFamily: 'monospace',
-                                  color: '#64748b',
-                                  fontSize: 13
+                                  fontFamily: 'ui-monospace, monospace',
+                                  color: '#334155',
+                                  fontWeight: 600,
+                                  fontSize: 12
                                 }}
                               >
                                 {product.barcode}
@@ -779,17 +794,36 @@ export const ProductsPage: React.FC = () => {
 
                         {/* Selling Price */}
                         <td style={{ padding: '12px 16px' }}>
-                          <div style={{ fontWeight: 600, color: '#64748b', fontSize: 12.5 }}>
+                          <div style={{ fontWeight: 800, color: '#0f172a', fontSize: 14 }}>
                             {formatCurrency(product.price)}
                           </div>
                         </td>
 
-                        {/* Cost Price */}
+                        {/* Cost Price & Margin */}
                         <td style={{ padding: '12px 16px' }}>
                           {product.cost_price ? (
-                            <span style={{ color: '#64748b', fontWeight: 600, fontSize: 12.5 }}>
-                              {formatCurrency(product.cost_price)}
-                            </span>
+                            <div>
+                              <span style={{ color: '#475569', fontWeight: 600, fontSize: 13 }}>
+                                {formatCurrency(product.cost_price)}
+                              </span>
+                              {product.price > 0 && product.cost_price && (
+                                <div style={{ marginTop: 2 }}>
+                                  <span
+                                    style={{
+                                      fontSize: 10.5,
+                                      fontWeight: 800,
+                                      color: (product.price - product.cost_price) >= 0 ? '#15803d' : '#b91c1c',
+                                      background: (product.price - product.cost_price) >= 0 ? '#f0fdf4' : '#fef2f2',
+                                      border: (product.price - product.cost_price) >= 0 ? '1px solid #bbf7d0' : '1px solid #fecaca',
+                                      padding: '1px 5px',
+                                      borderRadius: 4
+                                    }}
+                                  >
+                                    +{Math.round(((product.price - product.cost_price) / product.price) * 100)}% margin
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           ) : (
                             <span style={{ color: '#cbd5e1', fontSize: 12 }}>—</span>
                           )}
