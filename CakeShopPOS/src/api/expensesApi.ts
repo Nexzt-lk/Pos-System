@@ -6,7 +6,12 @@ export interface ExpenseDto {
   description: string
   amount: number
   expenseDate: string
-  linkedProductId?: string
+  supplierId?: string | null
+  supplierName?: string | null
+  invoiceNo?: string | null
+  paymentMethod?: string
+  linkedProductId?: string | null
+  linkedStockMovementId?: string | null
   addedBy?: string
   createdAt?: string
   localId?: string
@@ -18,7 +23,12 @@ export interface CreateExpenseRequest {
   description: string
   amount: number
   expenseDate?: string
-  linkedProductId?: string
+  supplierId?: string | null
+  supplierName?: string | null
+  invoiceNo?: string | null
+  paymentMethod?: string
+  linkedProductId?: string | null
+  linkedStockMovementId?: string | null
   addedBy?: string
 }
 
@@ -27,6 +37,10 @@ export interface UpdateExpenseRequest {
   description: string
   amount: number
   expenseDate: string
+  supplierId?: string | null
+  supplierName?: string | null
+  invoiceNo?: string | null
+  paymentMethod?: string
   addedBy?: string
 }
 
@@ -48,7 +62,12 @@ function normalizeExpense(raw: any): ExpenseDto {
     description: raw.description || '',
     amount: Number(raw.amount) || 0,
     expenseDate: (raw.expenseDate || raw.expense_date || new Date().toISOString()).slice(0, 10),
-    linkedProductId: raw.linkedProductId || raw.linked_product_id,
+    supplierId: raw.supplierId || raw.supplier_id || null,
+    supplierName: raw.supplierName || raw.supplier_name || null,
+    invoiceNo: raw.invoiceNo || raw.invoice_no || null,
+    paymentMethod: raw.paymentMethod || raw.payment_method || 'CASH',
+    linkedProductId: raw.linkedProductId || raw.linked_product_id || null,
+    linkedStockMovementId: raw.linkedStockMovementId || raw.linked_stock_movement_id || null,
     addedBy: raw.addedBy || raw.added_by || 'Cashier',
     createdAt: raw.createdAt || raw.created_at,
     localId: raw.localId || raw.local_id,

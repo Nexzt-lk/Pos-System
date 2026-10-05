@@ -17,7 +17,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
   const isOutOfStock = product.track_inventory && (product.current_stock ?? 0) <= 0
   const isLow = product.track_inventory && !isOutOfStock && (product.current_stock ?? 0) <= 5
 
-  const imgSrc = getProductImageSrc(product.image_path, product.name, product.category_name)
+  const activeImagePath = product.image_path || (product as any).imagePath
+  const imgSrc = getProductImageSrc(activeImagePath, product.name, product.category_name)
 
   return (
     <div
@@ -38,9 +39,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
             alt={product.name}
             loading="lazy"
             onError={(e) => {
-              const clean = product.image_path?.startsWith('/') ? product.image_path.slice(1) : product.image_path
+              const clean = activeImagePath?.replace(/^\/+/, '') || ''
               if (e.currentTarget.src.startsWith('app-images:///')) {
-                e.currentTarget.src = `/images/${clean}`
+                // Try relative web path or localStorage
+                const cached = typeof window !== 'undefined' ? localStorage.getItem(`pos_img_${clean}`) : null
+                if (cached) {
+                  e.currentTarget.src = cached
+                } else {
+                  e.currentTarget.src = `/images/${clean}`
+                }
               } else {
                 setHasImgError(true)
               }

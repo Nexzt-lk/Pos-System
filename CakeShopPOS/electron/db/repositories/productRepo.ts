@@ -86,7 +86,10 @@ export const productRepo = {
         price = excluded.price,
         cost_price = excluded.cost_price,
         barcode = excluded.barcode,
-        image_path = excluded.image_path,
+        image_path = CASE 
+          WHEN excluded.image_path IS NOT NULL AND excluded.image_path != '' THEN excluded.image_path 
+          ELSE products.image_path 
+        END,
         unit = excluded.unit,
         track_inventory = excluded.track_inventory,
         is_active = excluded.is_active,

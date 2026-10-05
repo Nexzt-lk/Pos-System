@@ -118,6 +118,7 @@ public class ProductRepository : IProductRepository
                 UPDATE products SET
                     category_id = $catId, name = $name, description = $desc,
                     price = $price, cost_price = $cost, barcode = $barcode,
+                    image_path = $img,
                     unit = $unit, track_inventory = $track, is_active = $active,
                     updated_at = $updated, sync_status = 'pending'
                 WHERE id = $id;";

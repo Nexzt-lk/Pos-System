@@ -8,6 +8,7 @@ import { orderRepo } from './db/repositories/orderRepo'
 import { inventoryRepo } from './db/repositories/inventoryRepo'
 import { syncRepo } from './db/repositories/syncRepo'
 import { expenseRepo } from './db/repositories/expenseRepo'
+import { suppliersRepo } from './db/repositories/suppliersRepo'
 import { cashSessionRepo } from './db/repositories/cashSessionRepo'
 import { printService } from './services/printService'
 import { imageService, setupImageProtocol } from './services/imageService'
@@ -92,7 +93,7 @@ const createWindow = async () => {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
   }
 
-  syncService.startBackgroundSync(() => `http://127.0.0.1:${activeApiPort}`, 30000)
+  syncService.startBackgroundSync(() => `http://127.0.0.1:${activeApiPort}`)
 }
 
 app.whenReady().then(async () => {
@@ -123,13 +124,13 @@ function setupIpcHandlers() {
   ipcMain.handle('db:get-product-by-barcode', async (_, { shopId, barcode }) => await productRepo.getByBarcode(shopId, barcode))
   ipcMain.handle('db:upsert-product', async (_, product) => {
     const res = await productRepo.upsert(product)
-    syncService.processSyncQueue().catch(() => {})
+    syncService.triggerSync()
     return res
   })
   ipcMain.handle('db:get-categories', async (_, shopId: string) => await categoryRepo.getByShopId(shopId))
   ipcMain.handle('db:upsert-category', async (_, category) => {
     const res = await categoryRepo.upsert(category)
-    syncService.processSyncQueue().catch(() => {})
+    syncService.triggerSync()
     return res
   })
   ipcMain.handle('db:get-shop-current', async () => {
@@ -155,7 +156,7 @@ function setupIpcHandlers() {
   )
   ipcMain.handle('db:create-order', async (_, orderData) => {
     const res = await orderRepo.createOrderTransaction(orderData)
-    syncService.processSyncQueue().catch(() => {})
+    syncService.triggerSync()
     return res
   })
   ipcMain.handle('db:get-daily-summary', async (_, { shopId, dateStr }) => await orderRepo.getDailySummary(shopId, dateStr))
@@ -164,7 +165,26 @@ function setupIpcHandlers() {
   ipcMain.handle('db:get-low-stock', async (_, shopId: string) => await inventoryRepo.getLowStock(shopId))
   ipcMain.handle('db:record-stock-movement', async (_, movement) => {
     const res = await inventoryRepo.recordMovement(movement)
-    syncService.processSyncQueue().catch(() => {})
+    syncService.triggerSync()
+    return res
+  })
+  ipcMain.handle('db:get-stock-purchases', async (_, params) => await inventoryRepo.getStockPurchases(params))
+
+  // Suppliers Management IPC Handlers
+  ipcMain.handle('db:get-suppliers', async () => await suppliersRepo.getAll())
+  ipcMain.handle('db:create-supplier', async (_, data) => {
+    const res = await suppliersRepo.create(data)
+    syncService.triggerSync()
+    return res
+  })
+  ipcMain.handle('db:update-supplier', async (_, { id, data }) => {
+    const res = await suppliersRepo.update(id, data)
+    syncService.triggerSync()
+    return res
+  })
+  ipcMain.handle('db:delete-supplier', async (_, id: string) => {
+    const res = await suppliersRepo.delete(id)
+    syncService.triggerSync()
     return res
   })
 
@@ -173,17 +193,17 @@ function setupIpcHandlers() {
   ipcMain.handle('db:get-expense-by-id', async (_, id: string) => await expenseRepo.getById(id))
   ipcMain.handle('db:create-expense', async (_, expenseData) => {
     const res = await expenseRepo.create(expenseData)
-    syncService.processSyncQueue().catch(() => {})
+    syncService.triggerSync()
     return res
   })
   ipcMain.handle('db:update-expense', async (_, { id, data }) => {
     const res = await expenseRepo.update(id, data)
-    syncService.processSyncQueue().catch(() => {})
+    syncService.triggerSync()
     return res
   })
   ipcMain.handle('db:delete-expense', async (_, id: string) => {
     await expenseRepo.delete(id)
-    syncService.processSyncQueue().catch(() => {})
+    syncService.triggerSync()
     return { success: true }
   })
   ipcMain.handle('db:get-expense-summary', async (_, params) => await expenseRepo.getSummary(params))
@@ -284,10 +304,10 @@ function setupIpcHandlers() {
 
   ipcMain.handle('image:select-dialog', () => imageService.selectImageDialog())
   ipcMain.handle('image:save', (_, sourcePath) => imageService.saveProductImage(sourcePath))
+  ipcMain.handle('image:save-base64', (_, { base64Data, prefix }) => imageService.saveBase64Image(base64Data, prefix))
 
   ipcMain.handle('sync:pending-count', async () => await syncRepo.getPendingCount())
   ipcMain.handle('sync:trigger', async () => {
-    await syncService.pullCatalogNow().catch(() => {})
     return await syncService.processSyncQueue()
   })
   ipcMain.handle('app:get-api-url', () => `http://127.0.0.1:${activeApiPort}`)

@@ -40,7 +40,8 @@ export const ProductCardItem: React.FC<ProductCardItemProps> = ({
   const profit = product.price - costPrice
   const marginPct = hasCost && product.price > 0 ? ((profit / product.price) * 100).toFixed(1) : null
 
-  const imgSrc = getProductImageSrc(product.image_path, product.name, product.category_name) || undefined
+  const activeImagePath = product.image_path || (product as any).imagePath
+  const imgSrc = getProductImageSrc(activeImagePath, product.name, product.category_name) || undefined
 
   return (
     <div
@@ -89,7 +90,19 @@ export const ProductCardItem: React.FC<ProductCardItemProps> = ({
               transform: isHovered ? 'scale(1.06)' : 'scale(1)',
               transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)'
             }}
-            onError={() => setHasImgError(true)}
+            onError={(e) => {
+              const clean = activeImagePath?.replace(/^\/+/, '') || ''
+              if (e.currentTarget.src.startsWith('app-images:///')) {
+                const cached = typeof window !== 'undefined' ? localStorage.getItem(`pos_img_${clean}`) : null
+                if (cached) {
+                  e.currentTarget.src = cached
+                } else {
+                  e.currentTarget.src = `/images/${clean}`
+                }
+              } else {
+                setHasImgError(true)
+              }
+            }}
           />
         ) : (
           <div

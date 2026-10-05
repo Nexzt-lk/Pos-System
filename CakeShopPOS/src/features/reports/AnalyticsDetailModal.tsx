@@ -14,6 +14,8 @@ import {
 } from 'lucide-react'
 import { formatCurrency, formatDateTime } from '../../lib/formatters'
 import dayjs from 'dayjs'
+import { message } from 'antd'
+import { downloadCsv, money, qty, pct, csvDate, csvTime, CsvRow } from '../../lib/csvExport'
 
 export type DetailModalType = null | 'revenue' | 'expenses' | 'profit' | 'inventory' | 'orders' | 'cash'
 
@@ -87,72 +89,233 @@ export const AnalyticsDetailModal: React.FC<AnalyticsDetailModalProps> = ({
     })
   }, [lowStockList, searchTerm, categoryFilter])
 
-  // CSV Export for the current modal
+  // CSV Export for the current modal (Pure single-table per modal type, uniform columns, no metadata noise)
   const handleExportCSV = () => {
-    let headers: string[] = []
-    let rows: any[][] = []
-    let filename = `report_${type}_${dayjs().format('YYYY-MM-DD')}.csv`
+    const s = analytics.summary || {}
+    const revenue = Number(s.total_revenue) || 0
+    const pctOfRevenue = (v: number) => (revenue > 0 ? (v / revenue) * 100 : 0)
+    const rangeLabel = analytics.startDate === analytics.endDate
+      ? (analytics.startDate || dayjs().format('YYYY-MM-DD'))
+      : `${analytics.startDate || dayjs().format('YYYY-MM-DD')}_to_${analytics.endDate || dayjs().format('YYYY-MM-DD')}`
 
     if (type === 'revenue' || type === 'orders') {
-      headers = ['Order No', 'Date Time', 'Items', 'Payment Method', 'Discount (Rs)', 'Total Amount (Rs)', 'Status']
-      rows = filteredOrders.map((o: any) => [
-        `"${o.order_no}"`,
-        `"${formatDateTime(o.created_at)}"`,
-        o.items_count,
-        `"${o.payment_method}"`,
-        o.discount_amount || 0,
-        o.total_amount,
-        `"${o.status}"`
-      ])
-    } else if (type === 'expenses') {
-      headers = ['Date', 'Category', 'Description', 'Added By', 'Payment Method', 'Amount (Rs)', 'Notes']
-      rows = filteredExpenses.map((e: any) => [
-        `"${e.expense_date}"`,
-        `"${e.category}"`,
-        `"${e.description}"`,
-        `"${e.added_by}"`,
-        `"${e.payment_method}"`,
-        e.amount,
-        `"${e.notes || ''}"`
-      ])
-    } else if (type === 'inventory') {
-      headers = ['Product Name', 'Item Code', 'Category', 'Current Stock', 'Min Threshold', 'Cost Price (Rs)', 'Retail Price (Rs)', 'Unit']
-      rows = filteredLowStock.map((i: any) => [
-        `"${i.product_name}"`,
-        `"${i.item_code}"`,
-        `"${i.category_name}"`,
-        i.current_stock,
-        i.min_quantity,
-        i.cost_price,
-        i.price,
-        `"${i.unit || 'pcs'}"`
-      ])
-    } else if (type === 'profit') {
-      headers = ['Metric', 'Amount (Rs)', 'Percentage']
-      rows = [
-        ['Gross Sales Revenue', analytics.summary.total_revenue, '100%'],
-        ['Cost of Goods Sold (COGS)', analytics.summary.total_cost, `${((analytics.summary.total_cost / (analytics.summary.total_revenue || 1)) * 100).toFixed(1)}%`],
-        ['Gross Profit', owner.grossProfit || 0, `${owner.grossProfitMargin || 0}%`],
-        ['Operating Expenses', owner.totalExpenses || 0, `${((owner.totalExpenses / (analytics.summary.total_revenue || 1)) * 100).toFixed(1)}%`],
-        ['Net Profit (Take-Home)', owner.netProfit || 0, `${owner.netProfitMargin || 0}%`]
+      const headers = [
+        'Order No',
+        'Date',
+        'Time',
+        'Cashier',
+        'Terminal',
+        'Items Count',
+        'Payment Method',
+        'Subtotal (LKR)',
+        'Discount (LKR)',
+        'Tax (LKR)',
+        'Total Amount (LKR)',
+        'Status'
       ]
-    } else if (type === 'cash') {
-      headers = ['Cash Stream', 'Amount (Rs)', 'Description']
-      rows = [
-        ['Cash Inflow (Sales)', owner.cashDrawer?.cashSales || 0, 'Direct cash collected from customers'],
-        ['Cash Outflow (Expenses)', owner.cashDrawer?.cashExpenses || 0, 'Counter petty cash paid out'],
-        ['Expected Cash In Register', owner.cashDrawer?.netCashEstimated || 0, 'Net cash physically in register']
-      ]
-    }
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
-    const encodedUri = encodeURI(csvContent)
-    const link = document.createElement('a')
-    link.setAttribute('href', encodedUri)
-    link.setAttribute('download', filename)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+      let totalItems = 0
+      let totalSubtotal = 0
+      let totalDiscount = 0
+      let totalTax = 0
+      let totalAmount = 0
+
+      const rows: CsvRow[] = [headers]
+
+      for (const o of filteredOrders) {
+        const itm = Number(o.items_count) || 0
+        const sub = Number(o.subtotal ?? o.total_amount) || 0
+        const disc = Number(o.discount_amount) || 0
+        const tx = Number(o.tax_amount) || 0
+        const tot = Number(o.total_amount) || 0
+
+        totalItems += itm
+        totalSubtotal += sub
+        totalDiscount += disc
+        totalTax += tx
+        totalAmount += tot
+
+        rows.push([
+          o.order_no,
+          csvDate(o.created_at),
+          csvTime(o.created_at),
+          o.cashier_name || 'Cashier',
+          o.terminal_id || '',
+          qty(itm),
+          (o.payment_method || 'CASH').toUpperCase(),
+          money(sub),
+          money(disc),
+          money(tx),
+          money(tot),
+          (o.status || 'completed').toUpperCase()
+        ])
+      }
+
+      rows.push([
+        `TOTAL (${filteredOrders.length} Orders)`,
+        '',
+        '',
+        '',
+        '',
+        qty(totalItems),
+        '',
+        money(totalSubtotal),
+        money(totalDiscount),
+        money(totalTax),
+        money(totalAmount),
+        ''
+      ])
+
+      const prefix = type === 'revenue' ? 'Revenue_Orders_Audit' : 'Completed_Orders_Audit'
+      downloadCsv(`${prefix}_${rangeLabel}.csv`, rows)
+      message.success(`Orders audit exported successfully (${filteredOrders.length} orders)`)
+
+    } else if (type === 'expenses') {
+      const headers = [
+        'Voucher ID',
+        'Date',
+        'Category',
+        'Description',
+        'Recorded By',
+        'Payment Method',
+        'Amount (LKR)',
+        'Notes'
+      ]
+
+      let totalAmount = 0
+      const rows: CsvRow[] = [headers]
+
+      for (const e of filteredExpenses) {
+        const amt = Number(e.amount) || 0
+        totalAmount += amt
+
+        rows.push([
+          e.id || e.local_id || '',
+          csvDate(e.expense_date),
+          e.category || 'Other',
+          e.description || '',
+          e.added_by || 'Staff',
+          (e.payment_method || 'CASH').toUpperCase(),
+          money(amt),
+          e.notes || ''
+        ])
+      }
+
+      rows.push([
+        `TOTAL (${filteredExpenses.length} Vouchers)`,
+        '',
+        '',
+        '',
+        '',
+        '',
+        money(totalAmount),
+        ''
+      ])
+
+      downloadCsv(`Operating_Expenses_Audit_${rangeLabel}.csv`, rows)
+      message.success(`Expenses audit exported successfully (${filteredExpenses.length} vouchers)`)
+
+    } else if (type === 'inventory') {
+      const headers = [
+        'Item Code',
+        'Product Name',
+        'Category',
+        'Current Stock',
+        'Min Threshold',
+        'Unit',
+        'Cost Price (LKR)',
+        'Retail Price (LKR)',
+        'Total Cost Value (LKR)',
+        'Stock Status'
+      ]
+
+      let totalStockCost = 0
+      const rows: CsvRow[] = [headers]
+
+      for (const i of filteredLowStock) {
+        const curStock = Number(i.current_stock) || 0
+        const costPrice = Number(i.cost_price) || 0
+        const stockCost = curStock * costPrice
+        totalStockCost += stockCost
+
+        rows.push([
+          i.item_code || '',
+          i.product_name || '',
+          i.category_name || '',
+          qty(curStock),
+          qty(i.min_quantity || 0),
+          i.unit || 'pcs',
+          money(costPrice),
+          money(i.price),
+          money(stockCost),
+          curStock <= 0 ? 'OUT OF STOCK' : 'LOW STOCK'
+        ])
+      }
+
+      rows.push([
+        `TOTAL (${filteredLowStock.length} Low Stock Items)`,
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        money(totalStockCost),
+        ''
+      ])
+
+      downloadCsv(`Inventory_Stock_Audit_${rangeLabel}.csv`, rows)
+      message.success(`Inventory stock audit exported successfully (${filteredLowStock.length} items)`)
+
+    } else if (type === 'profit') {
+      const rows: CsvRow[] = [
+        ['Section', 'Line Item', 'Amount (LKR)', '% of Net Revenue', 'Description'],
+        ['1. REVENUE', 'Gross Sales Subtotal', money(s.total_subtotal), pct(pctOfRevenue(Number(s.total_subtotal) || 0)), 'Gross order sales volume before discounts'],
+        ['1. REVENUE', 'Customer Discounts', money(s.total_discount), pct(pctOfRevenue(Number(s.total_discount) || 0)), 'Promotions and order discounts deducted'],
+        ['1. REVENUE', 'Sales Tax / VAT', money(s.total_tax), pct(pctOfRevenue(Number(s.total_tax) || 0)), 'Government tax collected on orders'],
+        ['1. REVENUE', 'Net Sales Revenue', money(revenue), '100.0%', 'Gross Subtotal minus Customer Discounts'],
+        ['2. COST OF SALES', 'Cost of Goods Sold (COGS)', money(s.total_cost), pct(pctOfRevenue(Number(s.total_cost) || 0)), 'Direct recipe and wholesale cost of sold goods'],
+        ['3. PROFITABILITY', 'Gross Profit', money(owner.grossProfit ?? s.estimated_profit), pct(owner.grossProfitMargin ?? s.profit_margin_pct), 'Net Sales Revenue minus Cost of Goods Sold'],
+        ['4. OPERATING EXPENSES', 'Total Operating Expenses', money(owner.totalExpenses), pct(pctOfRevenue(Number(owner.totalExpenses) || 0)), 'Salaries, utilities, packaging, rent and maintenance'],
+        ['5. PROFITABILITY', 'Net Operating Profit (Bottom Line)', money(owner.netProfit), pct(owner.netProfitMargin), 'Gross Profit minus Operating Expenses']
+      ]
+
+      downloadCsv(`Profit_Loss_Statement_${rangeLabel}.csv`, rows)
+      message.success('Profit & Loss statement exported successfully')
+
+    } else if (type === 'cash') {
+      const cd = owner.cashDrawer || {}
+      const headers = [
+        'Entity / Staff Member',
+        'Activity / Role',
+        'Transactions',
+        'Total Inflow (LKR)',
+        'Discounts Given (LKR)',
+        'Notes'
+      ]
+
+      const rows: CsvRow[] = [
+        headers,
+        ['Cash Sales Inflow', 'Register Inflow', qty(s.total_orders), money(cd.cashSales), money(s.total_discount), 'Physical cash collected from customers'],
+        ['Petty Cash Outflow', 'Register Outflow', qty((owner.detailedExpenses || []).length), money(cd.cashExpenses), '0.00', 'Cash expenses paid out of cash drawer'],
+        ['Net Drawer Reconciliation', 'Closing Balance Impact', '-', money(cd.netCashEstimated), '0.00', 'Cash sales minus petty cash expenses']
+      ]
+
+      for (const c of (owner.cashierPerformance || [])) {
+        rows.push([
+          c.cashier_name || 'Cashier',
+          'Staff Member Performance',
+          qty(c.orders_count),
+          money(c.total_revenue),
+          money(c.total_discount),
+          `Average Ticket: LKR ${money(c.avg_ticket)}`
+        ])
+      }
+
+      downloadCsv(`Cash_Register_Reconciliation_${rangeLabel}.csv`, rows)
+      message.success('Cash reconciliation exported successfully')
+    }
   }
 
   // Titles and icons by modal type

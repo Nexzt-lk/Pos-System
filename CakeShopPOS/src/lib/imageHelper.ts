@@ -250,12 +250,25 @@ export const getProductImageSrc = (
     return targetPath
   }
 
-  // Clean leading slash
-  const cleanPath = targetPath.startsWith('/') ? targetPath.slice(1) : targetPath
+  // Already prefixed with custom protocol
+  if (targetPath.startsWith('app-images://')) {
+    return targetPath
+  }
+
+  // Clean leading slashes
+  const cleanPath = targetPath.replace(/^\/+/, '')
 
   // Running inside Electron desktop environment
   if (typeof window !== 'undefined' && (window as any).electronAPI) {
     return `app-images:///${cleanPath}`
+  }
+
+  // Check localStorage cache for browser environment
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const cached = localStorage.getItem(`pos_img_${cleanPath}`)
+    if (cached) {
+      return cached
+    }
   }
 
   // Running inside browser / Vite dev server

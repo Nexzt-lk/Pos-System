@@ -88,14 +88,30 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
           {localSearch && (
             <button
               onClick={() => setLocalSearch('')}
+              title="Clear search"
               style={{
+                width: 20,
+                height: 20,
+                borderRadius: '50%',
                 border: 'none',
-                background: 'transparent',
+                background: '#e2e8f0',
                 cursor: 'pointer',
-                color: 'var(--text-muted)',
+                color: '#64748b',
                 fontSize: 11,
                 fontWeight: 700,
-                padding: '2px 4px'
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#cbd5e1'
+                e.currentTarget.style.color = '#1e293b'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#e2e8f0'
+                e.currentTarget.style.color = '#64748b'
               }}
             >
               ✕
@@ -168,21 +184,38 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
             fontWeight: 700,
             cursor: 'pointer',
             whiteSpace: 'nowrap',
-            border: selectedCategory === 'all' ? '1.5px solid var(--primary)' : '1px solid var(--border)',
-            background: selectedCategory === 'all' ? 'var(--primary)' : '#ffffff',
-            color: selectedCategory === 'all' ? '#ffffff' : 'var(--text-secondary)',
+            border: '1px solid',
+            borderColor: selectedCategory === 'all' ? '#16a34a' : '#e2e8f0',
+            background: selectedCategory === 'all' ? '#16a34a' : '#ffffff',
+            color: selectedCategory === 'all' ? '#ffffff' : '#475569',
             transition: 'all 0.15s ease',
-            boxShadow: selectedCategory === 'all' ? '0 2px 6px rgba(22, 163, 74, 0.25)' : 'none'
+            boxShadow: selectedCategory === 'all' ? '0 2px 6px rgba(22, 163, 74, 0.28)' : '0 1px 2px rgba(0,0,0,0.02)'
+          }}
+          onMouseEnter={(e) => {
+            if (selectedCategory !== 'all') {
+              e.currentTarget.style.borderColor = '#cbd5e1'
+              e.currentTarget.style.background = '#f8fafc'
+              e.currentTarget.style.color = '#1e293b'
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (selectedCategory !== 'all') {
+              e.currentTarget.style.borderColor = '#e2e8f0'
+              e.currentTarget.style.background = '#ffffff'
+              e.currentTarget.style.color = '#475569'
+            }
           }}
         >
           <span>All Categories</span>
           <span
             style={{
-              fontSize: 10,
-              padding: '1px 6px',
+              fontSize: 10.5,
+              fontWeight: 700,
+              padding: '1px 7px',
               borderRadius: 99,
-              background: selectedCategory === 'all' ? 'rgba(255,255,255,0.25)' : 'var(--surface-2)',
-              color: selectedCategory === 'all' ? '#ffffff' : 'var(--text-muted)'
+              background: selectedCategory === 'all' ? 'rgba(255,255,255,0.25)' : '#f1f5f9',
+              color: selectedCategory === 'all' ? '#ffffff' : '#64748b',
+              transition: 'all 0.15s ease'
             }}
           >
             {trackedCount}
@@ -206,21 +239,38 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
                 fontWeight: 700,
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
-                border: isSelected ? '1.5px solid var(--primary)' : '1px solid var(--border)',
-                background: isSelected ? 'var(--primary)' : '#ffffff',
-                color: isSelected ? '#ffffff' : 'var(--text-secondary)',
+                border: '1px solid',
+                borderColor: isSelected ? '#16a34a' : '#e2e8f0',
+                background: isSelected ? '#16a34a' : '#ffffff',
+                color: isSelected ? '#ffffff' : '#475569',
                 transition: 'all 0.15s ease',
-                boxShadow: isSelected ? '0 2px 6px rgba(22, 163, 74, 0.25)' : 'none'
+                boxShadow: isSelected ? '0 2px 6px rgba(22, 163, 74, 0.28)' : '0 1px 2px rgba(0,0,0,0.02)'
+              }}
+              onMouseEnter={(e) => {
+                if (!isSelected) {
+                  e.currentTarget.style.borderColor = '#cbd5e1'
+                  e.currentTarget.style.background = '#f8fafc'
+                  e.currentTarget.style.color = '#1e293b'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isSelected) {
+                  e.currentTarget.style.borderColor = '#e2e8f0'
+                  e.currentTarget.style.background = '#ffffff'
+                  e.currentTarget.style.color = '#475569'
+                }
               }}
             >
               <span>{cat.name}</span>
               <span
                 style={{
-                  fontSize: 10,
-                  padding: '1px 6px',
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  padding: '1px 7px',
                   borderRadius: 99,
-                  background: isSelected ? 'rgba(255,255,255,0.25)' : 'var(--surface-2)',
-                  color: isSelected ? '#ffffff' : 'var(--text-muted)'
+                  background: isSelected ? 'rgba(255,255,255,0.25)' : '#f1f5f9',
+                  color: isSelected ? '#ffffff' : '#64748b',
+                  transition: 'all 0.15s ease'
                 }}
               >
                 {count}

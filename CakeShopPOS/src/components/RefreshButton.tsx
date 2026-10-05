@@ -25,12 +25,14 @@ export const RefreshButton: React.FC<RefreshButtonProps> = ({
         background: '#ffffff',
         color: 'var(--text-secondary)',
         cursor: isLoading ? 'not-allowed' : 'pointer',
-        display: 'flex',
+        display: 'inline-flex',
         alignItems: 'center',
         gap: 6,
         fontSize: 12,
         fontWeight: 600,
-        transition: 'all 0.15s ease'
+        transition: 'all 0.15s ease',
+        whiteSpace: 'nowrap',
+        flexShrink: 0
       }}
       onMouseEnter={(e) => {
         if (isLoading) return

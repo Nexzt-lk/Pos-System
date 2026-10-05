@@ -21,16 +21,11 @@ export const App: React.FC = () => {
   const [floatRequired, setFloatRequired] = useState(false)
   const [floatChecked, setFloatChecked] = useState(false)
 
-  // Continuous background cloud auto-sync timer
+  // Initial startup sync on mount (only once on app launch)
   useEffect(() => {
-    const runAutoSync = () => {
-      if (typeof window !== 'undefined' && (window as any).electronAPI?.triggerSync) {
-        (window as any).electronAPI.triggerSync().catch(() => {})
-      }
+    if (typeof window !== 'undefined' && (window as any).electronAPI?.triggerSync) {
+      (window as any).electronAPI.triggerSync().catch(() => {})
     }
-    runAutoSync()
-    const timer = setInterval(runAutoSync, 10000)
-    return () => clearInterval(timer)
   }, [])
 
   // Check if today's opening float has been entered (runs on login)

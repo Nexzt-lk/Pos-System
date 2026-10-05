@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import {
-
   Package,
   Package2,
   PlusCircle,
@@ -9,21 +8,33 @@ import {
   CheckCircle2,
   Barcode,
   Banknote,
-  Scale
- 
+  Scale,
+  Truck,
+  ArrowRight,
+  ArrowLeft,
+  Check,
+  DollarSign,
+  RotateCcw,
+  Layers,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
-import { Modal, Form, Select, InputNumber, Input, Segmented, message } from 'antd'
+import { Modal, Form, Select, InputNumber, Input, Segmented, Switch, message } from 'antd'
 import { Product, Category, normalizeProduct, normalizeCategory } from '../../types/product'
 import { productsApi } from '../../api/productsApi'
 import { categoriesApi } from '../../api/categoriesApi'
-import { inventoryApi } from '../../api/inventoryApi'
+import { inventoryApi, StockPurchaseRecord } from '../../api/inventoryApi'
+import { suppliersApi, SupplierDto } from '../../api/suppliersApi'
 import { RefreshButton } from '../../components/RefreshButton'
 import { InventoryFilters } from './InventoryFilters'
+import { StockPurchasesLedger } from './StockPurchasesLedger'
+import { AddSupplierModal } from './AddSupplierModal'
 import { useAppStore } from '../../store/appStore'
 import { useStockAlertStore } from '../../store/stockAlertStore'
 import { formatCurrency, formatStockQty } from '../../lib/formatters'
 import { generateCategoryItemCode } from '../../lib/skuGenerator'
 import { getAutoMatchedProductImage, getProductImageSrc } from '../../lib/imageHelper'
+import { ProductImagePicker } from '../products/ProductImagePicker'
 
 export const InventoryPage: React.FC = () => {
   const currentShop = useAppStore((state) => state.currentShop)
@@ -45,15 +56,24 @@ export const InventoryPage: React.FC = () => {
   const [newProductEntryMode, setNewProductEntryMode] = useState<'weight' | 'amount'>('weight')
   const [isLoading, setIsLoading] = useState(false)
 
+  // Suppliers & Stock Purchases State
+  const [suppliers, setSuppliers] = useState<SupplierDto[]>([])
+  const [stockPurchases, setStockPurchases] = useState<StockPurchaseRecord[]>([])
+  const [activeInventoryTab, setActiveInventoryTab] = useState<'inventory' | 'purchases'>('inventory')
+  const [modalStep, setModalStep] = useState<0 | 1>(0)
+  const [isAddSupplierModalOpen, setIsAddSupplierModalOpen] = useState(false)
+
   const [form] = Form.useForm()
 
   const loadData = async () => {
     if (!currentShop) return
     setIsLoading(true)
     try {
-      const [rawProds, rawCats] = await Promise.all([
+      const [rawProds, rawCats, sups, purchases] = await Promise.all([
         productsApi.getAll(true).catch(() => []),
-        categoriesApi.getAll().catch(() => [])
+        categoriesApi.getAll().catch(() => []),
+        suppliersApi.getAll().catch(() => []),
+        inventoryApi.getStockPurchases().catch(() => [])
       ])
 
       const cats = rawCats.map((c) => normalizeCategory(c, currentShop.id))
@@ -71,6 +91,8 @@ export const InventoryPage: React.FC = () => {
 
       setProducts(prods)
       setCategories(cats)
+      setSuppliers(sups)
+      setStockPurchases(purchases)
     } catch (err) {
       console.error('Failed to load inventory:', err)
       message.error('Failed to load inventory from server')
@@ -85,6 +107,7 @@ export const InventoryPage: React.FC = () => {
 
   const handleOpenMovementModal = (product?: Product) => {
     form.resetFields()
+    setModalStep(0)
     setMovementEntryMode('weight')
     setPriceBasis('selling')
     if (product) {
@@ -296,6 +319,97 @@ export const InventoryPage: React.FC = () => {
     message.success(`Generated code: ${autoCode}`)
   }
 
+  const handleNextStep = async () => {
+    try {
+      if (entryMode === 'EXISTING') {
+        await form.validateFields(['product_id', 'type', 'price'])
+        const values = form.getFieldsValue()
+        const selectedProd = tracked.find((p) => p.id === values.product_id)
+        if (!selectedProd) {
+          message.error('Please select a valid product')
+          return
+        }
+
+        const isWeight = selectedProd.unit?.toLowerCase() === 'kg' || selectedProd.unit?.toLowerCase() === 'g'
+        const isBaseGram = selectedProd.unit?.toLowerCase() === 'g'
+
+        let qty = Number(values.quantity) || 0
+        if (isWeight) {
+          const kg = Number(values.weight_kg) || 0
+          const g = Number(values.weight_g) || 0
+          qty = isBaseGram ? (kg * 1000 + g) : (kg + g / 1000)
+        }
+
+        if (qty <= 0) {
+          message.error('Please enter a valid stock quantity greater than 0')
+          return
+        }
+
+        const costP = Number(values.cost_price) || selectedProd?.cost_price || 0
+        const autoCost = Math.round(qty * costP * 100) / 100
+
+        const curTotalCost = form.getFieldValue('total_stock_cost')
+        if (curTotalCost === undefined || curTotalCost === null) {
+          form.setFieldsValue({ total_stock_cost: autoCost > 0 ? autoCost : undefined })
+        }
+
+        if (!form.getFieldValue('supplier_id') && suppliers.length > 0) {
+          form.setFieldsValue({
+            supplier_id: suppliers[0].id,
+            supplier_name: suppliers[0].name
+          })
+        }
+
+        if (form.getFieldValue('record_expense') === undefined) {
+          form.setFieldsValue({ record_expense: true })
+        }
+        if (!form.getFieldValue('payment_method')) {
+          form.setFieldsValue({ payment_method: 'CASH' })
+        }
+
+        setModalStep(1)
+      } else {
+        await form.validateFields(['new_name', 'new_category_id', 'new_price'])
+        const values = form.getFieldsValue()
+        const chosenUnit = values.new_unit || 'pcs'
+        const isNewWeight = chosenUnit === 'kg' || chosenUnit === 'g'
+        const isNewBaseGram = chosenUnit === 'g'
+
+        let qty = Number(values.new_quantity) || 0
+        if (isNewWeight) {
+          const kg = Number(values.new_weight_kg) || 0
+          const g = Number(values.new_weight_g) || 0
+          qty = isNewBaseGram ? (kg * 1000 + g) : (kg + g / 1000)
+        }
+
+        const costP = Number(values.new_cost_price) || 0
+        const autoCost = Math.round(qty * costP * 100) / 100
+
+        const curTotalCost = form.getFieldValue('total_stock_cost')
+        if (curTotalCost === undefined || curTotalCost === null) {
+          form.setFieldsValue({ total_stock_cost: autoCost > 0 ? autoCost : undefined })
+        }
+
+        if (!form.getFieldValue('supplier_id') && suppliers.length > 0) {
+          form.setFieldsValue({
+            supplier_id: suppliers[0].id,
+            supplier_name: suppliers[0].name
+          })
+        }
+        if (form.getFieldValue('record_expense') === undefined) {
+          form.setFieldsValue({ record_expense: true })
+        }
+        if (!form.getFieldValue('payment_method')) {
+          form.setFieldsValue({ payment_method: 'CASH' })
+        }
+
+        setModalStep(1)
+      }
+    } catch (err) {
+      // validation error in form
+    }
+  }
+
   const handleSaveMovement = async (values: any) => {
     if (!currentShop) return
 
@@ -335,13 +449,25 @@ export const InventoryPage: React.FC = () => {
           ? `${values.note.trim()} ${noteExtra}`.trim()
           : (noteExtra || '')
 
+        const selectedSupplier = suppliers.find((s) => s.id === values.supplier_id)
+        const supplierName = values.supplier_name || selectedSupplier?.name || (values.supplier_id ? 'Direct Supplier' : undefined)
+        const totalStockCost = values.total_stock_cost !== undefined && values.total_stock_cost !== null
+          ? Number(values.total_stock_cost)
+          : undefined
+
         await inventoryApi.recordMovement({
           productId: values.product_id,
           type: values.type,
           quantity: finalQty,
           note: finalNote,
           costPerUnit: values.cost_price !== undefined ? Number(values.cost_price) : undefined,
-          doneBy: currentUser?.id
+          doneBy: currentUser?.name || currentUser?.role || 'Owner',
+          supplierId: values.supplier_id,
+          supplierName: supplierName,
+          totalCost: totalStockCost,
+          invoiceNo: values.invoice_no ? values.invoice_no.trim() : undefined,
+          paymentMethod: values.payment_method || 'CASH',
+          recordExpense: values.record_expense !== false
         }, currentShop.id)
 
         // Check if selling price or cost price was edited, and update product catalog
@@ -364,7 +490,9 @@ export const InventoryPage: React.FC = () => {
           })
           message.success(`Stock recorded & prices updated for "${selectedProd.name}"!`)
         } else {
-          message.success('Stock movement recorded successfully!')
+          const costMsg = totalStockCost && totalStockCost > 0 ? ` (Cost: ${formatCurrency(totalStockCost)})` : ''
+          const supMsg = supplierName ? ` from ${supplierName}` : ''
+          message.success(`Stock movement recorded${supMsg}${costMsg}!`)
         }
       } else {
         // NEW ITEM MODE via Backend API
@@ -386,7 +514,7 @@ export const InventoryPage: React.FC = () => {
           }
         }
 
-        await productsApi.create({
+        const createdProd = await productsApi.create({
           categoryId: values.new_category_id,
           name: values.new_name.trim(),
           description: values.new_description || '',
@@ -396,14 +524,39 @@ export const InventoryPage: React.FC = () => {
           unit: values.new_unit || 'pcs',
           trackInventory: true,
           initialStock: finalNewStock,
-          imagePath: getAutoMatchedProductImage(values.new_name, selectedCat?.name),
+          imagePath: values.new_image_path || getAutoMatchedProductImage(values.new_name, selectedCat?.name),
           minStockAlert: 5
         })
 
-        message.success(`New item "${values.new_name}" created via Backend API!`)
+        // Also record supplier details and expense for the initial stock batch if stock > 0
+        if (finalNewStock > 0 && createdProd?.id) {
+          const selectedSupplier = suppliers.find((s) => s.id === values.supplier_id)
+          const supplierName = values.supplier_name || selectedSupplier?.name || 'Initial Supplier'
+          const totalStockCost = values.total_stock_cost !== undefined && values.total_stock_cost !== null
+            ? Number(values.total_stock_cost)
+            : Math.round(finalNewStock * (Number(values.new_cost_price) || 0) * 100) / 100
+
+          await inventoryApi.recordMovement({
+            productId: createdProd.id,
+            type: 'IN',
+            quantity: finalNewStock,
+            note: values.new_note || 'Initial stock receipt',
+            costPerUnit: Number(values.new_cost_price) || 0,
+            doneBy: currentUser?.name || currentUser?.role || 'Owner',
+            supplierId: values.supplier_id,
+            supplierName: supplierName,
+            totalCost: totalStockCost,
+            invoiceNo: values.invoice_no ? values.invoice_no.trim() : undefined,
+            paymentMethod: values.payment_method || 'CASH',
+            recordExpense: values.record_expense !== false
+          }, currentShop.id)
+        }
+
+        message.success(`New item "${values.new_name}" created & initial stock recorded!`)
       }
 
       setIsModalOpen(false)
+      setModalStep(0)
       await loadData()
       if (currentShop?.id) {
         useStockAlertStore.getState().fetchStockAlerts(currentShop.id, false)
@@ -480,8 +633,8 @@ export const InventoryPage: React.FC = () => {
   return (
     <div className="page-container" style={{ padding: '18px 24px', gap: 16 }}>
       {/* ── Page Header ── */}
-      <div className="page-header" style={{ alignItems: 'flex-start' }}>
-        <div>
+      <div className="page-header" style={{ alignItems: 'center', flexWrap: 'wrap', gap: 14 }}>
+        <div style={{ minWidth: 260, flex: '1 1 auto' }}>
           <div className="page-title" style={{ fontSize: 20 }}>
             <div
               style={{
@@ -521,11 +674,35 @@ export const InventoryPage: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, flexWrap: 'nowrap' }}>
+          <Segmented
+            value={activeInventoryTab}
+            onChange={(val) => setActiveInventoryTab(val as 'inventory' | 'purchases')}
+            options={[
+              {
+                label: (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, padding: '3px 8px' }}>
+                    <Package size={15} />
+                    <span>On-Hand Stock</span>
+                  </div>
+                ),
+                value: 'inventory'
+              },
+              {
+                label: (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, padding: '3px 8px' }}>
+                    <Truck size={15} />
+                    <span>Stock Purchases & GRN ({stockPurchases.length})</span>
+                  </div>
+                ),
+                value: 'purchases'
+              }
+            ]}
+          />
+
           <RefreshButton onClick={loadData} isLoading={isLoading} />
 
           <button
-            className="btn-primary"
             onClick={() => handleOpenMovementModal()}
             style={{
               height: 38,
@@ -533,18 +710,46 @@ export const InventoryPage: React.FC = () => {
               borderRadius: 10,
               fontSize: 13,
               fontWeight: 700,
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: 8,
-              boxShadow: '0 4px 12px rgba(22, 163, 74, 0.25)'
+              border: 'none',
+              background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+              color: '#ffffff',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(22, 163, 74, 0.3)',
+              transition: 'all 0.15s ease',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = '0.92'
+              e.currentTarget.style.transform = 'translateY(-1px)'
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(22, 163, 74, 0.4)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = '1'
+              e.currentTarget.style.transform = 'none'
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(22, 163, 74, 0.3)'
             }}
           >
-            <span>Record Stock Movement</span>
+            <PlusCircle size={16} style={{ flexShrink: 0 }} />
+            <span style={{ whiteSpace: 'nowrap' }}>Record Stock Movement</span>
           </button>
         </div>
       </div>
 
-      {/* ── KPI Strip ── */}
+      {activeInventoryTab === 'purchases' ? (
+        <StockPurchasesLedger
+          purchases={stockPurchases}
+          suppliers={suppliers}
+          isLoading={isLoading}
+          onRefresh={loadData}
+        />
+      ) : (
+        <>
+          {/* ── KPI Strip ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, flexShrink: 0 }}>
         {/* Total Tracked */}
         <div
@@ -806,11 +1011,18 @@ export const InventoryPage: React.FC = () => {
                             }}
                           >
                             <img
-                              src={getProductImageSrc(product.image_path, product.name, product.category_name)}
+                              src={getProductImageSrc(product.image_path || (product as any).imagePath, product.name, product.category_name)}
                               alt={product.name}
                               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                               onError={(e) => {
-                                e.currentTarget.style.display = 'none'
+                                const imgPath = product.image_path || (product as any).imagePath
+                                const clean = imgPath?.replace(/^\/+/, '') || ''
+                                const cached = typeof window !== 'undefined' ? localStorage.getItem(`pos_img_${clean}`) : null
+                                if (cached && e.currentTarget.src !== cached) {
+                                  e.currentTarget.src = cached
+                                } else {
+                                  e.currentTarget.style.display = 'none'
+                                }
                               }}
                             />
                             <Package size={18} style={{ position: 'absolute', zIndex: 0, opacity: 0.7 }} />
@@ -901,36 +1113,44 @@ export const InventoryPage: React.FC = () => {
                       </td>
 
                       {/* Quick Action */}
-                      <td style={{ padding: '12px 18px', textAlign: 'right' }}>
+                      <td style={{ padding: '10px 18px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
                           <button
                             onClick={() => handleOpenMovementModal(product)}
-                            title="Record Stock Movement"
+                            title="Record Stock Movement / Update Stock"
                             style={{
-                              width: 28,
-                              height: 28,
-                              borderRadius: 8,
-                              border: '1px solid transparent',
-                              background: 'transparent',
-                              cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              justifyContent: 'center',
-                              color: 'var(--primary)',
-                              transition: 'all 0.15s ease'
+                              gap: 6,
+                              padding: '6px 12px',
+                              borderRadius: 8,
+                              border: '1px solid #bbf7d0',
+                              background: '#f0fdf4',
+                              color: '#15803d',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              boxShadow: '0 1px 2px rgba(22, 163, 74, 0.08)',
+                              whiteSpace: 'nowrap'
                             }}
                             onMouseEnter={(e) => {
-                              e.currentTarget.style.background = 'var(--primary-bg)'
-                              e.currentTarget.style.color = 'var(--primary-dark)'
-                              e.currentTarget.style.borderColor = 'var(--primary-muted)'
+                              e.currentTarget.style.background = '#16a34a'
+                              e.currentTarget.style.color = '#ffffff'
+                              e.currentTarget.style.borderColor = '#16a34a'
+                              e.currentTarget.style.boxShadow = '0 3px 8px rgba(22, 163, 74, 0.25)'
+                              e.currentTarget.style.transform = 'translateY(-1px)'
                             }}
                             onMouseLeave={(e) => {
-                              e.currentTarget.style.background = 'transparent'
-                              e.currentTarget.style.color = 'var(--primary)'
-                              e.currentTarget.style.borderColor = 'transparent'
+                              e.currentTarget.style.background = '#f0fdf4'
+                              e.currentTarget.style.color = '#15803d'
+                              e.currentTarget.style.borderColor = '#bbf7d0'
+                              e.currentTarget.style.boxShadow = '0 1px 2px rgba(22, 163, 74, 0.08)'
+                              e.currentTarget.style.transform = 'none'
                             }}
                           >
-                            <PlusCircle size={15} />
+                            <PlusCircle size={14} />
+                            <span>+ Restock</span>
                           </button>
                         </div>
                       </td>
@@ -972,14 +1192,25 @@ export const InventoryPage: React.FC = () => {
                             setStockFilter('all')
                           }}
                           style={{
-                            padding: '7px 16px',
+                            padding: '7px 18px',
                             borderRadius: 8,
-                            border: '1px solid var(--border)',
-                            background: '#ffffff',
-                            color: 'var(--primary)',
+                            border: '1px solid #bbf7d0',
+                            background: '#f0fdf4',
+                            color: '#16a34a',
                             fontWeight: 700,
-                            fontSize: 12,
-                            cursor: 'pointer'
+                            fontSize: 12.5,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = '#16a34a'
+                            e.currentTarget.style.color = '#ffffff'
+                            e.currentTarget.style.borderColor = '#16a34a'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = '#f0fdf4'
+                            e.currentTarget.style.color = '#16a34a'
+                            e.currentTarget.style.borderColor = '#bbf7d0'
                           }}
                         >
                           Clear All Filters
@@ -993,149 +1224,427 @@ export const InventoryPage: React.FC = () => {
           </div>
           
           {totalPages > 1 && (
-            <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e2e8f0', background: '#f8fafc', borderBottomLeftRadius: 14, borderBottomRightRadius: 14 }}>
-              <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>
+            <div style={{ padding: '12px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e2e8f0', background: '#f8fafc', borderBottomLeftRadius: 14, borderBottomRightRadius: 14 }}>
+              <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>
                 Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredProducts.length)} of {filteredProducts.length} items
               </span>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage(p => p - 1)}
-                  style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f1f5f9' : '#fff', color: currentPage === 1 ? '#94a3b8' : '#334155', fontWeight: 600, fontSize: 12, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '6px 14px',
+                    borderRadius: 8,
+                    border: '1px solid',
+                    borderColor: currentPage === 1 ? '#e2e8f0' : '#cbd5e1',
+                    background: currentPage === 1 ? '#f1f5f9' : '#ffffff',
+                    color: currentPage === 1 ? '#94a3b8' : '#334155',
+                    fontWeight: 600,
+                    fontSize: 12.5,
+                    cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.15s ease',
+                    boxShadow: currentPage === 1 ? 'none' : '0 1px 2px rgba(0,0,0,0.03)'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (currentPage !== 1) {
+                      e.currentTarget.style.borderColor = '#94a3b8'
+                      e.currentTarget.style.background = '#f8fafc'
+                      e.currentTarget.style.color = '#0f172a'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (currentPage !== 1) {
+                      e.currentTarget.style.borderColor = '#cbd5e1'
+                      e.currentTarget.style.background = '#ffffff'
+                      e.currentTarget.style.color = '#334155'
+                    }
+                  }}
                 >
-                  Previous
+                  <ChevronLeft size={15} />
+                  <span>Previous</span>
                 </button>
                 <button
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage(p => p + 1)}
-                  style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f1f5f9' : '#fff', color: currentPage === totalPages ? '#94a3b8' : '#334155', fontWeight: 600, fontSize: 12, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '6px 14px',
+                    borderRadius: 8,
+                    border: '1px solid',
+                    borderColor: currentPage === totalPages ? '#e2e8f0' : '#cbd5e1',
+                    background: currentPage === totalPages ? '#f1f5f9' : '#ffffff',
+                    color: currentPage === totalPages ? '#94a3b8' : '#334155',
+                    fontWeight: 600,
+                    fontSize: 12.5,
+                    cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.15s ease',
+                    boxShadow: currentPage === totalPages ? 'none' : '0 1px 2px rgba(0,0,0,0.03)'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (currentPage !== totalPages) {
+                      e.currentTarget.style.borderColor = '#94a3b8'
+                      e.currentTarget.style.background = '#f8fafc'
+                      e.currentTarget.style.color = '#0f172a'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (currentPage !== totalPages) {
+                      e.currentTarget.style.borderColor = '#cbd5e1'
+                      e.currentTarget.style.background = '#ffffff'
+                      e.currentTarget.style.color = '#334155'
+                    }
+                  }}
                 >
-                  Next
+                  <span>Next</span>
+                  <ChevronRight size={15} />
                 </button>
               </div>
             </div>
           )}
         </div>
       </div>
+        </>
+      )}
 
       {/* ── Movement Modal ── */}
       <Modal
         open={isModalOpen}
-        onCancel={() => setIsModalOpen(false)}
-        onOk={() => form.submit()}
+        onCancel={() => {
+          setIsModalOpen(false)
+          setModalStep(0)
+        }}
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingBottom: 6 }}>
-            <div style={{
-              width: 40,
-              height: 40,
-              borderRadius: 10,
-              background: 'linear-gradient(135deg, rgba(238, 77, 45, 0.15) 0%, rgba(238, 77, 45, 0.05) 100%)',
-              border: '1px solid rgba(238, 77, 45, 0.25)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--primary)',
-              flexShrink: 0
-            }}>
-              {entryMode === 'NEW' ? <PlusCircle size={22} /> : <Package2 size={22} />}
+          modalStep === 1 ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingBottom: 6 }}>
+              <div style={{
+                width: 42,
+                height: 42,
+                borderRadius: 12,
+                background: 'linear-gradient(135deg, rgba(22, 163, 74, 0.12) 0%, rgba(22, 163, 74, 0.04) 100%)',
+                border: '1.5px solid rgba(22, 163, 74, 0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#15803d',
+                flexShrink: 0
+              }}>
+                <Truck size={22} />
+              </div>
+              <div>
+                <div style={{ fontSize: 17, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
+                  Step 2: Supplier & Purchase Expense (සැපයුම්කරු හා වියදම් විස්තර)
+                </div>
+                <div style={{ fontSize: 12, color: '#64748b', fontWeight: 500, marginTop: 1 }}>
+                  Select supplier, verify auto-calculated or manual stock cost, and record store expense
+                </div>
+              </div>
             </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingBottom: 6 }}>
+              <div style={{
+                width: 42,
+                height: 42,
+                borderRadius: 12,
+                background: entryMode === 'NEW' 
+                  ? 'linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(37, 99, 235, 0.04) 100%)'
+                  : 'linear-gradient(135deg, rgba(238, 77, 45, 0.12) 0%, rgba(238, 77, 45, 0.04) 100%)',
+                border: `1.5px solid ${entryMode === 'NEW' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(238, 77, 45, 0.25)'}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: entryMode === 'NEW' ? '#2563eb' : 'var(--primary)',
+                flexShrink: 0
+              }}>
+                {entryMode === 'NEW' ? <PlusCircle size={22} /> : <Package2 size={22} />}
+              </div>
+              <div>
+                <div style={{ fontSize: 17, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
+                  {entryMode === 'NEW' ? 'Receive & Register New Cake Item' : 'Inventory Stock Update (තොග යාවත්කාලීන කිරීම)'}
+                </div>
+                <div style={{ fontSize: 12, color: '#64748b', fontWeight: 500, marginTop: 1 }}>
+                  {entryMode === 'NEW' ? 'Add new item to catalog and receive initial stock balance' : 'Step 1: Set quantities, weights, money amounts, or pricing'}
+                </div>
+              </div>
+            </div>
+          )
+        }
+        footer={
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, borderTop: '1px solid #e2e8f0' }}>
             <div>
-              <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-                {entryMode === 'NEW' ? 'Receive & Register New Cake Item' : 'Inventory Stock Update (තොග යාවත්කාලීන කිරීම)'}
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginTop: 2 }}>
-                {entryMode === 'NEW' ? 'Add new item to catalog and receive initial stock balance' : 'Update quantities, weights, money amounts, or pricing'}
-              </div>
+              {modalStep === 1 ? (
+                <button
+                  type="button"
+                  onClick={() => setModalStep(0)}
+                  style={{
+                    height: 42,
+                    padding: '0 20px',
+                    borderRadius: 10,
+                    border: '1.5px solid #cbd5e1',
+                    background: '#ffffff',
+                    color: '#334155',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#94a3b8'; e.currentTarget.style.background = '#f8fafc' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#ffffff' }}
+                >
+                  <ArrowLeft size={16} />
+                  <span>Back to Quantities (ආපසු)</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsModalOpen(false)
+                    setModalStep(0)
+                  }}
+                  style={{
+                    height: 42,
+                    padding: '0 20px',
+                    borderRadius: 10,
+                    border: '1.5px solid #cbd5e1',
+                    background: '#ffffff',
+                    color: '#64748b',
+                    fontWeight: 600,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#94a3b8'; e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#334155' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.color = '#64748b' }}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+
+            <div>
+              {modalStep === 0 ? (
+                <button
+                  type="button"
+                  onClick={handleNextStep}
+                  style={{
+                    height: 42,
+                    padding: '0 24px',
+                    borderRadius: 10,
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    fontSize: 13.5,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    boxShadow: '0 4px 14px rgba(22, 163, 74, 0.28)',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.92'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none' }}
+                >
+                  <span>Next: Supplier & Cost Details (ඊළඟ පියවර)</span>
+                  <ArrowRight size={16} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => form.submit()}
+                  style={{
+                    height: 42,
+                    padding: '0 26px',
+                    borderRadius: 10,
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    fontSize: 13.5,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    boxShadow: '0 4px 14px rgba(22, 163, 74, 0.3)',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.92'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none' }}
+                >
+                  <Check size={17} />
+                  <span>Confirm & Update Stock (තොගය සටහන් කරන්න)</span>
+                </button>
+              )}
             </div>
           </div>
         }
-        okText={entryMode === 'NEW' ? 'Save Product & Stock' : 'Record Movement'}
-        okButtonProps={{
-          style: {
-            background: 'var(--primary)',
-            borderColor: 'var(--primary)',
-            fontWeight: 700,
-            height: 40,
-            paddingLeft: 22,
-            paddingRight: 22,
-            borderRadius: 8,
-            fontSize: 13.5
-          }
-        }}
-        cancelButtonProps={{
-          style: {
-            height: 40,
-            paddingLeft: 18,
-            paddingRight: 18,
-            borderRadius: 8,
-            fontWeight: 600,
-            fontSize: 13.5
-          }
-        }}
         style={{ top: 20, maxWidth: '96vw', paddingBottom: 20 }}
         styles={{
           body: {
             maxHeight: 'calc(88vh - 90px)',
             overflowY: 'auto',
             overflowX: 'hidden',
-            padding: '16px 20px'
+            padding: '20px 24px',
+            background: '#f8fafc'
           }
         }}
-        width="min(980px, 96vw)"
+        width="min(1040px, 96vw)"
       >
-        {/* Mode Switcher */}
-        <div style={{ marginBottom: 16 }}>
-          <Segmented
-            block
-            size="large"
-            value={entryMode}
-            onChange={(val) => {
-              const mode = val as 'EXISTING' | 'NEW'
-              setEntryMode(mode)
-              if (mode === 'NEW') {
-                const initCat = categories[0]
-                const autoCode = generateCategoryItemCode(initCat, products)
-                form.setFieldsValue({
-                  new_unit: 'pcs',
-                  new_category_id: initCat?.id || undefined,
-                  new_barcode: autoCode,
-                  new_quantity: 10,
-                  new_price: 0,
-                  new_cost_price: 0,
-                  new_note: 'Initial stock receipt'
-                })
-              } else {
-                form.setFieldsValue({
-                  type: 'IN',
-                  quantity: 1
-                })
-              }
+        {/* Step Indicator Header */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 12,
+          marginBottom: 18,
+          padding: 4,
+          background: '#e2e8f0',
+          borderRadius: 12
+        }}>
+          <div
+            onClick={() => setModalStep(0)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '10px 16px',
+              borderRadius: 10,
+              background: modalStep === 0 ? '#ffffff' : 'transparent',
+              boxShadow: modalStep === 0 ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
             }}
-            options={[
-              {
-                label: (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '4px 0', fontWeight: 700, fontSize: 13.5 }}>
-                    <Package size={17} />
-                    <span>Existing Item Restock (දැනට ඇති අයිතමයක්)</span>
-                  </div>
-                ),
-                value: 'EXISTING'
-              },
-              {
-                label: (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '4px 0', fontWeight: 700, fontSize: 13.5 }}>
-                    <PlusCircle size={17} />
-                    <span>+ New Item Registration (අලුත් අයිතමයක්)</span>
-                  </div>
-                ),
-                value: 'NEW'
-              }
-            ]}
-          />
+          >
+            <div style={{
+              width: 28,
+              height: 28,
+              borderRadius: 8,
+              background: modalStep === 0 ? 'var(--primary)' : '#16a34a',
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 800,
+              fontSize: 12
+            }}>
+              {modalStep > 0 ? <Check size={16} /> : '1'}
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: modalStep === 0 ? '#0f172a' : '#475569' }}>
+                1. Product & Quantities (අයිතමය හා ප්‍රමාණය)
+              </div>
+              <div style={{ fontSize: 11, color: '#64748b' }}>
+                Item selection, weights, prices & live stock preview
+              </div>
+            </div>
+          </div>
+
+          <div
+            onClick={() => {
+              if (modalStep === 0) handleNextStep()
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '10px 16px',
+              borderRadius: 10,
+              background: modalStep === 1 ? '#ffffff' : 'transparent',
+              boxShadow: modalStep === 1 ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <div style={{
+              width: 28,
+              height: 28,
+              borderRadius: 8,
+              background: modalStep === 1 ? 'var(--primary)' : '#cbd5e1',
+              color: modalStep === 1 ? '#ffffff' : '#64748b',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 800,
+              fontSize: 12
+            }}>
+              2
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: modalStep === 1 ? '#0f172a' : '#94a3b8' }}>
+                2. Supplier & Cost Details (සැපයුම්කරු හා වියදම්)
+              </div>
+              <div style={{ fontSize: 11, color: modalStep === 1 ? '#64748b' : '#94a3b8' }}>
+                Supplier, invoice #, auto/manual total cost & expense
+              </div>
+            </div>
+          </div>
         </div>
 
+        {/* Mode Switcher - Only in Step 0 */}
+        {modalStep === 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <Segmented
+              block
+              size="large"
+              value={entryMode}
+              onChange={(val) => {
+                const mode = val as 'EXISTING' | 'NEW'
+                setEntryMode(mode)
+                if (mode === 'NEW') {
+                  const initCat = categories[0]
+                  const autoCode = generateCategoryItemCode(initCat, products)
+                  form.setFieldsValue({
+                    new_unit: 'pcs',
+                    new_category_id: initCat?.id || undefined,
+                    new_barcode: autoCode,
+                    new_quantity: 10,
+                    new_price: 0,
+                    new_cost_price: 0,
+                    new_note: 'Initial stock receipt'
+                  })
+                } else {
+                  form.setFieldsValue({
+                    type: 'IN',
+                    quantity: 1
+                  })
+                }
+              }}
+              options={[
+                {
+                  label: (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '4px 0', fontWeight: 700, fontSize: 13.5 }}>
+                      <Package size={17} />
+                      <span>Existing Item Restock (දැනට ඇති අයිතමයක්)</span>
+                    </div>
+                  ),
+                  value: 'EXISTING'
+                },
+                {
+                  label: (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '4px 0', fontWeight: 700, fontSize: 13.5 }}>
+                      <PlusCircle size={17} />
+                      <span>+ New Item Registration (අලුත් අයිතමයක්)</span>
+                    </div>
+                  ),
+                  value: 'NEW'
+                }
+              ]}
+            />
+          </div>
+        )}
+
         <Form form={form} layout="vertical" onFinish={handleSaveMovement} style={{ paddingTop: 4 }}>
-          {entryMode === 'EXISTING' ? (
+          {/* ══════════════════════════════════════════════════════════════ */}
+          {/* STEP 1: ITEM & QUANTITY DETAILS */}
+          {/* ══════════════════════════════════════════════════════════════ */}
+          <div style={{ display: modalStep === 0 ? 'block' : 'none' }}>
+            {entryMode === 'EXISTING' ? (
             <Form.Item
               noStyle
               shouldUpdate={(prev, cur) =>
@@ -1192,19 +1701,34 @@ export const InventoryPage: React.FC = () => {
                       {/* 1. Target Product */}
                       <div className="form-section" style={{ margin: 0 }}>
                         <div className="form-section-header">
-                          <span className="form-section-title">
-                            1. Target Product (අයිතමය තෝරන්න)
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: 8,
+                              background: '#eff6ff',
+                              border: '1px solid #bfdbfe',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#2563eb'
+                            }}>
+                              <Package size={15} />
+                            </div>
+                            <span className="form-section-title" style={{ color: '#0f172a', fontSize: 12.5 }}>
+                              1. Target Product (අයිතමය තෝරන්න)
+                            </span>
+                          </div>
                         </div>
 
                         <Form.Item
                           name="product_id"
-                          label={<span style={{ fontWeight: 700, fontSize: 12.5 }}>Select Item</span>}
+                          label={<span style={{ fontWeight: 700, fontSize: 12.5, color: '#334155' }}>Select Item from Catalog</span>}
                           rules={[{ required: true, message: 'Please select a product' }]}
                           style={{ marginBottom: selectedProd ? 12 : 0 }}
                         >
                           <Select
-                            placeholder="Choose or search product..."
+                            placeholder="Choose or search product by name, barcode..."
                             showSearch
                             size="large"
                             style={{ borderRadius: 8, width: '100%' }}
@@ -1225,18 +1749,18 @@ export const InventoryPage: React.FC = () => {
                           <div style={{
                             display: 'flex',
                             gap: 12,
-                            padding: '10px 12px',
-                            background: '#ffffff',
+                            padding: '12px 14px',
+                            background: '#f8fafc',
                             border: '1px solid #e2e8f0',
-                            borderRadius: 10,
+                            borderRadius: 12,
                             alignItems: 'center'
                           }}>
                             <div style={{
                               width: 50,
                               height: 50,
-                              borderRadius: 8,
+                              borderRadius: 10,
                               overflow: 'hidden',
-                              background: '#f1f5f9',
+                              background: '#ffffff',
                               flexShrink: 0,
                               display: 'flex',
                               alignItems: 'center',
@@ -1248,7 +1772,14 @@ export const InventoryPage: React.FC = () => {
                                 alt={selectedProd.name}
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                 onError={(e) => {
-                                  (e.target as HTMLElement).style.display = 'none'
+                                  const imgPath = selectedProd.image_path || selectedProd.imagePath
+                                  const clean = imgPath?.replace(/^\/+/, '') || ''
+                                  const cached = typeof window !== 'undefined' ? localStorage.getItem(`pos_img_${clean}`) : null
+                                  if (cached && (e.target as HTMLImageElement).src !== cached) {
+                                    (e.target as HTMLImageElement).src = cached
+                                  } else {
+                                    (e.target as HTMLElement).style.display = 'none'
+                                  }
                                 }}
                               />
                             </div>
@@ -1263,9 +1794,9 @@ export const InventoryPage: React.FC = () => {
                               }}>
                                 {selectedProd.name}
                               </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3, flexWrap: 'wrap' }}>
                                 {selectedProd.barcode && (
-                                  <span style={{ fontSize: 10.5, fontFamily: 'monospace', background: '#f8fafc', border: '1px solid #cbd5e1', padding: '1px 5px', borderRadius: 4, color: '#475569' }}>
+                                  <span style={{ fontSize: 10.5, fontFamily: 'monospace', background: '#ffffff', border: '1px solid #cbd5e1', padding: '1px 6px', borderRadius: 4, color: '#475569' }}>
                                     {selectedProd.barcode}
                                   </span>
                                 )}
@@ -1274,13 +1805,13 @@ export const InventoryPage: React.FC = () => {
                                 </span>
                               </div>
                             </div>
-                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                              <div style={{ fontSize: 10.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                            <div style={{ textAlign: 'right', flexShrink: 0, background: '#ffffff', padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                              <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
                                 Current Stock
                               </div>
                               <div style={{
                                 fontSize: 14,
-                                fontWeight: 800,
+                                fontWeight: 900,
                                 color: (selectedProd.current_stock ?? 0) <= 0 ? '#dc2626' : (selectedProd.current_stock ?? 0) < 5 ? '#d97706' : '#15803d'
                               }}>
                                 {formatStockQty(selectedProd.current_stock, selectedProd.unit)}
@@ -1293,9 +1824,24 @@ export const InventoryPage: React.FC = () => {
                       {/* 2. Product Pricing & Reference */}
                       <div className="form-section" style={{ margin: 0 }}>
                         <div className="form-section-header">
-                          <span className="form-section-title">
-                            2. Pricing & Reference (මිල හා විස්තර)
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: 8,
+                              background: '#fffbeb',
+                              border: '1px solid #fde68a',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#d97706'
+                            }}>
+                              <DollarSign size={15} />
+                            </div>
+                            <span className="form-section-title" style={{ color: '#0f172a', fontSize: 12.5 }}>
+                              2. Pricing & Reference (මිල හා විස්තර)
+                            </span>
+                          </div>
                         </div>
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
@@ -1386,15 +1932,23 @@ export const InventoryPage: React.FC = () => {
                               background: '#f0fdf4',
                               border: '1px solid #bbf7d0',
                               borderRadius: 8,
-                              padding: '6px 12px',
+                              padding: '8px 12px',
                               marginBottom: 10,
-                              fontSize: 11.5
+                              fontSize: 12
                             }}
                           >
                             <span style={{ color: '#166534', fontWeight: 600 }}>
-                              Estimated Profit: <strong>{formatCurrency(profit)}</strong>
+                              Estimated Profit: <strong style={{ color: '#15803d', fontWeight: 800 }}>{formatCurrency(profit)}</strong>
                             </span>
-                            <span style={{ color: '#15803d', fontWeight: 700 }}>
+                            <span style={{
+                              color: (margin !== null && margin >= 0) ? '#15803d' : '#dc2626',
+                              fontWeight: 800,
+                              background: '#ffffff',
+                              border: '1px solid #bbf7d0',
+                              padding: '2px 8px',
+                              borderRadius: 6,
+                              fontSize: 11
+                            }}>
                               Profit Margin: {margin}%
                             </span>
                           </div>
@@ -1421,11 +1975,26 @@ export const InventoryPage: React.FC = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                       <div className="form-section" style={{ margin: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
                         <div className="form-section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span className="form-section-title">
-                            3. Movement Type & Stock Quantity
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: 8,
+                              background: '#f0fdf4',
+                              border: '1px solid #bbf7d0',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#16a34a'
+                            }}>
+                              <Layers size={15} />
+                            </div>
+                            <span className="form-section-title" style={{ color: '#0f172a', fontSize: 12.5 }}>
+                              3. Movement & Quantities (තොග ප්‍රමාණය)
+                            </span>
+                          </div>
                           {isWeight && (
-                            <span style={{ fontSize: 11.5, fontWeight: 700, color: '#16a34a', background: '#dcfce7', padding: '2px 8px', borderRadius: 6, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', background: '#dcfce7', border: '1px solid #bbf7d0', padding: '2px 8px', borderRadius: 6, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                               <Scale size={13} />
                               <span>Weight Item ({selectedProd?.unit || 'kg'})</span>
                             </span>
@@ -1563,18 +2132,30 @@ export const InventoryPage: React.FC = () => {
                                         if (curVal) handleMoneyAmountChange(curVal, nextBasis)
                                       }}
                                       style={{
-                                        fontSize: 10,
+                                        fontSize: 11,
                                         fontWeight: 700,
                                         background: '#ffffff',
                                         border: '1px solid #86efac',
-                                        padding: '1px 6px',
-                                        borderRadius: 4,
+                                        padding: '2px 8px',
+                                        borderRadius: 6,
                                         cursor: 'pointer',
-                                        color: '#15803d'
+                                        color: '#15803d',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 4,
+                                        transition: 'all 0.15s ease'
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = '#dcfce7'
+                                        e.currentTarget.style.borderColor = '#4ade80'
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = '#ffffff'
+                                        e.currentTarget.style.borderColor = '#86efac'
                                       }}
                                       title="Toggle rate basis between Selling Price and Cost Price"
                                     >
-                                      {priceBasis === 'selling' ? 'Selling Price' : 'Cost Price'} Rate ⇄
+                                      <span>{priceBasis === 'selling' ? 'Selling Price' : 'Cost Price'} Rate ⇄</span>
                                     </button>
                                   </div>
                                 </div>
@@ -1821,23 +2402,24 @@ export const InventoryPage: React.FC = () => {
                         {selectedProd && (
                           <div style={{
                             marginTop: 'auto',
-                            paddingTop: 14
+                            paddingTop: 16
                           }}>
                             <div style={{
-                              padding: '12px 16px',
-                              borderRadius: 10,
-                              background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-                              border: '1.5px solid #cbd5e1',
+                              padding: '14px 18px',
+                              borderRadius: 12,
+                              background: '#ffffff',
+                              border: '1.5px solid #e2e8f0',
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'space-between',
-                              gap: 10
+                              gap: 12
                             }}>
                               <div>
-                                <div style={{ fontSize: 10.5, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
-                                  Current Stock
+                                <div style={{ fontSize: 10.5, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                  Current Balance
                                 </div>
-                                <div style={{ fontSize: 14, fontWeight: 800, color: '#334155', marginTop: 2 }}>
+                                <div style={{ fontSize: 15, fontWeight: 800, color: '#334155', marginTop: 2 }}>
                                   {formatStockQty(currentStock, selectedProd.unit)}
                                 </div>
                               </div>
@@ -1846,14 +2428,14 @@ export const InventoryPage: React.FC = () => {
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                gap: 4,
-                                padding: '4px 10px',
-                                borderRadius: 20,
+                                gap: 6,
+                                padding: '6px 14px',
+                                borderRadius: 99,
                                 background: mType === 'DAMAGE' ? '#fef2f2' : '#f0fdf4',
-                                border: `1px solid ${mType === 'DAMAGE' ? '#fecaca' : '#bbf7d0'}`,
+                                border: `1.5px solid ${mType === 'DAMAGE' ? '#fecaca' : '#bbf7d0'}`,
                                 color: mType === 'DAMAGE' ? '#dc2626' : '#16a34a',
                                 fontWeight: 800,
-                                fontSize: 12,
+                                fontSize: 13,
                                 whiteSpace: 'nowrap'
                               }}>
                                 <span>{mType === 'DAMAGE' ? '−' : mType === 'ADJUST' ? '~' : '+'}</span>
@@ -1861,10 +2443,10 @@ export const InventoryPage: React.FC = () => {
                               </div>
 
                               <div style={{ textAlign: 'right' }}>
-                                <div style={{ fontSize: 10.5, color: '#15803d', fontWeight: 800, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
-                                  New Stock (නව තොගය)
+                                <div style={{ fontSize: 10.5, color: '#15803d', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                  Projected Balance (නව තොගය)
                                 </div>
-                                <div style={{ fontSize: 16, fontWeight: 900, color: '#15803d', marginTop: 2 }}>
+                                <div style={{ fontSize: 17, fontWeight: 900, color: '#15803d', marginTop: 2 }}>
                                   {formatStockQty(projectedStock, selectedProd.unit)}
                                 </div>
                               </div>
@@ -1889,9 +2471,24 @@ export const InventoryPage: React.FC = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div className="form-section" style={{ margin: 0 }}>
                   <div className="form-section-header">
-                    <span className="form-section-title">
-                      1. Product Information (අයිතම තොරතුරු)
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 8,
+                        background: '#eff6ff',
+                        border: '1px solid #bfdbfe',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#2563eb'
+                      }}>
+                        <Package size={15} />
+                      </div>
+                      <span className="form-section-title" style={{ color: '#0f172a', fontSize: 12.5 }}>
+                        1. Product Information (අයිතම තොරතුරු)
+                      </span>
+                    </div>
                   </div>
 
                   <Form.Item
@@ -1994,19 +2591,33 @@ export const InventoryPage: React.FC = () => {
                         height: 40,
                         padding: '0 14px',
                         borderRadius: 8,
-                        border: '1.5px solid var(--border)',
-                        background: '#ffffff',
-                        color: 'var(--primary)',
+                        border: '1.5px solid #86efac',
+                        background: '#f0fdf4',
+                        color: '#15803d',
                         fontSize: 12,
                         fontWeight: 700,
                         cursor: 'pointer',
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 6,
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-                        marginBottom: 0
+                        boxShadow: '0 1px 2px rgba(22, 163, 74, 0.08)',
+                        marginBottom: 0,
+                        transition: 'all 0.15s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#16a34a'
+                        e.currentTarget.style.color = '#ffffff'
+                        e.currentTarget.style.borderColor = '#16a34a'
+                        e.currentTarget.style.boxShadow = '0 2px 6px rgba(22, 163, 74, 0.25)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = '#f0fdf4'
+                        e.currentTarget.style.color = '#15803d'
+                        e.currentTarget.style.borderColor = '#86efac'
+                        e.currentTarget.style.boxShadow = '0 1px 2px rgba(22, 163, 74, 0.08)'
                       }}
                     >
+                      <RotateCcw size={13} />
                       <span>Auto Code</span>
                     </button>
                   </div>
@@ -2015,9 +2626,24 @@ export const InventoryPage: React.FC = () => {
                 {/* Pricing section for New Item */}
                 <div className="form-section" style={{ margin: 0 }}>
                   <div className="form-section-header">
-                    <span className="form-section-title">
-                      2. Catalog Pricing (මිල ගණන්)
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 8,
+                        background: '#fffbeb',
+                        border: '1px solid #fde68a',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#d97706'
+                      }}>
+                        <DollarSign size={15} />
+                      </div>
+                      <span className="form-section-title" style={{ color: '#0f172a', fontSize: 12.5 }}>
+                        2. Catalog Pricing (මිල ගණන්)
+                      </span>
+                    </div>
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -2082,15 +2708,61 @@ export const InventoryPage: React.FC = () => {
                     </Form.Item>
                   </div>
                 </div>
+
+                {/* Product Image Selection & Custom Upload */}
+                <Form.Item
+                  noStyle
+                  shouldUpdate={(prev, cur) =>
+                    prev.new_name !== cur.new_name ||
+                    prev.new_category_id !== cur.new_category_id ||
+                    prev.new_image_path !== cur.new_image_path
+                  }
+                >
+                  {({ getFieldValue, setFieldsValue }) => {
+                    const currentName = getFieldValue('new_name') || ''
+                    const currentCatId = getFieldValue('new_category_id')
+                    const selectedCat = categories.find((c) => c.id === currentCatId)
+                    const currentImagePath = getFieldValue('new_image_path')
+
+                    return (
+                      <>
+                        <ProductImagePicker
+                          value={currentImagePath}
+                          onChange={(newPath) => setFieldsValue({ new_image_path: newPath })}
+                          productName={currentName}
+                          categoryName={selectedCat?.name}
+                        />
+                        <Form.Item name="new_image_path" noStyle>
+                          <Input type="hidden" />
+                        </Form.Item>
+                      </>
+                    )
+                  }}
+                </Form.Item>
               </div>
 
               {/* Right Column: Initial Stock & Inward Batch */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div className="form-section" style={{ margin: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
                   <div className="form-section-header">
-                    <span className="form-section-title">
-                      3. Initial Stock & Inward Batch
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 8,
+                        background: '#f0fdf4',
+                        border: '1px solid #bbf7d0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#16a34a'
+                      }}>
+                        <Layers size={15} />
+                      </div>
+                      <span className="form-section-title" style={{ color: '#0f172a', fontSize: 12.5 }}>
+                        3. Initial Stock & Inward Batch
+                      </span>
+                    </div>
                   </div>
 
                   <Form.Item noStyle shouldUpdate={(prev, cur) => prev.new_unit !== cur.new_unit || prev.new_quantity !== cur.new_quantity || prev.new_price !== cur.new_price || prev.new_cost_price !== cur.new_cost_price}>
@@ -2408,8 +3080,424 @@ export const InventoryPage: React.FC = () => {
               </div>
             </div>
           )}
+          </div>
+
+          {/* ══════════════════════════════════════════════════════════════ */}
+          {/* STEP 2: SUPPLIER, TOTAL STOCK VALUE & STORE EXPENSE DETAILS */}
+          {/* ══════════════════════════════════════════════════════════════ */}
+          <div style={{ display: modalStep === 1 ? 'block' : 'none' }}>
+            <Form.Item
+              noStyle
+              shouldUpdate={(prev, cur) =>
+                prev.product_id !== cur.product_id ||
+                prev.quantity !== cur.quantity ||
+                prev.weight_kg !== cur.weight_kg ||
+                prev.weight_g !== cur.weight_g ||
+                prev.cost_price !== cur.cost_price ||
+                prev.price !== cur.price ||
+                prev.new_name !== cur.new_name ||
+                prev.new_quantity !== cur.new_quantity ||
+                prev.new_weight_kg !== cur.new_weight_kg ||
+                prev.new_weight_g !== cur.new_weight_g ||
+                prev.new_cost_price !== cur.new_cost_price ||
+                prev.new_unit !== cur.new_unit ||
+                prev.supplier_id !== cur.supplier_id ||
+                prev.total_stock_cost !== cur.total_stock_cost
+              }
+            >
+              {({ getFieldValue, setFieldsValue }) => {
+                let targetName = ''
+                let targetUnit = 'pcs'
+                let targetQty = 0
+                let targetCostPrice = 0
+
+                if (entryMode === 'EXISTING') {
+                  const pId = getFieldValue('product_id')
+                  const selProd = tracked.find((p) => p.id === pId)
+                  targetName = selProd?.name || 'Selected Item'
+                  targetUnit = selProd?.unit || 'pcs'
+                  const isWeight = targetUnit.toLowerCase() === 'kg' || targetUnit.toLowerCase() === 'g'
+                  const isBaseGram = targetUnit.toLowerCase() === 'g'
+
+                  const kg = Number(getFieldValue('weight_kg')) || 0
+                  const g = Number(getFieldValue('weight_g')) || 0
+                  const rawQty = Number(getFieldValue('quantity')) || 0
+                  targetQty = isWeight ? (isBaseGram ? (kg * 1000 + g) : (kg + g / 1000)) : rawQty
+                  targetCostPrice = Number(getFieldValue('cost_price')) || selProd?.cost_price || 0
+                } else {
+                  targetName = getFieldValue('new_name') || 'New Item'
+                  targetUnit = getFieldValue('new_unit') || 'pcs'
+                  const isNewWeight = targetUnit.toLowerCase() === 'kg' || targetUnit.toLowerCase() === 'g'
+                  const isNewBaseGram = targetUnit.toLowerCase() === 'g'
+
+                  const kg = Number(getFieldValue('new_weight_kg')) || 0
+                  const g = Number(getFieldValue('new_weight_g')) || 0
+                  const rawQty = Number(getFieldValue('new_quantity')) || 0
+                  targetQty = isNewWeight ? (isNewBaseGram ? (kg * 1000 + g) : (kg + g / 1000)) : rawQty
+                  targetCostPrice = Number(getFieldValue('new_cost_price')) || 0
+                }
+
+                const computedAutoCost = Math.round(targetQty * targetCostPrice * 100) / 100
+                const enteredTotalCost = Number(getFieldValue('total_stock_cost')) || 0
+                const isAuto = enteredTotalCost === 0 || Math.abs(enteredTotalCost - computedAutoCost) < 0.01
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {/* Item Summary Banner */}
+                    <div
+                      style={{
+                        background: '#ffffff',
+                        border: '1.5px solid #e2e8f0',
+                        borderRadius: 14,
+                        padding: '16px 20px',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 16
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                        <div
+                          style={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: 12,
+                            background: '#eff6ff',
+                            border: '1.5px solid #bfdbfe',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#2563eb',
+                            flexShrink: 0
+                          }}
+                        >
+                          <Package size={24} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 16, fontWeight: 900, color: '#0f172a' }}>
+                            {targetName}
+                          </div>
+                          <div style={{ fontSize: 12.5, color: '#64748b', display: 'flex', alignItems: 'center', gap: 10, marginTop: 3 }}>
+                            <span style={{ background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', padding: '1px 8px', borderRadius: 6, fontWeight: 800 }}>
+                              Receiving: +{formatStockQty(targetQty, targetUnit)}
+                            </span>
+                            <span>·</span>
+                            <span>
+                              Unit Cost: <strong style={{ color: '#0f172a' }}>Rs. {targetCostPrice.toLocaleString()} / {targetUnit}</strong>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ textAlign: 'right', background: '#f8fafc', padding: '8px 16px', borderRadius: 10, border: '1px solid #e2e8f0' }}>
+                        <div style={{ fontSize: 10.5, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          Auto-Calculated Value
+                        </div>
+                        <div style={{ fontSize: 20, fontWeight: 900, color: '#15803d', marginTop: 1, fontVariantNumeric: 'tabular-nums' }}>
+                          {formatCurrency(computedAutoCost)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 2 Columns: Supplier details & Cost / Expense details */}
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+                        gap: 16,
+                        alignItems: 'start'
+                      }}
+                    >
+                      {/* Left: Supplier & Invoice */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        <div className="form-section" style={{ margin: 0 }}>
+                          <div className="form-section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <div style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: 8,
+                                background: '#ecfdf5',
+                                border: '1px solid #a7f3d0',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: '#059669'
+                              }}>
+                                <Truck size={15} />
+                              </div>
+                              <span className="form-section-title" style={{ color: '#0f172a', fontSize: 12.5 }}>
+                                1. Supplier & Billing (සැපයුම්කරු හා බිල්පත්)
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setIsAddSupplierModalOpen(true)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                fontSize: 11.5,
+                                fontWeight: 700,
+                                color: '#059669',
+                                background: '#ecfdf5',
+                                border: '1px solid #a7f3d0',
+                                padding: '4px 10px',
+                                borderRadius: 7,
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                                boxShadow: '0 1px 2px rgba(5, 150, 105, 0.08)'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = '#059669'
+                                e.currentTarget.style.color = '#ffffff'
+                                e.currentTarget.style.borderColor = '#059669'
+                                e.currentTarget.style.boxShadow = '0 2px 6px rgba(5, 150, 105, 0.25)'
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = '#ecfdf5'
+                                e.currentTarget.style.color = '#059669'
+                                e.currentTarget.style.borderColor = '#a7f3d0'
+                                e.currentTarget.style.boxShadow = '0 1px 2px rgba(5, 150, 105, 0.08)'
+                              }}
+                            >
+                              <PlusCircle size={13} />
+                              <span>+ New Supplier</span>
+                            </button>
+                          </div>
+
+                          <Form.Item
+                            name="supplier_id"
+                            label={<span style={{ fontWeight: 700, fontSize: 12.5, color: '#334155' }}>Select Supplier (අදාල සැපයුම්කරු තෝරන්න)</span>}
+                            rules={[{ required: true, message: 'Please select a supplier for this stock' }]}
+                            style={{ marginBottom: 12 }}
+                          >
+                            <Select
+                              placeholder="Choose or search supplier..."
+                              showSearch
+                              size="large"
+                              style={{ width: '100%', borderRadius: 8 }}
+                              optionFilterProp="label"
+                              onChange={(val) => {
+                                const s = suppliers.find((sup) => sup.id === val)
+                                if (s) setFieldsValue({ supplier_name: s.name })
+                              }}
+                              options={suppliers.map((s) => ({
+                                value: s.id,
+                                label: `${s.name}${s.phone ? ` (${s.phone})` : ''}${s.contactPerson ? ` · ${s.contactPerson}` : ''}`
+                              }))}
+                            />
+                          </Form.Item>
+
+                          <Form.Item name="supplier_name" hidden><Input /></Form.Item>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                            <Form.Item
+                              name="invoice_no"
+                              label={<span style={{ fontWeight: 700, fontSize: 12, color: '#475569' }}>Bill / Invoice No</span>}
+                              style={{ marginBottom: 0 }}
+                            >
+                              <Input placeholder="e.g. INV-2026-901" size="large" style={{ borderRadius: 8 }} />
+                            </Form.Item>
+
+                            <Form.Item
+                              name="payment_method"
+                              label={<span style={{ fontWeight: 700, fontSize: 12, color: '#475569' }}>Payment Method</span>}
+                              initialValue="CASH"
+                              style={{ marginBottom: 0 }}
+                            >
+                              <Select size="large" style={{ borderRadius: 8 }}>
+                                <Select.Option value="CASH">
+                                  <span style={{ fontWeight: 700, color: '#16a34a' }}>Cash Drawer (මුදල්)</span>
+                                </Select.Option>
+                                <Select.Option value="BANK">
+                                  <span style={{ fontWeight: 700, color: '#2563eb' }}>Bank Transfer (බැංකු)</span>
+                                </Select.Option>
+                                <Select.Option value="CREDIT">
+                                  <span style={{ fontWeight: 700, color: '#d97706' }}>Credit / Pay Later (ණයට)</span>
+                                </Select.Option>
+                              </Select>
+                            </Form.Item>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Total Cost & Owner Visibility */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        <div className="form-section" style={{ margin: 0 }}>
+                          <div className="form-section-header">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <div style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: 8,
+                                background: '#f0fdf4',
+                                border: '1px solid #bbf7d0',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: '#16a34a'
+                              }}>
+                                <Banknote size={15} />
+                              </div>
+                              <span className="form-section-title" style={{ color: '#0f172a', fontSize: 12.5 }}>
+                                2. Stock Total Value & Expense (තොගයේ වටිනාකම)
+                              </span>
+                            </div>
+                          </div>
+
+                          <Form.Item
+                            name="total_stock_cost"
+                            label={
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                <span style={{ fontWeight: 700, fontSize: 12.5, color: '#0f172a' }}>
+                                  Total Stock Amount (සම්පූර්ණ මුදල - Rs.)
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setFieldsValue({ total_stock_cost: computedAutoCost })}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 5,
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    color: '#2563eb',
+                                    background: '#eff6ff',
+                                    border: '1px solid #bfdbfe',
+                                    padding: '3px 10px',
+                                    borderRadius: 7,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                    boxShadow: '0 1px 2px rgba(37, 99, 235, 0.08)'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = '#2563eb'
+                                    e.currentTarget.style.color = '#ffffff'
+                                    e.currentTarget.style.borderColor = '#2563eb'
+                                    e.currentTarget.style.boxShadow = '0 2px 6px rgba(37, 99, 235, 0.25)'
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = '#eff6ff'
+                                    e.currentTarget.style.color = '#2563eb'
+                                    e.currentTarget.style.borderColor = '#bfdbfe'
+                                    e.currentTarget.style.boxShadow = '0 1px 2px rgba(37, 99, 235, 0.08)'
+                                  }}
+                                  title="Reset to automatically calculated cost"
+                                >
+                                  <RotateCcw size={12} />
+                                  <span>Reset to Auto (Rs. {computedAutoCost.toLocaleString()})</span>
+                                </button>
+                              </div>
+                            }
+                            rules={[
+                              { required: true, message: 'Please enter total stock value' },
+                              {
+                                validator: (_, val) => {
+                                  if (val !== undefined && val !== null && Number(val) < 0) {
+                                    return Promise.reject(new Error('Total amount cannot be negative'))
+                                  }
+                                  return Promise.resolve()
+                                }
+                              }
+                            ]}
+                            style={{ marginBottom: 10 }}
+                          >
+                            <InputNumber
+                              min={0}
+                              step={100}
+                              placeholder="e.g. 15000"
+                              size="large"
+                              addonBefore={<span style={{ fontWeight: 800, color: '#15803d' }}>Rs.</span>}
+                              style={{ width: '100%', borderRadius: 8, fontWeight: 800, fontSize: 16, color: '#15803d' }}
+                              formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                              parser={(v) => v!.replace(/Rs\.\s?|(,*)/g, '') as any}
+                            />
+                          </Form.Item>
+
+                          {/* Live Status indicator */}
+                          <div
+                            style={{
+                              background: isAuto ? '#f0fdf4' : '#fffbeb',
+                              border: `1.5px solid ${isAuto ? '#86efac' : '#fde68a'}`,
+                              borderRadius: 10,
+                              padding: '10px 14px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: 10,
+                              marginBottom: 12
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <CheckCircle2 size={16} color={isAuto ? '#16a34a' : '#d97706'} />
+                              <div>
+                                <div style={{ fontSize: 12, fontWeight: 800, color: isAuto ? '#166534' : '#92400e' }}>
+                                  {isAuto
+                                    ? 'Auto-Calculated Value (ස්වයංක්‍රීයව ගණනය වූ අගය)'
+                                    : 'Manual Amount Override (වෙනස් කළ මුදල)'}
+                                </div>
+                                <div style={{ fontSize: 11, color: isAuto ? '#15803d' : '#b45309', marginTop: 1 }}>
+                                  {isAuto
+                                    ? `${targetQty} ${targetUnit} × Rs. ${targetCostPrice.toLocaleString()} / ${targetUnit}`
+                                    : `Effective Rate: Rs. ${(targetQty > 0 ? (enteredTotalCost / targetQty) : 0).toFixed(2)} / ${targetUnit}`}
+                                </div>
+                              </div>
+                            </div>
+                            <span style={{ fontSize: 15, fontWeight: 900, color: isAuto ? '#15803d' : '#b45309' }}>
+                              Rs. {enteredTotalCost.toLocaleString()}
+                            </span>
+                          </div>
+
+                          {/* Owner Visibility Switch */}
+                          <div
+                            style={{
+                              background: '#f8fafc',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: 10,
+                              padding: '12px 14px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: 12
+                            }}
+                          >
+                            <div>
+                              <div style={{ fontWeight: 800, fontSize: 12.5, color: '#0f172a' }}>
+                                Record as Store Expense for Owner Visibility
+                              </div>
+                              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2, lineHeight: 1.35 }}>
+                                මෙම මුදල Owner Hub සහ Store Expenses ලේඛනයට "Stock Purchase" ලෙස ඇතුලත් වේ.
+                              </div>
+                            </div>
+                            <Form.Item name="record_expense" valuePropName="checked" noStyle initialValue={true}>
+                              <Switch defaultChecked />
+                            </Form.Item>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              }}
+            </Form.Item>
+          </div>
         </Form>
       </Modal>
+
+      {/* Add Supplier Modal */}
+      <AddSupplierModal
+        open={isAddSupplierModalOpen}
+        onClose={() => setIsAddSupplierModalOpen(false)}
+        onSuccess={(newSup) => {
+          setSuppliers((prev) => [...prev, newSup])
+          form.setFieldsValue({
+            supplier_id: newSup.id,
+            supplier_name: newSup.name
+          })
+        }}
+      />
     </div>
   )
 }

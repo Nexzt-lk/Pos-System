@@ -50,10 +50,7 @@ export const getDatabase = async (): Promise<POSDatabase> => {
   const dbPath = path.join(projectDbDir, 'cakeshop_local.db')
   console.log(`[Database] Initializing SQLite database (packaged=${isPackaged}) at: ${dbPath}`)
 
-  // DB version — bump this whenever a new migration is added
-  // IMPORTANT: Only bump this number when adding a new entry in runMigrations() below.
-  // Do NOT use version bump to overwrite existing data.
-  const MASTER_DB_VERSION = 5 // v5: Migration-based schema updates (data-safe)
+  const MASTER_DB_VERSION = 7 // v7: Suppliers sync_status & Event-driven Supabase Sync
 
   // Helper: read product count from a DB buffer
   const getProductCount = (buf: Buffer): number => {
@@ -248,11 +245,76 @@ export const getDatabase = async (): Promise<POSDatabase> => {
       db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('db_version', '${MASTER_DB_VERSION}');`)
     } catch (e) { console.warn('[Migration-3] settings/version:', e) }
 
-    // ── Add future migrations below this line ──
-    // Migration 4: Example — add a new column safely
-    // try {
-    //   db.run(`ALTER TABLE orders ADD COLUMN customer_name TEXT;`)
-    // } catch (_) { /* column already exists — safe to ignore */ }
+    // Migration 4: Ensure suppliers table exists & seed default suppliers
+    try {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS suppliers (
+          id             TEXT PRIMARY KEY,
+          name           TEXT NOT NULL,
+          phone          TEXT,
+          contact_person TEXT,
+          email          TEXT,
+          address        TEXT,
+          notes          TEXT,
+          is_active      INTEGER DEFAULT 1,
+          created_at     TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+          UNIQUE(name)
+        );
+      `)
+      const supCheck = db.exec("SELECT count(*) FROM suppliers")
+      const supCount = supCheck?.[0]?.values?.[0]?.[0] || 0
+      if (supCount === 0) {
+        const defaultSuppliers = [
+          ['sup-001', 'Ceylon Biscuits Ltd (CBL)', '011-5000000', 'Mr. Perera', 'Sales & Distribution', 'Pannipitiya'],
+          ['sup-002', 'Maliban Biscuit Manufactories', '011-2655255', 'Mr. Fernando', 'Baking Division', 'Ratmalana'],
+          ['sup-003', 'Fonterra Brands (Anchor Butter/Dairy)', '011-2678900', 'Customer Support', 'Dairy Supplies', 'Biyagama'],
+          ['sup-004', 'Pelwatte Dairy Industries', '011-2300400', 'Distribution Desk', 'Fresh Milk & Butter', 'Colombo'],
+          ['sup-005', 'Prima Ceylon Flour Mills', '011-2438888', 'Orders Desk', 'Flour & Premixes', 'Trincomalee / Colombo'],
+          ['sup-006', 'Central Egg & Farm Supplies (Katugastota)', '077-8901234', 'Kamal', 'Daily Farm Fresh Eggs', 'Katugastota'],
+          ['sup-007', 'Kandy Packaging & Cake Box World', '081-2233445', 'Nimal', 'Boxes, Ribbons, Boards', 'Kandy'],
+          ['sup-008', 'General Market / Direct Cash Purchase', '071-1172201', 'Cashier / Chef', 'Local Market Ingredients', 'Katugastota Town']
+        ]
+        for (const s of defaultSuppliers) {
+          db.run(
+            `INSERT OR IGNORE INTO suppliers (id, name, phone, contact_person, notes, address) VALUES (?, ?, ?, ?, ?, ?)`,
+            s
+          )
+        }
+      }
+    } catch (e) { console.warn('[Migration-4] suppliers table:', e) }
+
+    // Migration 5: Add supplier and payment tracking to stock_movements
+    const stockMovementsCols = [
+      'supplier_id TEXT',
+      'supplier_name TEXT',
+      'total_cost REAL',
+      'invoice_no TEXT',
+      'payment_method TEXT DEFAULT "CASH"',
+      'done_by TEXT'
+    ]
+    for (const col of stockMovementsCols) {
+      try {
+        db.run(`ALTER TABLE stock_movements ADD COLUMN ${col};`)
+      } catch (_) { /* column already exists */ }
+    }
+
+    // Migration 6: Add supplier and payment tracking to expenses
+    const expensesCols = [
+      'supplier_id TEXT',
+      'supplier_name TEXT',
+      'invoice_no TEXT',
+      'payment_method TEXT DEFAULT "CASH"'
+    ]
+    for (const col of expensesCols) {
+      try {
+        db.run(`ALTER TABLE expenses ADD COLUMN ${col};`)
+      } catch (_) { /* column already exists */ }
+    }
+
+    // Migration 7: Add sync_status to suppliers table
+    try {
+      db.run(`ALTER TABLE suppliers ADD COLUMN sync_status TEXT DEFAULT 'pending';`)
+    } catch (_) { /* column already exists */ }
 
     console.log(`[Migration] All migrations applied. DB version set to ${MASTER_DB_VERSION}.`)
   }

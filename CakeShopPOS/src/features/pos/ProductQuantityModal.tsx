@@ -25,7 +25,8 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
   const isWeightBased = product.unit?.toLowerCase() === 'kg' || product.unit?.toLowerCase() === 'g'
   const isBaseUnitGram = product.unit?.toLowerCase() === 'g'
   const [hasModalImgError, setHasModalImgError] = useState(false)
-  const modalImgSrc = getProductImageSrc(product.image_path, product.name)
+  const activeModalImagePath = product.image_path || (product as any).imagePath
+  const modalImgSrc = getProductImageSrc(activeModalImagePath, product.name, product.category_name)
 
   // Mode for weight-based items: 'weight' (Kg & g) or 'price' (Direct Rs. amount)
   const [entryMode, setEntryMode] = useState<'weight' | 'price'>('weight')
@@ -510,7 +511,19 @@ export const ProductQuantityModal: React.FC<ProductQuantityModalProps> = ({
                     src={modalImgSrc}
                     alt={product.name}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    onError={() => setHasModalImgError(true)}
+                    onError={(e) => {
+                      const clean = activeModalImagePath?.replace(/^\/+/, '') || ''
+                      if (e.currentTarget.src.startsWith('app-images:///')) {
+                        const cached = typeof window !== 'undefined' ? localStorage.getItem(`pos_img_${clean}`) : null
+                        if (cached) {
+                          e.currentTarget.src = cached
+                        } else {
+                          e.currentTarget.src = `/images/${clean}`
+                        }
+                      } else {
+                        setHasModalImgError(true)
+                      }
+                    }}
                   />
                 ) : (
                   <Cake size={34} color="#4ade80" />

@@ -10,6 +10,7 @@ import {
   Space,
   Empty,
   Tooltip,
+  Dropdown,
   message
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -27,13 +28,15 @@ import {
   Clock,
   TrendingUp,
   Lock,
-  ShieldCheck
+  ShieldCheck,
+  Download
 } from 'lucide-react'
 import dayjs, { Dayjs } from 'dayjs'
 import { ordersApi, OrderDto, OrderItemDto } from '../../api/ordersApi'
 import { useAppStore } from '../../store/appStore'
 import { formatCurrency, formatDateTime } from '../../lib/formatters'
 import { ReceiptModal } from '../pos/ReceiptModal'
+import { downloadCsv, money, qty, csvDate, csvTime, CsvRow } from '../../lib/csvExport'
 
 export const OrdersPage: React.FC = () => {
   const currentShop = useAppStore((state) => state.currentShop)
@@ -176,6 +179,192 @@ export const OrdersPage: React.FC = () => {
       avgOrderValue: orders.length > 0 ? totalRevenue / orders.length : 0
     }
   }, [orders])
+
+  // Helper to determine single or mixed payment method
+  const getOrderPaymentMethod = (o: OrderDto): string => {
+    const methods = Array.from(new Set((o.payments || []).map((p) => (p.method || '').toUpperCase()).filter(Boolean)))
+    if (methods.length > 1) return 'MIXED'
+    return methods[0] || 'CASH'
+  }
+
+  // 1. Export Clean Orders Summary Table (1 row per order, uniform 14 columns)
+  const handleExportOrdersSummaryCSV = () => {
+    if (filteredOrders.length === 0) {
+      message.warning('No orders to export for the selected date / filter.')
+      return
+    }
+
+    const dateKey = selectedDate.format('YYYY-MM-DD')
+    const headers = [
+      'Order No',
+      'Date',
+      'Time',
+      'Cashier',
+      'Items Count',
+      'Items Summary',
+      'Subtotal (LKR)',
+      'Discount (LKR)',
+      'Tax (LKR)',
+      'Total Amount (LKR)',
+      'Payment Method',
+      'Cash Tendered (LKR)',
+      'Change Returned (LKR)',
+      'Status'
+    ]
+
+    let totalItemsCount = 0
+    let totalSubtotal = 0
+    let totalDiscount = 0
+    let totalTax = 0
+    let totalRevenue = 0
+    let totalCashGiven = 0
+    let totalChangeGiven = 0
+
+    const rows: CsvRow[] = [headers]
+
+    for (const o of filteredOrders) {
+      const orderItems = o.items || []
+      const orderQty = orderItems.reduce((s, i) => s + (Number(i.quantity) || 0), 0)
+      const subtotal = Number(o.subtotal ?? o.totalAmount) || 0
+      const discount = Number(o.discountAmount) || 0
+      const tax = Number(o.taxAmount) || 0
+      const total = Number(o.totalAmount) || 0
+      const cashGiven = (o.payments || []).reduce((s, p) => s + (Number(p.cashGiven) || 0), 0)
+      const changeGiven = (o.payments || []).reduce((s, p) => s + (Number(p.changeGiven) || 0), 0)
+
+      totalItemsCount += orderQty
+      totalSubtotal += subtotal
+      totalDiscount += discount
+      totalTax += tax
+      totalRevenue += total
+      totalCashGiven += cashGiven
+      totalChangeGiven += changeGiven
+
+      const itemsSummary = orderItems.map((i) => `${i.productName} (${i.quantity})`).join('; ')
+
+      rows.push([
+        o.orderNo,
+        csvDate(o.createdAt),
+        csvTime(o.createdAt),
+        o.cashierId || 'Cashier',
+        orderQty,
+        itemsSummary,
+        money(subtotal),
+        money(discount),
+        money(tax),
+        money(total),
+        getOrderPaymentMethod(o),
+        cashGiven > 0 ? money(cashGiven) : '0.00',
+        changeGiven > 0 ? money(changeGiven) : '0.00',
+        (o.status || 'completed').toUpperCase()
+      ])
+    }
+
+    // Uniform Summary Row (Exact 14 columns matching headers)
+    rows.push([
+      `TOTAL (${filteredOrders.length} Orders)`,
+      '',
+      '',
+      '',
+      qty(totalItemsCount),
+      '',
+      money(totalSubtotal),
+      money(totalDiscount),
+      money(totalTax),
+      money(totalRevenue),
+      '',
+      money(totalCashGiven),
+      money(totalChangeGiven),
+      ''
+    ])
+
+    const suffix = paymentFilter !== 'all' ? `_${paymentFilter}` : ''
+    downloadCsv(`Daily_Orders_Summary_${dateKey}${suffix}.csv`, rows)
+    message.success(`Orders summary exported successfully (${filteredOrders.length} orders)`)
+  }
+
+  // 2. Export Detailed Item-by-Item Sales Table (1 row per item sold, uniform 12 columns)
+  const handleExportOrderItemsDetailCSV = () => {
+    if (filteredOrders.length === 0) {
+      message.warning('No items to export for the selected date / filter.')
+      return
+    }
+
+    const dateKey = selectedDate.format('YYYY-MM-DD')
+    const headers = [
+      'Order No',
+      'Date',
+      'Time',
+      'Cashier',
+      'Item Code',
+      'Product Name',
+      'Unit Price (LKR)',
+      'Quantity',
+      'Discount (LKR)',
+      'Line Total (LKR)',
+      'Payment Method',
+      'Status'
+    ]
+
+    let totalQty = 0
+    let totalDiscount = 0
+    let totalLineAmount = 0
+
+    const rows: CsvRow[] = [headers]
+
+    for (const o of filteredOrders) {
+      const method = getOrderPaymentMethod(o)
+      const date = csvDate(o.createdAt)
+      const time = csvTime(o.createdAt)
+      const cashier = o.cashierId || 'Cashier'
+      const status = (o.status || 'completed').toUpperCase()
+
+      for (const item of o.items || []) {
+        const itemQty = Number(item.quantity) || 0
+        const itemDiscount = Number(item.discount) || 0
+        const itemSubtotal = Number(item.subtotal) || 0
+
+        totalQty += itemQty
+        totalDiscount += itemDiscount
+        totalLineAmount += itemSubtotal
+
+        rows.push([
+          o.orderNo,
+          date,
+          time,
+          cashier,
+          item.itemCode || '-',
+          item.productName,
+          money(item.unitPrice),
+          qty(itemQty),
+          money(itemDiscount),
+          money(itemSubtotal),
+          method,
+          status
+        ])
+      }
+    }
+
+    // Uniform Summary Row (Exact 12 columns matching headers)
+    rows.push([
+      `TOTAL (${rows.length - 1} Items Sold)`,
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      qty(totalQty),
+      money(totalDiscount),
+      money(totalLineAmount),
+      '',
+      ''
+    ])
+
+    const suffix = paymentFilter !== 'all' ? `_${paymentFilter}` : ''
+    downloadCsv(`Daily_Order_Items_Detail_${dateKey}${suffix}.csv`, rows)
+    message.success(`Item-wise sales detail exported successfully`)
+  }
 
   // Action: Open Details Modal
   const handleViewOrder = (order: OrderDto) => {
@@ -804,6 +993,33 @@ export const OrdersPage: React.FC = () => {
           <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>
             Showing <strong>{filteredOrders.length}</strong> of <strong>{orders.length}</strong> orders
           </span>
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'summary',
+                  label: 'Orders Summary (බිල්පත් ලේඛනය)',
+                  onClick: handleExportOrdersSummaryCSV
+                },
+                {
+                  key: 'items',
+                  label: 'Order Items Detail (අලෙවි වූ භාණ්ඩ ලේඛනය)',
+                  onClick: handleExportOrderItemsDetailCSV
+                }
+              ]
+            }}
+            placement="bottomRight"
+          >
+            <Button
+              id="orders-export-csv"
+              icon={<Download size={14} />}
+              onClick={handleExportOrdersSummaryCSV}
+              disabled={loading || filteredOrders.length === 0}
+              style={{ borderRadius: 8, fontWeight: 600 }}
+            >
+              Export CSV
+            </Button>
+          </Dropdown>
         </div>
       </div>
 

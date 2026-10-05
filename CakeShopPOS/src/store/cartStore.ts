@@ -84,6 +84,9 @@ export const useCartStore = create<CartState>((set, get) => ({
         existing.subtotal = Math.max(0, calculatedSubtotal)
         existing.current_stock = product.current_stock
         existing.track_inventory = Boolean(product.track_inventory)
+        if (!existing.image_path && (product.image_path || (product as any).imagePath)) {
+          existing.image_path = product.image_path || (product as any).imagePath
+        }
         return { items: updated }
       } else {
         const calculatedSubtotal = customSubtotal !== undefined
@@ -99,7 +102,7 @@ export const useCartStore = create<CartState>((set, get) => ({
           discount: 0,
           subtotal: calculatedSubtotal,
           barcode: product.barcode,
-          image_path: product.image_path,
+          image_path: product.image_path || (product as any).imagePath,
           unit: product.unit || 'pcs',
           current_stock: product.current_stock,
           track_inventory: Boolean(product.track_inventory)

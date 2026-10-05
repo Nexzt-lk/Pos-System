@@ -552,33 +552,44 @@ export const orderRepo = {
       peakSlot = [...positiveTimeline].sort((a, b) => b.revenue - a.revenue)[0]
     }
 
-    // 7. Recent Transactions / Orders in this range
+    // 7. Full Completed Orders Ledger for this range (used by the orders log + CSV exports)
     const recentOrders = db.query<{
       id: string
       order_no: string
       created_at: string
+      subtotal: number
+      tax_amount: number
       total_amount: number
       discount_amount: number
       status: string
       items_count: number
       payment_method: string
+      cashier_name: string
+      terminal_id: string
     }>(
       `
       SELECT 
         o.id,
         o.order_no,
         o.created_at,
+        COALESCE(o.subtotal, o.total_amount) as subtotal,
+        COALESCE(o.tax_amount, 0) as tax_amount,
         o.total_amount,
         COALESCE(o.discount_amount, 0) as discount_amount,
-        o.status,
-        COALESCE((SELECT sum(quantity) FROM order_items WHERE order_id = o.id), 1) as items_count,
-        COALESCE((SELECT UPPER(method) FROM payments WHERE order_id = o.id LIMIT 1), 'CASH') as payment_method
+        COALESCE(o.status, 'completed') as status,
+        COALESCE((SELECT sum(quantity) FROM order_items WHERE order_id = o.id), 0) as items_count,
+        CASE
+          WHEN (SELECT count(DISTINCT UPPER(method)) FROM payments WHERE order_id = o.id) > 1 THEN 'MIXED'
+          ELSE COALESCE((SELECT UPPER(method) FROM payments WHERE order_id = o.id LIMIT 1), 'CASH')
+        END as payment_method,
+        COALESCE(o.cashier_name, u.name, '') as cashier_name,
+        COALESCE(o.terminal_id, 'T1') as terminal_id
       FROM orders o
+      LEFT JOIN users u ON o.cashier_id = u.id
       WHERE COALESCE(strftime('%Y-%m-%d', o.created_at, 'localtime'), substr(o.created_at, 1, 10)) >= ? 
         AND COALESCE(strftime('%Y-%m-%d', o.created_at, 'localtime'), substr(o.created_at, 1, 10)) <= ? 
         AND (LOWER(o.status) = 'completed' OR o.status IS NULL OR o.status = '')
       ORDER BY o.created_at DESC
-      LIMIT 25
     `,
       [startDateStr, endDateStr]
     )
@@ -782,7 +793,6 @@ export const orderRepo = {
       FROM expenses
       WHERE substr(expense_date, 1, 10) >= ? AND substr(expense_date, 1, 10) <= ?
       ORDER BY expense_date DESC, created_at DESC
-      LIMIT 100
     `,
       [startDateStr, endDateStr]
     )

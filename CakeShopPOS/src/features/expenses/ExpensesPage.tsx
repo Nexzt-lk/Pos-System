@@ -42,6 +42,7 @@ import { useAppStore } from '../../store/appStore'
 import { formatCurrency } from '../../lib/formatters'
 import { expensesApi, ExpenseDto } from '../../api/expensesApi'
 import dayjs, { Dayjs } from 'dayjs'
+import { downloadCsv, money, csvDate, CsvRow } from '../../lib/csvExport'
 
 const { RangePicker } = DatePicker
 
@@ -57,6 +58,14 @@ export interface ExpenseCategoryDef {
 }
 
 export const EXPENSE_CATEGORIES: ExpenseCategoryDef[] = [
+  {
+    value: 'Stock Purchase',
+    label: 'Stock Purchase / Supplier GRN',
+    icon: Package,
+    color: '#059669',
+    bgColor: '#ecfdf5',
+    borderColor: '#a7f3d0'
+  },
   {
     value: 'Ingredients',
     label: 'Ingredients & Raw Materials',
@@ -411,35 +420,55 @@ export const ExpensesPage: React.FC = () => {
       return
     }
 
+    const rangeText =
+      dateMode === 'day'
+        ? selectedDate.format('YYYY-MM-DD')
+        : selectedRange && selectedRange[0] && selectedRange[1]
+        ? `${selectedRange[0].format('YYYY-MM-DD')} to ${selectedRange[1].format('YYYY-MM-DD')}`
+        : 'All'
     const headers = [
       'Voucher ID',
       'Date',
       'Category',
       'Description',
-      'Amount (LKR)',
       'Recorded By',
+      'Payment Method',
+      'Amount (LKR)',
       'Status'
     ]
-    const rows = filtered.map((e) => [
-      `"${e.localId || e.id}"`,
-      `"${e.expenseDate}"`,
-      `"${e.category || 'Other'}"`,
-      `"${(e.description || '').replace(/"/g, '""')}"`,
-      e.amount,
-      `"${e.addedBy || 'Cashier'}"`,
-      `"${e.syncStatus || 'synced'}"`
+
+    let totalAmount = 0
+    const rows: CsvRow[] = [headers]
+
+    for (const e of filtered) {
+      const amt = Number(e.amount) || 0
+      totalAmount += amt
+      rows.push([
+        e.localId || e.id,
+        csvDate(e.expenseDate),
+        e.category || 'Other',
+        e.description || '',
+        e.addedBy || 'Cashier',
+        (e.paymentMethod || 'CASH').toUpperCase(),
+        money(amt),
+        (e.syncStatus || 'synced').toUpperCase()
+      ])
+    }
+
+    rows.push([
+      `TOTAL (${filtered.length} vouchers)`,
+      '',
+      '',
+      '',
+      '',
+      '',
+      money(totalAmount),
+      ''
     ])
 
-    const csvContent =
-      'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
-    const encodedUri = encodeURI(csvContent)
-    const link = document.createElement('a')
-    link.setAttribute('href', encodedUri)
-    link.setAttribute('download', `Expenses_${dayjs().format('YYYY-MM-DD')}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    message.success('Expenses CSV exported successfully')
+    const catSuffix = selectedCategory !== 'all' ? `_${selectedCategory}` : ''
+    downloadCsv(`Expenses_Ledger_${rangeText.replace(/\s+/g, '_')}${catSuffix}.csv`, rows)
+    message.success(`Expenses exported successfully (${filtered.length} vouchers)`)
   }
 
   // ─── Modal Form Markup ──────────────────────────────────────────────────────

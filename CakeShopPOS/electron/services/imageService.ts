@@ -69,5 +69,37 @@ export const imageService = {
       console.error('[ImageService] Failed to save image:', err)
       return { success: false, error: err.message }
     }
+  },
+
+  saveBase64Image: (base64Data: string, prefix: string = 'product'): { success: boolean; relativePath?: string; error?: string } => {
+    try {
+      const imagesDir = path.join(app.getPath('userData'), 'images', 'products')
+      if (!fs.existsSync(imagesDir)) {
+        fs.mkdirSync(imagesDir, { recursive: true })
+      }
+
+      let ext = '.jpg'
+      let rawBase64 = base64Data
+
+      const match = base64Data.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/)
+      if (match) {
+        const format = match[1].toLowerCase()
+        ext = format === 'jpeg' ? '.jpg' : format === 'svg+xml' ? '.svg' : `.${format}`
+        rawBase64 = match[2]
+      }
+
+      const cleanPrefix = (prefix || 'product').toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 20) || 'product'
+      const filename = `${cleanPrefix}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}${ext}`
+      const destination = path.join(imagesDir, filename)
+      const buffer = Buffer.from(rawBase64, 'base64')
+      fs.writeFileSync(destination, buffer)
+
+      const relativePath = `products/${filename}`
+      console.log(`[ImageService] Saved base64 product image to ${destination} (${buffer.length} bytes)`)
+      return { success: true, relativePath }
+    } catch (err: any) {
+      console.error('[ImageService] Failed to save base64 image:', err)
+      return { success: false, error: err.message }
+    }
   }
 }

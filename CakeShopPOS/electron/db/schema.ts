@@ -73,7 +73,22 @@ CREATE TABLE IF NOT EXISTS inventory (
     UNIQUE(product_id)
 );
 
--- 6. Stock Movements
+-- 6. Suppliers
+CREATE TABLE IF NOT EXISTS suppliers (
+    id             TEXT PRIMARY KEY,
+    name           TEXT NOT NULL,
+    phone          TEXT,
+    contact_person TEXT,
+    email          TEXT,
+    address        TEXT,
+    notes          TEXT,
+    is_active      INTEGER DEFAULT 1,
+    created_at     TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    sync_status    TEXT DEFAULT 'pending' CHECK (sync_status IN ('pending','synced','conflict')),
+    UNIQUE(name)
+);
+
+-- 7. Stock Movements
 CREATE TABLE IF NOT EXISTS stock_movements (
     id              TEXT PRIMARY KEY,
     product_id      TEXT NOT NULL REFERENCES products(id),
@@ -84,6 +99,12 @@ CREATE TABLE IF NOT EXISTS stock_movements (
     reference_id    TEXT,
     note            TEXT,
     cost_per_unit   REAL,
+    supplier_id     TEXT REFERENCES suppliers(id) ON DELETE SET NULL,
+    supplier_name   TEXT,
+    total_cost      REAL,
+    invoice_no      TEXT,
+    payment_method  TEXT DEFAULT 'CASH',
+    done_by         TEXT,
     created_at      TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
     sync_status     TEXT DEFAULT 'pending' CHECK (sync_status IN ('pending','synced','conflict'))
 );
@@ -144,6 +165,10 @@ CREATE TABLE IF NOT EXISTS expenses (
     expense_date    TEXT NOT NULL,
     linked_product_id TEXT REFERENCES products(id) ON DELETE SET NULL,
     linked_stock_movement_id TEXT REFERENCES stock_movements(id) ON DELETE SET NULL,
+    supplier_id     TEXT REFERENCES suppliers(id) ON DELETE SET NULL,
+    supplier_name   TEXT,
+    invoice_no      TEXT,
+    payment_method  TEXT DEFAULT 'CASH',
     added_by        TEXT,
     created_at      TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
     local_id        TEXT NOT NULL,

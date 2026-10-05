@@ -12,6 +12,8 @@ import {
 } from 'lucide-react'
 import { formatCurrency, formatDateTime } from '../../lib/formatters'
 import dayjs from 'dayjs'
+import { message } from 'antd'
+import { downloadCsv, money, qty, pct, csvDate, csvTime, CsvRow } from '../../lib/csvExport'
 
 export type ReportKind = 'pnl' | 'sales' | 'expenses' | 'inventory' | 'products'
 
@@ -39,83 +41,279 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
   const shopPhone = currentShop?.phone || '+94 81 249 2000'
   const generatedTime = dayjs().format('YYYY-MM-DD hh:mm A')
 
-  // CSV Export for the chosen report type
+  // CSV Export for the chosen report type (Pure single-table per report, uniform columns, no metadata noise)
   const handleExportCSV = () => {
-    let headers: string[] = []
-    let rows: any[][] = []
-    let filename = `report_${selectedReport}_${dayjs().format('YYYYMMDD_HHmm')}.csv`
+    const revenue = Number(summary.total_revenue) || 0
+    const pctOfRevenue = (v: number) => (revenue > 0 ? (v / revenue) * 100 : 0)
+    const rangeLabel = analytics.startDate === analytics.endDate
+      ? (analytics.startDate || dayjs().format('YYYY-MM-DD'))
+      : `${analytics.startDate || dayjs().format('YYYY-MM-DD')}_to_${analytics.endDate || dayjs().format('YYYY-MM-DD')}`
 
     if (selectedReport === 'pnl') {
-      headers = ['Category / Line Item', 'Amount (LKR)', 'Margin / Share %']
-      rows = [
-        ['1. Gross Sales Revenue', summary.total_revenue || 0, '100%'],
-        ['Total Order Subtotal', summary.total_subtotal || summary.total_revenue, ''],
-        ['Total Customer Discounts', summary.total_discount || 0, ''],
-        ['2. Cost of Goods Sold (COGS)', summary.total_cost || 0, `${((summary.total_cost / (summary.total_revenue || 1)) * 100).toFixed(1)}%`],
-        ['3. Gross Profit', owner.grossProfit || summary.estimated_profit || 0, `${owner.grossProfitMargin || summary.profit_margin_pct || 0}%`],
-        ['4. Total Operating Expenses', owner.totalExpenses || 0, `${((owner.totalExpenses / (summary.total_revenue || 1)) * 100).toFixed(1)}%`],
-        ['5. Net Profit (Bottom Line)', owner.netProfit || 0, `${owner.netProfitMargin || 0}%`],
-        ['Physical Cash Collected', owner.cashDrawer?.cashSales || 0, ''],
-        ['Physical Cash Paid Out', owner.cashDrawer?.cashExpenses || 0, ''],
-        ['Expected Cash In Register', owner.cashDrawer?.netCashEstimated || 0, '']
+      const cd = owner.cashDrawer || {}
+      const rows: CsvRow[] = [
+        ['Section', 'Line Item', 'Amount (LKR)', '% of Net Revenue', 'Description'],
+        ['1. REVENUE', 'Gross Orders Subtotal', money(summary.total_subtotal), pct(pctOfRevenue(Number(summary.total_subtotal) || 0)), 'Total sales volume before discounts'],
+        ['1. REVENUE', 'Customer Discounts', money(summary.total_discount), pct(pctOfRevenue(Number(summary.total_discount) || 0)), 'Customer promotions and coupon deductions'],
+        ['1. REVENUE', 'Tax / VAT Collected', money(summary.total_tax), pct(pctOfRevenue(Number(summary.total_tax) || 0)), 'Sales tax collected on completed orders'],
+        ['1. REVENUE', 'Net Sales Revenue', money(revenue), '100.0%', 'Gross Subtotal minus Customer Discounts'],
+        ['2. COST OF SALES', 'Cost of Goods Sold (COGS)', money(summary.total_cost), pct(pctOfRevenue(Number(summary.total_cost) || 0)), 'Direct recipe and wholesale cost of sold products'],
+        ['3. PROFITABILITY', 'Gross Profit', money(owner.grossProfit ?? summary.estimated_profit), pct(owner.grossProfitMargin ?? summary.profit_margin_pct), 'Net Sales Revenue minus Cost of Goods Sold'],
+        ['4. OPERATING EXPENSES', 'Total Operating Expenses', money(owner.totalExpenses), pct(pctOfRevenue(Number(owner.totalExpenses) || 0)), 'Salaries, utilities, packaging, rent and maintenance'],
+        ['5. PROFITABILITY', 'Net Operating Profit (Bottom Line)', money(owner.netProfit), pct(owner.netProfitMargin), 'Gross Profit minus Operating Expenses'],
+        ['6. CASH RECONCILIATION', 'Physical Cash Collected', money(cd.cashSales), pct(pctOfRevenue(Number(cd.cashSales) || 0)), 'Physical cash tenders received into drawer from sales'],
+        ['6. CASH RECONCILIATION', 'Physical Cash Paid Out', money(cd.cashExpenses), pct(pctOfRevenue(Number(cd.cashExpenses) || 0)), 'Petty cash expenses paid out of register'],
+        ['6. CASH RECONCILIATION', 'Net Cash in Register', money(cd.netCashEstimated), pct(pctOfRevenue(Number(cd.netCashEstimated) || 0)), 'Cash sales minus petty cash expenses']
       ]
-    } else if (selectedReport === 'sales') {
-      headers = ['Order No', 'Created At', 'Items Count', 'Payment Method', 'Discount (LKR)', 'Total (LKR)', 'Status']
-      rows = (analytics.recentOrders || []).map((o: any) => [
-        `"${o.order_no}"`,
-        `"${formatDateTime(o.created_at)}"`,
-        o.items_count,
-        `"${o.payment_method}"`,
-        o.discount_amount || 0,
-        o.total_amount,
-        `"${o.status}"`
-      ])
-    } else if (selectedReport === 'expenses') {
-      headers = ['Date', 'Category', 'Description', 'Added By', 'Payment Method', 'Amount (LKR)', 'Notes']
-      rows = (owner.detailedExpenses || []).map((e: any) => [
-        `"${e.expense_date}"`,
-        `"${e.category}"`,
-        `"${e.description}"`,
-        `"${e.added_by}"`,
-        `"${e.payment_method}"`,
-        e.amount,
-        `"${e.notes || ''}"`
-      ])
-    } else if (selectedReport === 'inventory') {
-      headers = ['Product Name', 'Item Code', 'Category', 'Current Stock', 'Min Threshold', 'Cost Price (LKR)', 'Selling Price (LKR)', 'Unit']
-      rows = (owner.lowStockList || []).map((i: any) => [
-        `"${i.product_name}"`,
-        `"${i.item_code}"`,
-        `"${i.category_name}"`,
-        i.current_stock,
-        i.min_quantity,
-        i.cost_price,
-        i.price,
-        `"${i.unit || 'pcs'}"`
-      ])
-    } else if (selectedReport === 'products') {
-      headers = ['Product Name', 'Item Code', 'Category', 'Qty Sold', 'Revenue (LKR)', 'COGS (LKR)', 'Gross Profit (LKR)', 'Margin %', 'Revenue Share %']
-      rows = (analytics.itemBreakdown || []).map((p: any) => [
-        `"${p.product_name}"`,
-        `"${p.item_code}"`,
-        `"${p.category_name}"`,
-        p.total_qty,
-        p.total_revenue,
-        p.total_cogs,
-        p.gross_profit,
-        p.margin_pct,
-        p.revenue_share_pct
-      ])
-    }
+      downloadCsv(`Executive_PnL_Statement_${rangeLabel}.csv`, rows)
+      message.success('Executive P&L statement exported successfully')
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
-    const encodedUri = encodeURI(csvContent)
-    const link = document.createElement('a')
-    link.setAttribute('href', encodedUri)
-    link.setAttribute('download', filename)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    } else if (selectedReport === 'sales') {
+      const orders = analytics.recentOrders || []
+      const headers = [
+        'Order No',
+        'Date',
+        'Time',
+        'Cashier',
+        'Terminal',
+        'Items Count',
+        'Payment Method',
+        'Subtotal (LKR)',
+        'Discount (LKR)',
+        'Tax (LKR)',
+        'Total Amount (LKR)',
+        'Status'
+      ]
+
+      let totalItems = 0
+      let totalSubtotal = 0
+      let totalDiscount = 0
+      let totalTax = 0
+      let totalAmount = 0
+
+      const rows: CsvRow[] = [headers]
+
+      for (const o of orders) {
+        const itm = Number(o.items_count) || 0
+        const sub = Number(o.subtotal ?? o.total_amount) || 0
+        const disc = Number(o.discount_amount) || 0
+        const tx = Number(o.tax_amount) || 0
+        const tot = Number(o.total_amount) || 0
+
+        totalItems += itm
+        totalSubtotal += sub
+        totalDiscount += disc
+        totalTax += tx
+        totalAmount += tot
+
+        rows.push([
+          o.order_no,
+          csvDate(o.created_at),
+          csvTime(o.created_at),
+          o.cashier_name || 'Cashier',
+          o.terminal_id || '',
+          qty(itm),
+          (o.payment_method || 'CASH').toUpperCase(),
+          money(sub),
+          money(disc),
+          money(tx),
+          money(tot),
+          (o.status || 'completed').toUpperCase()
+        ])
+      }
+
+      rows.push([
+        `TOTAL (${orders.length} Orders)`,
+        '',
+        '',
+        '',
+        '',
+        qty(totalItems),
+        '',
+        money(totalSubtotal),
+        money(totalDiscount),
+        money(totalTax),
+        money(totalAmount),
+        ''
+      ])
+
+      downloadCsv(`Sales_Orders_Ledger_${rangeLabel}.csv`, rows)
+      message.success(`Sales ledger exported successfully (${orders.length} orders)`)
+
+    } else if (selectedReport === 'expenses') {
+      const expenses = owner.detailedExpenses || []
+      const headers = [
+        'Voucher ID',
+        'Date',
+        'Category',
+        'Description',
+        'Recorded By',
+        'Payment Method',
+        'Amount (LKR)',
+        'Notes'
+      ]
+
+      let totalAmount = 0
+      const rows: CsvRow[] = [headers]
+
+      for (const e of expenses) {
+        const amt = Number(e.amount) || 0
+        totalAmount += amt
+
+        rows.push([
+          e.id || e.local_id || '',
+          csvDate(e.expense_date),
+          e.category || 'Other',
+          e.description || '',
+          e.added_by || 'Staff',
+          (e.payment_method || 'CASH').toUpperCase(),
+          money(amt),
+          e.notes || ''
+        ])
+      }
+
+      rows.push([
+        `TOTAL (${expenses.length} Vouchers)`,
+        '',
+        '',
+        '',
+        '',
+        '',
+        money(totalAmount),
+        ''
+      ])
+
+      downloadCsv(`Operating_Expenses_Ledger_${rangeLabel}.csv`, rows)
+      message.success(`Operating expenses exported successfully (${expenses.length} vouchers)`)
+
+    } else if (selectedReport === 'inventory') {
+      const lowStock = owner.lowStockList || []
+      const headers = [
+        'Item Code',
+        'Product Name',
+        'Category',
+        'Current Stock',
+        'Min Threshold',
+        'Unit',
+        'Cost Price (LKR)',
+        'Retail Price (LKR)',
+        'Total Cost Value (LKR)',
+        'Stock Status'
+      ]
+
+      let totalStockCost = 0
+      const rows: CsvRow[] = [headers]
+
+      for (const i of lowStock) {
+        const curStock = Number(i.current_stock) || 0
+        const costPrice = Number(i.cost_price) || 0
+        const stockCost = curStock * costPrice
+        totalStockCost += stockCost
+
+        rows.push([
+          i.item_code || '',
+          i.product_name || '',
+          i.category_name || '',
+          qty(curStock),
+          qty(i.min_quantity || 0),
+          i.unit || 'pcs',
+          money(costPrice),
+          money(i.price),
+          money(stockCost),
+          curStock <= 0 ? 'OUT OF STOCK' : 'LOW STOCK'
+        ])
+      }
+
+      rows.push([
+        `TOTAL (${lowStock.length} Low Stock Items)`,
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        money(totalStockCost),
+        ''
+      ])
+
+      downloadCsv(`Inventory_LowStock_Audit_${rangeLabel}.csv`, rows)
+      message.success(`Inventory low-stock audit exported successfully (${lowStock.length} items)`)
+
+    } else if (selectedReport === 'products') {
+      const items = analytics.itemBreakdown || []
+      const headers = [
+        'Item Code',
+        'Product Name',
+        'Category',
+        'Units Sold',
+        'Avg Selling Price (LKR)',
+        'Avg Cost Price (LKR)',
+        'Total Discounts (LKR)',
+        'Gross Revenue (LKR)',
+        'Total COGS (LKR)',
+        'Gross Profit (LKR)',
+        'Gross Margin %',
+        'Revenue Share %'
+      ]
+
+      let totalQty = 0
+      let totalDiscount = 0
+      let totalRevenue = 0
+      let totalCogs = 0
+      let totalProfit = 0
+
+      const rows: CsvRow[] = [headers]
+
+      for (const p of items) {
+        const q = Number(p.total_qty) || 0
+        const d = Number(p.total_discount) || 0
+        const r = Number(p.total_revenue) || 0
+        const c = Number(p.total_cogs) || 0
+        const profit = Number(p.gross_profit) || 0
+
+        totalQty += q
+        totalDiscount += d
+        totalRevenue += r
+        totalCogs += c
+        totalProfit += profit
+
+        rows.push([
+          p.item_code || '',
+          p.product_name || '',
+          p.category_name || '',
+          qty(q),
+          money(p.avg_unit_price),
+          money(p.avg_cost_price),
+          money(d),
+          money(r),
+          money(c),
+          money(profit),
+          pct(p.margin_pct),
+          pct(p.revenue_share_pct)
+        ])
+      }
+
+      const overallMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0
+
+      rows.push([
+        `TOTAL (${items.length} Products)`,
+        '',
+        '',
+        qty(totalQty),
+        '',
+        '',
+        money(totalDiscount),
+        money(totalRevenue),
+        money(totalCogs),
+        money(totalProfit),
+        pct(overallMargin),
+        '100.0%'
+      ])
+
+      downloadCsv(`Product_Sales_Profit_${rangeLabel}.csv`, rows)
+      message.success(`Product profit report exported successfully (${items.length} products)`)
+    }
   }
 
   const handlePrint = () => {
@@ -128,35 +326,35 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
       title: 'Executive P&L Statement',
       sinhala: 'සමස්ත ලාභ-අලාභ වාර්තාව',
       desc: 'Revenue, COGS, operating expenses & net margins',
-      icon: <Crown size={16} color="#d97706" />
+      icon: <Crown size={16} />
     },
     {
       key: 'sales' as ReportKind,
       title: 'Sales & Invoices Report',
       sinhala: 'දෛනික විකුණුම් වාර්තාව',
       desc: 'Bills log, payments, discounts & ticket averages',
-      icon: <DollarSign size={16} color="#16a34a" />
+      icon: <DollarSign size={16} />
     },
     {
       key: 'expenses' as ReportKind,
       title: 'Operating Expenses Report',
       sinhala: 'දෛනික වියදම් විස්තර වාර්තාව',
       desc: 'Vouchers categorized by rent, utilities, wages, etc.',
-      icon: <TrendingDown size={16} color="#ea580c" />
+      icon: <TrendingDown size={16} />
     },
     {
       key: 'inventory' as ReportKind,
       title: 'Inventory & Stock Audit',
       sinhala: 'තොග හා අඩු තොග වාර්තාව',
       desc: 'Locked capital, critical low stock & damaged loss',
-      icon: <Package size={16} color="#2563eb" />
+      icon: <Package size={16} />
     },
     {
       key: 'products' as ReportKind,
       title: 'Item Sales & Profit Contribution',
       sinhala: 'භාණ්ඩ අනුව ලාභ වාර්තාව',
       desc: 'Product unit sales, revenue share & gross margins',
-      icon: <TrendingUp size={16} color="#0891b2" />
+      icon: <TrendingUp size={16} />
     }
   ]
 
@@ -179,10 +377,10 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
     >
       <div
         style={{
-          background: 'var(--surface, #ffffff)',
+          background: '#ffffff',
           borderRadius: 16,
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-          border: '1px solid var(--border, #e2e8f0)',
+          boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)',
+          border: '1px solid #e2e8f0',
           width: '100%',
           maxWidth: 1040,
           maxHeight: '94vh',
@@ -195,11 +393,11 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
         <div
           style={{
             padding: '16px 24px',
-            borderBottom: '1px solid var(--border, #e2e8f0)',
+            borderBottom: '1px solid #e2e8f0',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            background: 'var(--surface-2, #f8fafc)',
+            background: '#f8fafc',
             gap: 12,
             flexWrap: 'wrap'
           }}
@@ -207,23 +405,23 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div
               style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                background: 'linear-gradient(135deg, #1e293b, #0f172a)',
+                width: 38,
+                height: 38,
+                borderRadius: 8,
+                background: '#0f172a',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#facc15'
+                color: '#ffffff'
               }}
             >
-              <FileText size={20} />
+              <FileText size={18} />
             </div>
             <div>
-              <h2 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: 'var(--text-primary, #0f172a)' }}>
+              <h2 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
                 Official Report Generator (ව්‍යාපාරික වාර්තා සකසන්න)
               </h2>
-              <p style={{ fontSize: 12, color: 'var(--text-secondary, #64748b)', margin: '2px 0 0' }}>
+              <p style={{ fontSize: 12, color: '#64748b', margin: '2px 0 0' }}>
                 Generate, preview, print, or export executive-grade financial &amp; operational reports
               </p>
             </div>
@@ -236,17 +434,18 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                padding: '6px 14px',
-                borderRadius: 8,
-                border: '1px solid var(--border, #cbd5e1)',
-                background: 'var(--surface, #ffffff)',
-                color: 'var(--text-primary, #1e293b)',
+                padding: '7px 14px',
+                borderRadius: 6,
+                border: '1px solid #cbd5e1',
+                background: '#ffffff',
+                color: '#0f172a',
                 fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer'
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
               }}
             >
-              <Download size={14} color="#16a34a" />
+              <Download size={14} color="#0f172a" />
               <span>Export CSV</span>
             </button>
 
@@ -256,15 +455,16 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                padding: '6px 16px',
-                borderRadius: 8,
+                padding: '7px 16px',
+                borderRadius: 6,
                 border: 'none',
-                background: '#16a34a',
+                background: '#0f172a',
                 color: '#ffffff',
                 fontSize: 12,
                 fontWeight: 700,
                 cursor: 'pointer',
-                boxShadow: '0 2px 8px rgba(22, 163, 74, 0.3)'
+                boxShadow: '0 1px 3px rgba(15, 23, 42, 0.2)',
+                transition: 'all 0.15s ease'
               }}
             >
               <Printer size={14} />
@@ -274,19 +474,19 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
             <button
               onClick={onClose}
               style={{
-                width: 34,
-                height: 34,
-                borderRadius: 8,
-                border: '1px solid var(--border, #cbd5e1)',
-                background: 'var(--surface, #ffffff)',
+                width: 32,
+                height: 32,
+                borderRadius: 6,
+                border: '1px solid #e2e8f0',
+                background: '#ffffff',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                color: 'var(--text-secondary, #64748b)'
+                color: '#64748b'
               }}
             >
-              <X size={18} />
+              <X size={16} />
             </button>
           </div>
         </div>
@@ -295,8 +495,8 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
         <div
           style={{
             padding: '12px 24px',
-            background: 'var(--surface, #ffffff)',
-            borderBottom: '1px solid var(--border, #e2e8f0)',
+            background: '#ffffff',
+            borderBottom: '1px solid #e2e8f0',
             display: 'flex',
             gap: 10,
             overflowX: 'auto'
@@ -313,21 +513,24 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                   alignItems: 'center',
                   gap: 8,
                   padding: '8px 14px',
-                  borderRadius: 10,
-                  border: isSelected ? '2px solid #16a34a' : '1px solid var(--border, #e2e8f0)',
-                  background: isSelected ? '#f0fdf4' : 'var(--surface-2, #f8fafc)',
+                  borderRadius: 8,
+                  border: isSelected ? '1px solid #0f172a' : '1px solid #e2e8f0',
+                  background: isSelected ? '#0f172a' : '#f8fafc',
+                  color: isSelected ? '#ffffff' : '#0f172a',
                   cursor: 'pointer',
                   textAlign: 'left',
                   transition: 'all 0.15s ease',
                   flexShrink: 0
                 }}
               >
-                {rt.icon}
+                <span style={{ color: isSelected ? '#ffffff' : '#475569', display: 'flex' }}>
+                  {rt.icon}
+                </span>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: isSelected ? '#166534' : 'var(--text-primary, #0f172a)' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: isSelected ? '#ffffff' : '#0f172a' }}>
                     {rt.title}
                   </div>
-                  <div style={{ fontSize: 10, color: isSelected ? '#15803d' : 'var(--text-muted, #94a3b8)' }}>
+                  <div style={{ fontSize: 10, color: isSelected ? '#cbd5e1' : '#64748b' }}>
                     {rt.sinhala}
                   </div>
                 </div>

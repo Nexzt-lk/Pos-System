@@ -54,6 +54,8 @@ import { reportsApi } from '../../api/reportsApi'
 import { RefreshButton } from '../../components/RefreshButton'
 import { AnalyticsDetailModal, DetailModalType } from './AnalyticsDetailModal'
 import { ReportGeneratorModal } from './ReportGeneratorModal'
+import { Dropdown, message } from 'antd'
+import { downloadCsv, money, qty, pct, csvDate, csvTime, CsvRow } from '../../lib/csvExport'
 
 type PeriodType = 'daily' | 'weekly' | 'monthly' | 'custom'
 
@@ -187,21 +189,25 @@ interface AnalyticsState {
     status: string
     items_count: number
     payment_method: string
+    subtotal?: number
+    tax_amount?: number
+    cashier_name?: string
+    terminal_id?: string
   }>
 }
 
 const PAYMENT_COLORS: Record<string, string> = {
-  CASH: '#16a34a',
-  CARD: '#2563eb',
-  TRANSFER: '#8b5cf6',
-  MIXED: '#f59e0b'
+  CASH: '#0f766e',
+  CARD: '#334155',
+  TRANSFER: '#64748b',
+  MIXED: '#94a3b8'
 }
 
 const PAYMENT_ICONS: Record<string, React.ReactNode> = {
-  CASH: <Banknote size={15} color="#16a34a" />,
-  CARD: <CreditCard size={15} color="#2563eb" />,
-  TRANSFER: <Building2 size={15} color="#8b5cf6" />,
-  MIXED: <Layers size={15} color="#f59e0b" />
+  CASH: <Banknote size={15} color="#0f766e" />,
+  CARD: <CreditCard size={15} color="#334155" />,
+  TRANSFER: <Building2 size={15} color="#64748b" />,
+  MIXED: <Layers size={15} color="#94a3b8" />
 }
 
 export const ReportsPage: React.FC = () => {
@@ -454,26 +460,284 @@ export const ReportsPage: React.FC = () => {
     }
   }, [period, selectedDate, customStartDate, customEndDate])
 
-  // Export data to CSV
-  const handleExportCSV = () => {
+  // ─── Export Tabular CSVs (Clean, single table per file, uniform columns) ───
+
+  // 1. Product-wise Sales & Profit Performance (12 uniform columns)
+  const handleExportProductsCSV = () => {
     if (!analytics) return
-    const headers = ['Label/Time', 'Orders Count', 'Gross Revenue (Rs.)', 'Discount (Rs.)', 'Avg Ticket (Rs.)']
-    const rows = analytics.timeline.map((t) => [
-      `"${t.label}"`,
-      t.orders,
-      t.revenue,
-      t.discount,
-      t.avgTicket
+    const items = analytics.itemBreakdown || []
+    if (items.length === 0) {
+      message.warning('No product sales data to export for this period.')
+      return
+    }
+
+    const rangeLabel = analytics.startDate === analytics.endDate
+      ? analytics.startDate
+      : `${analytics.startDate}_to_${analytics.endDate}`
+
+    const headers = [
+      'Item Code',
+      'Product Name',
+      'Category',
+      'Units Sold',
+      'Avg Selling Price (LKR)',
+      'Avg Cost Price (LKR)',
+      'Total Discounts (LKR)',
+      'Gross Revenue (LKR)',
+      'Total COGS (LKR)',
+      'Gross Profit (LKR)',
+      'Gross Margin %',
+      'Revenue Share %'
+    ]
+
+    let totalQty = 0
+    let totalDiscount = 0
+    let totalRevenue = 0
+    let totalCogs = 0
+    let totalProfit = 0
+
+    const rows: CsvRow[] = [headers]
+
+    for (const i of items) {
+      const q = Number(i.total_qty) || 0
+      const d = Number(i.total_discount) || 0
+      const r = Number(i.total_revenue) || 0
+      const c = Number(i.total_cogs) || 0
+      const p = Number(i.gross_profit) || 0
+
+      totalQty += q
+      totalDiscount += d
+      totalRevenue += r
+      totalCogs += c
+      totalProfit += p
+
+      rows.push([
+        i.item_code || '',
+        i.product_name || '',
+        i.category_name || '',
+        qty(q),
+        money(i.avg_unit_price),
+        money(i.avg_cost_price),
+        money(d),
+        money(r),
+        money(c),
+        money(p),
+        pct(i.margin_pct),
+        pct(i.revenue_share_pct)
+      ])
+    }
+
+    const overallMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0
+
+    rows.push([
+      `TOTAL (${items.length} Products)`,
+      '',
+      '',
+      qty(totalQty),
+      '',
+      '',
+      money(totalDiscount),
+      money(totalRevenue),
+      money(totalCogs),
+      money(totalProfit),
+      pct(overallMargin),
+      '100.0%'
     ])
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
-    const encodedUri = encodeURI(csvContent)
-    const link = document.createElement('a')
-    link.setAttribute('href', encodedUri)
-    link.setAttribute('download', `Sales_Report_${period}_${selectedDate}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    downloadCsv(`Product_Sales_Performance_${period}_${rangeLabel}.csv`, rows)
+    message.success(`Product performance exported successfully (${items.length} products)`)
+  }
+
+  // 2. Completed Orders Ledger (12 uniform columns)
+  const handleExportOrdersCSV = () => {
+    if (!analytics) return
+    const orders = analytics.recentOrders || []
+    if (orders.length === 0) {
+      message.warning('No completed orders to export for this period.')
+      return
+    }
+
+    const rangeLabel = analytics.startDate === analytics.endDate
+      ? analytics.startDate
+      : `${analytics.startDate}_to_${analytics.endDate}`
+
+    const headers = [
+      'Order No',
+      'Date',
+      'Time',
+      'Cashier',
+      'Terminal',
+      'Items Count',
+      'Payment Method',
+      'Subtotal (LKR)',
+      'Discount (LKR)',
+      'Tax (LKR)',
+      'Total Amount (LKR)',
+      'Status'
+    ]
+
+    let totalItems = 0
+    let totalSubtotal = 0
+    let totalDiscount = 0
+    let totalTax = 0
+    let totalAmount = 0
+
+    const rows: CsvRow[] = [headers]
+
+    for (const o of orders) {
+      const itmCount = Number(o.items_count) || 0
+      const sub = Number(o.subtotal ?? o.total_amount) || 0
+      const disc = Number(o.discount_amount) || 0
+      const tx = Number(o.tax_amount) || 0
+      const tot = Number(o.total_amount) || 0
+
+      totalItems += itmCount
+      totalSubtotal += sub
+      totalDiscount += disc
+      totalTax += tx
+      totalAmount += tot
+
+      rows.push([
+        o.order_no,
+        csvDate(o.created_at),
+        csvTime(o.created_at),
+        o.cashier_name || 'Cashier',
+        o.terminal_id || '',
+        qty(itmCount),
+        (o.payment_method || 'CASH').toUpperCase(),
+        money(sub),
+        money(disc),
+        money(tx),
+        money(tot),
+        (o.status || 'completed').toUpperCase()
+      ])
+    }
+
+    rows.push([
+      `TOTAL (${orders.length} Orders)`,
+      '',
+      '',
+      '',
+      '',
+      qty(totalItems),
+      '',
+      money(totalSubtotal),
+      money(totalDiscount),
+      money(totalTax),
+      money(totalAmount),
+      ''
+    ])
+
+    downloadCsv(`Completed_Orders_Ledger_${period}_${rangeLabel}.csv`, rows)
+    message.success(`Orders ledger exported successfully (${orders.length} orders)`)
+  }
+
+  // 3. Sales Timeline Breakdown (6 uniform columns)
+  const handleExportTimelineCSV = () => {
+    if (!analytics) return
+    const timeline = analytics.timeline || []
+    if (timeline.length === 0) {
+      message.warning('No timeline data to export for this period.')
+      return
+    }
+
+    const rangeLabel = analytics.startDate === analytics.endDate
+      ? analytics.startDate
+      : `${analytics.startDate}_to_${analytics.endDate}`
+
+    const headers = [
+      period === 'daily' ? 'Hour Interval' : 'Date',
+      'Completed Orders',
+      'Gross Sales (LKR)',
+      'Discounts (LKR)',
+      'Net Revenue (LKR)',
+      'Average Ticket (LKR)'
+    ]
+
+    let totalOrders = 0
+    let totalGross = 0
+    let totalDiscount = 0
+    let totalRevenue = 0
+
+    const rows: CsvRow[] = [headers]
+
+    for (const t of timeline) {
+      const ords = Number(t.orders) || 0
+      const rev = Number(t.revenue) || 0
+      const disc = Number(t.discount) || 0
+      const gross = rev + disc
+
+      totalOrders += ords
+      totalGross += gross
+      totalDiscount += disc
+      totalRevenue += rev
+
+      rows.push([
+        period === 'daily' ? t.label : (t.date || t.label),
+        qty(ords),
+        money(gross),
+        money(disc),
+        money(rev),
+        money(t.avgTicket)
+      ])
+    }
+
+    const overallAov = totalOrders > 0 ? totalRevenue / totalOrders : 0
+
+    rows.push([
+      'TOTAL',
+      qty(totalOrders),
+      money(totalGross),
+      money(totalDiscount),
+      money(totalRevenue),
+      money(overallAov)
+    ])
+
+    downloadCsv(`Sales_Timeline_${period}_${rangeLabel}.csv`, rows)
+    message.success('Timeline breakdown exported successfully')
+  }
+
+  // 4. Executive Financial Summary (4 uniform columns)
+  const handleExportSummaryCSV = () => {
+    if (!analytics) return
+    const s = analytics.summary
+    const owner = analytics.ownerMetrics
+    const rangeLabel = analytics.startDate === analytics.endDate
+      ? analytics.startDate
+      : `${analytics.startDate}_to_${analytics.endDate}`
+
+    const headers = ['Financial Metric', 'Value', 'Unit', 'Notes']
+    const rows: CsvRow[] = [
+      headers,
+      ['Completed Orders', qty(s.total_orders), 'Orders', 'Total paid transactions'],
+      ['Items Sold', qty(s.total_items_sold), 'Units', 'Total quantity of units sold'],
+      ['Gross Sales Subtotal', money(s.total_subtotal), 'LKR', 'Gross sales value before discounts'],
+      ['Customer Discounts', money(s.total_discount), 'LKR', 'Promotions and order discounts'],
+      ['Tax / VAT Collected', money(s.total_tax), 'LKR', 'Sales tax collected'],
+      ['Net Sales Revenue', money(s.total_revenue), 'LKR', 'Gross Subtotal minus Discounts'],
+      ['Cost of Goods Sold (COGS)', money(s.total_cost), 'LKR', 'Cost of goods sold based on recipe/inventory costs'],
+      ['Gross Profit', money(s.estimated_profit), 'LKR', 'Net Revenue minus COGS'],
+      ['Gross Profit Margin', pct(s.profit_margin_pct), '%', 'Gross profit percentage'],
+      ['Operating Expenses', money(owner?.totalExpenses), 'LKR', 'Total recorded operating expenses'],
+      ['Net Operating Profit', money(owner?.netProfit ?? s.estimated_profit), 'LKR', 'Gross Profit minus Operating Expenses'],
+      ['Net Profit Margin', pct(owner?.netProfitMargin ?? s.profit_margin_pct), '%', 'Bottom line net profit margin'],
+      ['Average Order Value (AOV)', money(s.avg_order_value), 'LKR', 'Average sales revenue per order ticket'],
+      ['Physical Cash Sales', money(owner?.cashDrawer?.cashSales), 'LKR', 'Cash tenders received at register'],
+      ['Physical Cash Paid Out', money(owner?.cashDrawer?.cashExpenses), 'LKR', 'Petty cash expenses paid out of drawer'],
+      ['Net Cash in Drawer', money(owner?.cashDrawer?.netCashEstimated), 'LKR', 'Cash collected minus petty cash paid out']
+    ]
+
+    downloadCsv(`Financial_Executive_Summary_${period}_${rangeLabel}.csv`, rows)
+    message.success('Financial summary exported successfully')
+  }
+
+  // Default export action (matches current active table tab)
+  const handleExportCSV = () => {
+    if (tableTab === 'items') {
+      handleExportProductsCSV()
+    } else {
+      handleExportOrdersCSV()
+    }
   }
 
   // Custom Chart Tooltip
@@ -482,36 +746,35 @@ export const ReportsPage: React.FC = () => {
       const data = payload[0].payload
       return (
         <div style={{
-          background: 'rgba(15, 23, 42, 0.95)',
+          background: '#0f172a',
           color: '#ffffff',
           padding: '12px 16px',
           borderRadius: 10,
-          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.4)',
+          border: '1px solid #334155',
           fontSize: 12,
-          minWidth: 180,
-          backdropFilter: 'blur(8px)'
+          minWidth: 190
         }}>
-          <div style={{ fontWeight: 800, color: '#94a3b8', marginBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 4 }}>
+          <div style={{ fontWeight: 700, color: '#94a3b8', marginBottom: 8, borderBottom: '1px solid #1e293b', paddingBottom: 6 }}>
             {data.label}
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 4 }}>
-            <span style={{ color: '#86efac', fontWeight: 600 }}>Total Revenue:</span>
-            <span style={{ fontWeight: 800 }}>{formatCurrency(data.revenue)}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, marginBottom: 5 }}>
+            <span style={{ color: '#94a3b8' }}>Revenue</span>
+            <span style={{ fontWeight: 800, color: '#ffffff', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(data.revenue)}</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 4 }}>
-            <span style={{ color: '#93c5fd', fontWeight: 600 }}>Total Orders:</span>
-            <span style={{ fontWeight: 800 }}>{data.orders} bills</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, marginBottom: 5 }}>
+            <span style={{ color: '#94a3b8' }}>Orders</span>
+            <span style={{ fontWeight: 700, color: '#f1f5f9', fontVariantNumeric: 'tabular-nums' }}>{data.orders} bills</span>
           </div>
           {data.discount > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 4 }}>
-              <span style={{ color: '#fcd34d', fontWeight: 600 }}>Discounts:</span>
-              <span style={{ fontWeight: 700 }}>{formatCurrency(data.discount)}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, marginBottom: 5 }}>
+              <span style={{ color: '#94a3b8' }}>Discounts</span>
+              <span style={{ fontWeight: 600, color: '#f8fafc', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(data.discount)}</span>
             </div>
           )}
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-            <span style={{ color: '#cbd5e1', fontWeight: 500 }}>Avg Ticket:</span>
-            <span style={{ fontWeight: 700 }}>{formatCurrency(data.avgTicket)}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, paddingTop: 4, borderTop: '1px solid #1e293b' }}>
+            <span style={{ color: '#64748b' }}>Avg Ticket</span>
+            <span style={{ fontWeight: 600, color: '#cbd5e1', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(data.avgTicket)}</span>
           </div>
         </div>
       )
@@ -610,7 +873,7 @@ export const ReportsPage: React.FC = () => {
   const isCurrentDayFuture = dayjs(selectedDate).isSame(dayjs(), 'day')
 
   return (
-    <div className="page-container" style={{ overflowY: 'auto', padding: '20px 24px', gap: 20 }}>
+    <div className="page-container" style={{ overflowY: 'auto', padding: '20px 24px', gap: 18, background: '#fafbfc' }}>
       {/* Top View Mode Switcher: Store Sales & Item Analytics vs Owner's Executive Hub */}
       <div style={{
         display: 'flex',
@@ -618,33 +881,41 @@ export const ReportsPage: React.FC = () => {
         justifyContent: 'space-between',
         flexWrap: 'wrap',
         gap: 12,
-        background: 'var(--surface)',
-        padding: '10px 16px',
-        borderRadius: 'var(--radius-lg)',
-        border: '1px solid var(--border)',
-        boxShadow: 'var(--shadow-sm)'
+        background: '#ffffff',
+        padding: '8px 14px',
+        borderRadius: 14,
+        border: '1px solid #e8ecf1',
+        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)'
       }}>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
+          background: '#f1f5f9',
+          padding: 4,
+          borderRadius: 10,
+          border: '1px solid #e2e8f0'
+        }}>
           <button
             onClick={() => setViewMode('store')}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 8,
-              padding: '8px 18px',
-              borderRadius: 'var(--radius)',
-              border: 'none',
-              fontSize: 13,
-              fontWeight: 800,
+              padding: '7px 16px',
+              borderRadius: 8,
+              border: viewMode === 'store' ? '1px solid #e2e8f0' : '1px solid transparent',
+              fontSize: 12.5,
+              fontWeight: viewMode === 'store' ? 700 : 600,
               cursor: 'pointer',
-              background: viewMode === 'store' ? 'var(--primary)' : 'var(--surface-2)',
-              color: viewMode === 'store' ? '#ffffff' : 'var(--text-secondary)',
-              boxShadow: viewMode === 'store' ? '0 2px 8px rgba(22, 163, 74, 0.3)' : 'none',
-              transition: 'all 0.2s ease'
+              background: viewMode === 'store' ? '#ffffff' : 'transparent',
+              color: viewMode === 'store' ? '#0f172a' : '#64748b',
+              boxShadow: viewMode === 'store' ? '0 1px 3px rgba(0, 0, 0, 0.06)' : 'none',
+              transition: 'all 0.18s ease'
             }}
           >
-            <BarChart3 size={16} />
-            <span>Store Sales & Items Analysis (විකුණුම් හා භාණ්ඩ විශ්ලේෂණය)</span>
+            <BarChart3 size={15} style={{ color: viewMode === 'store' ? '#0f172a' : '#94a3b8' }} />
+            <span>Store Sales &amp; Item Analysis</span>
           </button>
 
           <button
@@ -653,36 +924,48 @@ export const ReportsPage: React.FC = () => {
               display: 'inline-flex',
               alignItems: 'center',
               gap: 8,
-              padding: '8px 18px',
-              borderRadius: 'var(--radius)',
-              border: 'none',
-              fontSize: 13,
-              fontWeight: 800,
+              padding: '7px 16px',
+              borderRadius: 8,
+              border: viewMode === 'owner' ? '1px solid #0f172a' : '1px solid transparent',
+              fontSize: 12.5,
+              fontWeight: viewMode === 'owner' ? 700 : 600,
               cursor: 'pointer',
-              background: viewMode === 'owner' ? 'linear-gradient(135deg, #0f172a, #1e293b)' : 'var(--surface-2)',
-              color: viewMode === 'owner' ? '#facc15' : 'var(--text-secondary)',
-              boxShadow: viewMode === 'owner' ? '0 4px 12px rgba(15, 23, 42, 0.4)' : 'none',
-              transition: 'all 0.2s ease'
+              background: viewMode === 'owner' ? '#0f172a' : 'transparent',
+              color: viewMode === 'owner' ? '#ffffff' : '#64748b',
+              boxShadow: viewMode === 'owner' ? '0 2px 6px rgba(15, 23, 42, 0.25)' : 'none',
+              transition: 'all 0.18s ease'
             }}
           >
-            <Crown size={16} color={viewMode === 'owner' ? '#facc15' : '#eab308'} />
-            <span>Owner's Executive Hub (හිමිකරුගේ ප්‍රධාන ව්‍යාපාර පුවරුව)</span>
+            <Crown size={15} style={{ color: viewMode === 'owner' ? '#e2e8f0' : '#94a3b8' }} />
+            <span>Owner's Executive Hub</span>
             <span style={{
-              background: viewMode === 'owner' ? '#facc15' : '#fef08a',
-              color: '#854d0e',
-              fontSize: 10,
+              background: viewMode === 'owner' ? 'rgba(255, 255, 255, 0.2)' : '#e2e8f0',
+              color: viewMode === 'owner' ? '#ffffff' : '#475569',
+              fontSize: 9.5,
               fontWeight: 800,
-              padding: '1px 7px',
-              borderRadius: 99
+              padding: '1px 6px',
+              borderRadius: 4,
+              letterSpacing: '0.04em'
             }}>
-              OWNER
+              P&amp;L
             </span>
           </button>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>
-          <ShieldCheck size={14} color="var(--primary)" />
-          <span>{viewMode === 'store' ? 'Operational Level Reporting' : 'C-Suite Business Intelligence'}</span>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          fontSize: 11,
+          fontWeight: 600,
+          color: '#64748b',
+          background: '#f8fafc',
+          padding: '4px 10px',
+          borderRadius: 8,
+          border: '1px solid #e2e8f0'
+        }}>
+          <ShieldCheck size={13} style={{ color: '#0f172a' }} />
+          <span>{viewMode === 'store' ? 'Operational Level Analytics' : 'C-Suite Financial Intelligence'}</span>
         </div>
       </div>
 
@@ -693,36 +976,36 @@ export const ReportsPage: React.FC = () => {
         alignItems: 'center',
         justifyContent: 'space-between',
         gap: 16,
-        background: 'var(--surface)',
+        background: '#ffffff',
         padding: '16px 20px',
-        borderRadius: 'var(--radius-lg)',
-        border: '1px solid var(--border)',
-        boxShadow: 'var(--shadow-sm)'
+        borderRadius: 14,
+        border: '1px solid #e8ecf1',
+        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)'
       }}>
         {/* Title & Branch */}
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{
-              width: 38,
-              height: 38,
+              width: 36,
+              height: 36,
               borderRadius: 10,
-              background: viewMode === 'store' ? 'linear-gradient(135deg, #16a34a, #059669)' : 'linear-gradient(135deg, #0f172a, #1e293b)',
+              background: '#0f172a',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: viewMode === 'store' ? '#ffffff' : '#facc15',
-              boxShadow: viewMode === 'store' ? '0 4px 10px rgba(22, 163, 74, 0.3)' : '0 4px 10px rgba(15, 23, 42, 0.4)'
+              color: '#ffffff',
+              boxShadow: '0 2px 6px rgba(15, 23, 42, 0.15)'
             }}>
-              {viewMode === 'store' ? <BarChart3 size={20} /> : <Crown size={20} color="#facc15" />}
+              {viewMode === 'store' ? <BarChart3 size={18} /> : <Crown size={18} />}
             </div>
             <div>
-              <h1 style={{ fontSize: 18, fontWeight: 900, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.3px' }}>
-                {viewMode === 'store' ? 'Sales & Revenue Analytics' : "Owner's Executive Business Intelligence (P&L Hub)"}
+              <h1 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.3px' }}>
+                {viewMode === 'store' ? 'Sales & Revenue Analytics' : "Owner's Executive Business Hub"}
               </h1>
-              <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0, fontWeight: 500 }}>
+              <p style={{ fontSize: 12, color: '#64748b', margin: 0, fontWeight: 500, marginTop: 2 }}>
                 {viewMode === 'store'
                   ? `${currentShop?.name || 'Main Branch'} · Performance Insights & Item Breakdown`
-                  : `${currentShop?.name || 'Main Branch'} · Comprehensive Profit & Loss, Expenses, Cash Reconciliation & Staff Audit`}
+                  : `${currentShop?.name || 'Main Branch'} · Profit & Loss, Expenses, Cash & Staff Audit`}
               </p>
             </div>
           </div>
@@ -731,11 +1014,11 @@ export const ReportsPage: React.FC = () => {
         {/* Period Selector Tabs (Daily, Weekly, Monthly, Custom) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <div style={{
-            display: 'flex',
-            background: 'var(--surface-2)',
-            padding: 4,
-            borderRadius: 'var(--radius)',
-            border: '1px solid var(--border)'
+            display: 'inline-flex',
+            background: '#f1f5f9',
+            padding: 3,
+            borderRadius: 8,
+            border: '1px solid #e2e8f0'
           }}>
             {[
               { key: 'daily', label: 'Daily', icon: <Clock size={13} /> },
@@ -750,16 +1033,16 @@ export const ReportsPage: React.FC = () => {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 6,
-                  padding: '6px 14px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: 'none',
+                  padding: '5px 12px',
+                  borderRadius: 6,
+                  border: period === tab.key ? '1px solid #e2e8f0' : '1px solid transparent',
                   fontSize: 12,
                   fontWeight: period === tab.key ? 700 : 500,
                   cursor: 'pointer',
-                  background: period === tab.key ? 'var(--surface)' : 'transparent',
-                  color: period === tab.key ? 'var(--primary)' : 'var(--text-secondary)',
-                  boxShadow: period === tab.key ? '0 2px 5px rgba(0,0,0,0.06)' : 'none',
-                  transition: 'all 0.18s ease'
+                  background: period === tab.key ? '#ffffff' : 'transparent',
+                  color: period === tab.key ? '#0f172a' : '#64748b',
+                  boxShadow: period === tab.key ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                  transition: 'all 0.15s ease'
                 }}
               >
                 {tab.icon}
@@ -774,28 +1057,28 @@ export const ReportsPage: React.FC = () => {
               display: 'flex',
               alignItems: 'center',
               gap: 4,
-              background: 'var(--surface-2)',
-              padding: '4px 8px',
-              borderRadius: 'var(--radius)',
-              border: '1px solid var(--border)'
+              background: '#f8fafc',
+              padding: '3px 6px',
+              borderRadius: 8,
+              border: '1px solid #e2e8f0'
             }}>
               <button
                 onClick={handlePrevPeriod}
                 title="Previous Period"
                 style={{
-                  width: 28,
-                  height: 28,
+                  width: 26,
+                  height: 26,
                   borderRadius: 6,
-                  border: 'none',
-                  background: 'var(--surface)',
+                  border: '1px solid #e2e8f0',
+                  background: '#ffffff',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: 'var(--text-secondary)'
+                  color: '#475569'
                 }}
               >
-                <ChevronLeft size={16} />
+                <ChevronLeft size={14} />
               </button>
 
               <div style={{
@@ -805,9 +1088,9 @@ export const ReportsPage: React.FC = () => {
                 padding: '0 8px',
                 fontSize: 12,
                 fontWeight: 700,
-                color: 'var(--text-primary)'
+                color: '#0f172a'
               }}>
-                <Calendar size={13} style={{ color: 'var(--primary)' }} />
+                <Calendar size={13} style={{ color: '#475569' }} />
                 <span>{periodDisplayLabel}</span>
               </div>
 
@@ -816,34 +1099,34 @@ export const ReportsPage: React.FC = () => {
                 disabled={isCurrentDayFuture && period === 'daily'}
                 title="Next Period"
                 style={{
-                  width: 28,
-                  height: 28,
+                  width: 26,
+                  height: 26,
                   borderRadius: 6,
-                  border: 'none',
-                  background: 'var(--surface)',
+                  border: '1px solid #e2e8f0',
+                  background: '#ffffff',
                   cursor: isCurrentDayFuture && period === 'daily' ? 'not-allowed' : 'pointer',
                   opacity: isCurrentDayFuture && period === 'daily' ? 0.4 : 1,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: 'var(--text-secondary)'
+                  color: '#475569'
                 }}
               >
-                <ChevronRight size={16} />
+                <ChevronRight size={14} />
               </button>
 
               <button
                 onClick={handleSetToday}
                 style={{
-                  padding: '4px 10px',
+                  padding: '3px 8px',
                   borderRadius: 6,
-                  border: '1px solid var(--border)',
-                  background: 'var(--surface)',
+                  border: '1px solid #e2e8f0',
+                  background: '#ffffff',
                   fontSize: 11,
                   fontWeight: 700,
                   cursor: 'pointer',
-                  color: 'var(--primary)',
-                  marginLeft: 4
+                  color: '#0f172a',
+                  marginLeft: 2
                 }}
               >
                 Today
@@ -856,28 +1139,28 @@ export const ReportsPage: React.FC = () => {
                 value={customStartDate}
                 onChange={(e) => setCustomStartDate(e.target.value)}
                 style={{
-                  padding: '6px 10px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--border)',
+                  padding: '5px 8px',
+                  borderRadius: 6,
+                  border: '1px solid #e2e8f0',
                   fontSize: 12,
                   fontWeight: 600,
-                  background: 'var(--surface-2)',
-                  color: 'var(--text-primary)'
+                  background: '#ffffff',
+                  color: '#0f172a'
                 }}
               />
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>to</span>
+              <span style={{ fontSize: 12, color: '#94a3b8' }}>to</span>
               <input
                 type="date"
                 value={customEndDate}
                 onChange={(e) => setCustomEndDate(e.target.value)}
                 style={{
-                  padding: '6px 10px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--border)',
+                  padding: '5px 8px',
+                  borderRadius: 6,
+                  border: '1px solid #e2e8f0',
                   fontSize: 12,
                   fontWeight: 600,
-                  background: 'var(--surface-2)',
-                  color: 'var(--text-primary)'
+                  background: '#ffffff',
+                  color: '#0f172a'
                 }}
               />
             </div>
@@ -894,14 +1177,15 @@ export const ReportsPage: React.FC = () => {
                 alignItems: 'center',
                 gap: 6,
                 padding: '6px 14px',
-                borderRadius: 'var(--radius-sm)',
+                borderRadius: 8,
                 border: 'none',
-                background: 'linear-gradient(135deg, #16a34a, #059669)',
+                background: '#0f172a',
                 fontSize: 12,
                 fontWeight: 700,
                 cursor: 'pointer',
                 color: '#ffffff',
-                boxShadow: '0 2px 8px rgba(22, 163, 74, 0.3)'
+                boxShadow: '0 2px 4px rgba(15, 23, 42, 0.15)',
+                transition: 'background 0.15s ease'
               }}
               title="Generate Official Business Report (වාර්තා සැකසීම)"
             >
@@ -909,25 +1193,64 @@ export const ReportsPage: React.FC = () => {
               <span>Generate Report</span>
             </button>
 
-            <button
-              onClick={handleExportCSV}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '6px 12px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border)',
-                background: 'var(--surface)',
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: 'pointer',
-                color: 'var(--text-primary)'
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: 'current',
+                    label: tableTab === 'items'
+                      ? '📊 Product Sales & Profit (Current View)'
+                      : '🧾 Completed Orders Ledger (Current View)',
+                    onClick: handleExportCSV
+                  },
+                  {
+                    type: 'divider'
+                  },
+                  {
+                    key: 'products',
+                    label: '📊 Product-wise Sales & Profit (භාණ්ඩ අනුව ලාභ)',
+                    onClick: handleExportProductsCSV
+                  },
+                  {
+                    key: 'orders',
+                    label: '🧾 Completed Orders Ledger (සියලු ඇණවුම්)',
+                    onClick: handleExportOrdersCSV
+                  },
+                  {
+                    key: 'timeline',
+                    label: '📈 Sales Timeline Breakdown (කාලීන විකුණුම්)',
+                    onClick: handleExportTimelineCSV
+                  },
+                  {
+                    key: 'summary',
+                    label: '💼 Financial Executive Summary (මූල්‍ය සාරාංශය)',
+                    onClick: handleExportSummaryCSV
+                  }
+                ]
               }}
+              placement="bottomRight"
             >
-              <Download size={14} style={{ color: 'var(--primary)' }} />
-              <span>CSV</span>
-            </button>
+              <button
+                onClick={handleExportCSV}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 12px',
+                  borderRadius: 8,
+                  border: '1px solid #e2e8f0',
+                  background: '#ffffff',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  color: '#334155'
+                }}
+                title="Export Clean Tabular CSV (CSV බාගත කරගැනීම)"
+              >
+                <Download size={14} style={{ color: '#475569' }} />
+                <span>CSV</span>
+              </button>
+            </Dropdown>
 
             <button
               onClick={() => window.print()}
@@ -936,16 +1259,16 @@ export const ReportsPage: React.FC = () => {
                 alignItems: 'center',
                 gap: 6,
                 padding: '6px 12px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border)',
-                background: 'var(--surface)',
+                borderRadius: 8,
+                border: '1px solid #e2e8f0',
+                background: '#ffffff',
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: 'pointer',
-                color: 'var(--text-primary)'
+                color: '#334155'
               }}
             >
-              <Printer size={14} />
+              <Printer size={14} style={{ color: '#475569' }} />
               <span>Print</span>
             </button>
           </div>
@@ -955,72 +1278,70 @@ export const ReportsPage: React.FC = () => {
       {/* ───── VIEW MODE 1: STORE SALES & ITEM-WISE PERFORMANCE ───── */}
       {viewMode === 'store' && (
         <>
-          {/* Interactive Clickable KPI Cards Grid */}
+          {/* Interactive Clickable KPI Cards Grid - Clean, Cohesive, Minimalist Styling */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
             gap: 14
           }}>
-            {/* Card 1: Total Revenue (දෛනික ආදායම) */}
+            {/* Card 1: Total Revenue */}
             <div
               onClick={() => setDetailModal('revenue')}
               role="button"
               tabIndex={0}
               style={{
-                background: 'var(--surface)',
+                background: '#ffffff',
                 padding: '18px 20px',
-                borderRadius: 'var(--radius-lg)',
-                border: '1px solid var(--border)',
-                boxShadow: 'var(--shadow-sm)',
+                borderRadius: 14,
+                border: '1px solid #e8ecf1',
+                boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.18s ease'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-3px)'
-                e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(22, 163, 74, 0.15)'
-                e.currentTarget.style.borderColor = '#16a34a'
+                e.currentTarget.style.transform = 'translateY(-2px)'
+                e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(15, 23, 42, 0.07)'
+                e.currentTarget.style.borderColor = '#cbd5e1'
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'none'
-                e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
-                e.currentTarget.style.borderColor = 'var(--border)'
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.03)'
+                e.currentTarget.style.borderColor = '#e8ecf1'
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <div>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Daily Revenue (දෛනික ආදායම)
-                  </span>
-                  <div style={{ fontSize: 10, color: '#16a34a', fontWeight: 700, marginTop: 2 }}>
-                    Click for Sales Breakdown ↗
-                  </div>
-                </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Total Revenue
+                </span>
                 <div style={{
-                  width: 34,
-                  height: 34,
+                  width: 32,
+                  height: 32,
                   borderRadius: 8,
-                  background: 'rgba(22, 163, 74, 0.12)',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#16a34a'
+                  color: '#334155'
                 }}>
-                  <DollarSign size={18} />
+                  <DollarSign size={16} />
                 </div>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: '#16a34a', letterSpacing: '-0.5px', marginBottom: 6 }}>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em', marginBottom: 8, fontVariantNumeric: 'tabular-nums' }}>
                 {formatCurrency(analytics?.summary?.total_revenue || 0)}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
                 {analytics && analytics.summary.revenue_growth_pct >= 0 ? (
                   <span style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 2,
-                    color: '#16a34a',
-                    background: '#dcfce7',
-                    padding: '2px 6px',
-                    borderRadius: 99
+                    color: '#059669',
+                    background: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    padding: '2px 7px',
+                    borderRadius: 6,
+                    fontWeight: 700
                   }}>
                     <ArrowUpRight size={12} /> +{analytics.summary.revenue_growth_pct}%
                   </span>
@@ -1029,347 +1350,344 @@ export const ReportsPage: React.FC = () => {
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 2,
-                    color: '#ef4444',
-                    background: '#fee2e2',
-                    padding: '2px 6px',
-                    borderRadius: 99
+                    color: '#e11d48',
+                    background: '#fff1f2',
+                    border: '1px solid #fecdd3',
+                    padding: '2px 7px',
+                    borderRadius: 6,
+                    fontWeight: 700
                   }}>
                     <ArrowDownRight size={12} /> {analytics?.summary.revenue_growth_pct}%
                   </span>
                 )}
-                <span style={{ color: 'var(--text-muted)' }}>{analytics?.summary?.total_orders || 0} completed bills</span>
+                <span style={{ color: '#64748b', fontWeight: 500 }}>{analytics?.summary?.total_orders || 0} bills</span>
               </div>
             </div>
 
-            {/* Card 2: Daily Expenses (දෛනික වියදම්) */}
+            {/* Card 2: Operating Expenses */}
             <div
               onClick={() => setDetailModal('expenses')}
               role="button"
               tabIndex={0}
               style={{
-                background: 'var(--surface)',
+                background: '#ffffff',
                 padding: '18px 20px',
-                borderRadius: 'var(--radius-lg)',
-                border: '1px solid var(--border)',
-                boxShadow: 'var(--shadow-sm)',
+                borderRadius: 14,
+                border: '1px solid #e8ecf1',
+                boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.18s ease'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-3px)'
-                e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(234, 88, 12, 0.15)'
-                e.currentTarget.style.borderColor = '#ea580c'
+                e.currentTarget.style.transform = 'translateY(-2px)'
+                e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(15, 23, 42, 0.07)'
+                e.currentTarget.style.borderColor = '#cbd5e1'
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'none'
-                e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
-                e.currentTarget.style.borderColor = 'var(--border)'
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.03)'
+                e.currentTarget.style.borderColor = '#e8ecf1'
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <div>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Operating Expenses (දෛනික වියදම්)
-                  </span>
-                  <div style={{ fontSize: 10, color: '#ea580c', fontWeight: 700, marginTop: 2 }}>
-                    Click for Vouchers Audit ↗
-                  </div>
-                </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Operating Expenses
+                </span>
                 <div style={{
-                  width: 34,
-                  height: 34,
+                  width: 32,
+                  height: 32,
                   borderRadius: 8,
-                  background: 'rgba(234, 88, 12, 0.12)',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#ea580c'
+                  color: '#334155'
                 }}>
-                  <TrendingDown size={18} />
+                  <TrendingDown size={16} />
                 </div>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: '#ea580c', letterSpacing: '-0.5px', marginBottom: 6 }}>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em', marginBottom: 8, fontVariantNumeric: 'tabular-nums' }}>
                 {formatCurrency(analytics?.ownerMetrics?.totalExpenses || 0)}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
                 <span style={{
-                  background: '#ffedd5',
-                  color: '#c2410c',
-                  padding: '2px 8px',
-                  borderRadius: 99
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  color: '#475569',
+                  padding: '2px 7px',
+                  borderRadius: 6,
+                  fontWeight: 600
                 }}>
                   {analytics?.ownerMetrics?.expenseCategories?.length || 0} categories
                 </span>
-                <span style={{ color: 'var(--text-muted)' }}>
-                  Cash outflow: {formatCurrency(analytics?.ownerMetrics?.cashDrawer?.cashExpenses || analytics?.ownerMetrics?.totalExpenses || 0)}
+                <span style={{ color: '#64748b', fontWeight: 500 }}>
+                  Paid: {formatCurrency(analytics?.ownerMetrics?.cashDrawer?.cashExpenses || analytics?.ownerMetrics?.totalExpenses || 0)}
                 </span>
               </div>
             </div>
 
-            {/* Card 3: Net Profit (ශුද්ධ ලාභය) */}
+            {/* Card 3: Net Profit */}
             <div
               onClick={() => setDetailModal('profit')}
               role="button"
               tabIndex={0}
               style={{
-                background: 'var(--surface)',
+                background: '#ffffff',
                 padding: '18px 20px',
-                borderRadius: 'var(--radius-lg)',
-                border: '1px solid var(--border)',
-                boxShadow: 'var(--shadow-sm)',
+                borderRadius: 14,
+                border: '1px solid #e8ecf1',
+                boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.18s ease'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-3px)'
-                e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(5, 150, 105, 0.15)'
-                e.currentTarget.style.borderColor = '#059669'
+                e.currentTarget.style.transform = 'translateY(-2px)'
+                e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(15, 23, 42, 0.07)'
+                e.currentTarget.style.borderColor = '#cbd5e1'
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'none'
-                e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
-                e.currentTarget.style.borderColor = 'var(--border)'
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.03)'
+                e.currentTarget.style.borderColor = '#e8ecf1'
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <div>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Net Profit (ශුද්ධ ලාභය)
-                  </span>
-                  <div style={{ fontSize: 10, color: '#059669', fontWeight: 700, marginTop: 2 }}>
-                    Click for P&L Statement ↗
-                  </div>
-                </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Net Profit (Bottom Line)
+                </span>
                 <div style={{
-                  width: 34,
-                  height: 34,
+                  width: 32,
+                  height: 32,
                   borderRadius: 8,
-                  background: 'rgba(5, 150, 105, 0.12)',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#059669'
+                  color: '#334155'
                 }}>
-                  <TrendingUp size={18} />
+                  <TrendingUp size={16} />
                 </div>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: (analytics?.ownerMetrics?.netProfit || 0) >= 0 ? '#059669' : '#dc2626', letterSpacing: '-0.5px', marginBottom: 6 }}>
+              <div style={{ fontSize: 24, fontWeight: 800, color: (analytics?.ownerMetrics?.netProfit || 0) >= 0 ? '#0f172a' : '#e11d48', letterSpacing: '-0.03em', marginBottom: 8, fontVariantNumeric: 'tabular-nums' }}>
                 {formatCurrency(analytics?.ownerMetrics?.netProfit ?? analytics?.summary?.estimated_profit ?? 0)}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
                 <span style={{
-                  background: (analytics?.ownerMetrics?.netProfitMargin || 0) >= 15 ? '#d1fae5' : '#fee2e2',
-                  color: (analytics?.ownerMetrics?.netProfitMargin || 0) >= 15 ? '#065f46' : '#991b1b',
-                  padding: '2px 8px',
-                  borderRadius: 99
+                  background: (analytics?.ownerMetrics?.netProfitMargin || 0) >= 15 ? '#f0fdf4' : '#fff1f2',
+                  border: `1px solid ${(analytics?.ownerMetrics?.netProfitMargin || 0) >= 15 ? '#bbf7d0' : '#fecdd3'}`,
+                  color: (analytics?.ownerMetrics?.netProfitMargin || 0) >= 15 ? '#059669' : '#e11d48',
+                  padding: '2px 7px',
+                  borderRadius: 6,
+                  fontWeight: 700
                 }}>
                   {analytics?.ownerMetrics?.netProfitMargin ?? analytics?.summary?.profit_margin_pct ?? 0}% Net Margin
                 </span>
-                <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>
+                <span style={{ color: '#64748b', fontWeight: 500 }}>
                   Take-home
                 </span>
               </div>
             </div>
 
-            {/* Card 4: Inventory Valuation & Low Stock (තොග වටිනාකම & අඩු තොග) */}
+            {/* Card 4: Inventory Valuation */}
             <div
               onClick={() => setDetailModal('inventory')}
               role="button"
               tabIndex={0}
               style={{
-                background: 'var(--surface)',
+                background: '#ffffff',
                 padding: '18px 20px',
-                borderRadius: 'var(--radius-lg)',
-                border: '1px solid var(--border)',
-                boxShadow: 'var(--shadow-sm)',
+                borderRadius: 14,
+                border: '1px solid #e8ecf1',
+                boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.18s ease'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-3px)'
-                e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(37, 99, 235, 0.15)'
-                e.currentTarget.style.borderColor = '#2563eb'
+                e.currentTarget.style.transform = 'translateY(-2px)'
+                e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(15, 23, 42, 0.07)'
+                e.currentTarget.style.borderColor = '#cbd5e1'
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'none'
-                e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
-                e.currentTarget.style.borderColor = 'var(--border)'
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.03)'
+                e.currentTarget.style.borderColor = '#e8ecf1'
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <div>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Stock Value &amp; Low Stock (තොගය)
-                  </span>
-                  <div style={{ fontSize: 10, color: '#2563eb', fontWeight: 700, marginTop: 2 }}>
-                    Click for Stock Audit ↗
-                  </div>
-                </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Stock Value (At Cost)
+                </span>
                 <div style={{
-                  width: 34,
-                  height: 34,
+                  width: 32,
+                  height: 32,
                   borderRadius: 8,
-                  background: 'rgba(37, 99, 235, 0.12)',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#2563eb'
+                  color: '#334155'
                 }}>
-                  <Package size={18} />
+                  <Package size={16} />
                 </div>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.5px', marginBottom: 6 }}>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em', marginBottom: 8, fontVariantNumeric: 'tabular-nums' }}>
                 {formatCurrency(analytics?.ownerMetrics?.inventoryValuation?.totalCostValue || 0)}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
                 {(analytics?.ownerMetrics?.inventoryValuation?.lowStockCount || 0) > 0 ? (
                   <span style={{
-                    background: '#fef3c7',
-                    color: '#d97706',
-                    padding: '2px 8px',
-                    borderRadius: 99,
+                    background: '#fffbeb',
+                    border: '1px solid #fde68a',
+                    color: '#b45309',
+                    padding: '2px 7px',
+                    borderRadius: 6,
                     fontWeight: 700
                   }}>
-                    ⚠ {analytics?.ownerMetrics?.inventoryValuation?.lowStockCount || 0} Low Stock
+                    ⚠ {analytics?.ownerMetrics?.inventoryValuation?.lowStockCount} Low Stock
                   </span>
                 ) : (
                   <span style={{
-                    background: '#dcfce7',
-                    color: '#16a34a',
-                    padding: '2px 8px',
-                    borderRadius: 99,
+                    background: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    color: '#059669',
+                    padding: '2px 7px',
+                    borderRadius: 6,
                     fontWeight: 700
                   }}>
                     ✓ Stock Healthy
                   </span>
                 )}
-                <span style={{ color: 'var(--text-muted)' }}>
+                <span style={{ color: '#64748b', fontWeight: 500 }}>
                   Retail: {formatCurrency(analytics?.ownerMetrics?.inventoryValuation?.totalRetailValue || 0)}
                 </span>
               </div>
             </div>
 
-            {/* Card 5: Total Orders & Basket (මුළු බිල්පත්) */}
+            {/* Card 5: Total Orders */}
             <div
               onClick={() => setDetailModal('orders')}
               role="button"
               tabIndex={0}
               style={{
-                background: 'var(--surface)',
+                background: '#ffffff',
                 padding: '18px 20px',
-                borderRadius: 'var(--radius-lg)',
-                border: '1px solid var(--border)',
-                boxShadow: 'var(--shadow-sm)',
+                borderRadius: 14,
+                border: '1px solid #e8ecf1',
+                boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.18s ease'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-3px)'
-                e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(2, 132, 199, 0.15)'
-                e.currentTarget.style.borderColor = '#0284c7'
+                e.currentTarget.style.transform = 'translateY(-2px)'
+                e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(15, 23, 42, 0.07)'
+                e.currentTarget.style.borderColor = '#cbd5e1'
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'none'
-                e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
-                e.currentTarget.style.borderColor = 'var(--border)'
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.03)'
+                e.currentTarget.style.borderColor = '#e8ecf1'
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <div>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Total Orders (මුළු බිල්පත්)
-                  </span>
-                  <div style={{ fontSize: 10, color: '#0284c7', fontWeight: 700, marginTop: 2 }}>
-                    Click for Orders Log ↗
-                  </div>
-                </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Orders &amp; Avg Ticket
+                </span>
                 <div style={{
-                  width: 34,
-                  height: 34,
+                  width: 32,
+                  height: 32,
                   borderRadius: 8,
-                  background: 'rgba(2, 132, 199, 0.12)',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#0284c7'
+                  color: '#334155'
                 }}>
-                  <Receipt size={18} />
+                  <Receipt size={16} />
                 </div>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.5px', marginBottom: 6 }}>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em', marginBottom: 8, fontVariantNumeric: 'tabular-nums' }}>
                 {analytics?.summary?.total_orders || 0}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600 }}>
-                <span style={{ color: 'var(--text-muted)' }}>Avg Ticket (AOV):</span>
-                <span style={{ fontWeight: 800, color: '#8b5cf6' }}>{formatCurrency(analytics?.summary?.avg_order_value || 0)}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+                <span style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  color: '#475569',
+                  padding: '2px 7px',
+                  borderRadius: 6,
+                  fontWeight: 600
+                }}>
+                  AOV: {formatCurrency(analytics?.summary?.avg_order_value || 0)}
+                </span>
+                <span style={{ color: '#64748b', fontWeight: 500 }}>per bill</span>
               </div>
             </div>
 
-            {/* Card 6: Cash in Drawer (මුදල් ලාච්චුවේ ශේෂය) */}
+            {/* Card 6: Cash in Register */}
             <div
               onClick={() => setDetailModal('cash')}
               role="button"
               tabIndex={0}
               style={{
-                background: 'var(--surface)',
+                background: '#ffffff',
                 padding: '18px 20px',
-                borderRadius: 'var(--radius-lg)',
-                border: '1px solid var(--border)',
-                boxShadow: 'var(--shadow-sm)',
+                borderRadius: 14,
+                border: '1px solid #e8ecf1',
+                boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.18s ease'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-3px)'
-                e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(217, 119, 6, 0.15)'
-                e.currentTarget.style.borderColor = '#d97706'
+                e.currentTarget.style.transform = 'translateY(-2px)'
+                e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(15, 23, 42, 0.07)'
+                e.currentTarget.style.borderColor = '#cbd5e1'
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'none'
-                e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
-                e.currentTarget.style.borderColor = 'var(--border)'
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.03)'
+                e.currentTarget.style.borderColor = '#e8ecf1'
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <div>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Cash In Register (මුදල් ලාච්චුව)
-                  </span>
-                  <div style={{ fontSize: 10, color: '#d97706', fontWeight: 700, marginTop: 2 }}>
-                    Click for Reconciliation ↗
-                  </div>
-                </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Cash In Register
+                </span>
                 <div style={{
-                  width: 34,
-                  height: 34,
+                  width: 32,
+                  height: 32,
                   borderRadius: 8,
-                  background: 'rgba(217, 119, 6, 0.12)',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#d97706'
+                  color: '#334155'
                 }}>
-                  <Wallet size={18} />
+                  <Wallet size={16} />
                 </div>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: '#d97706', letterSpacing: '-0.5px', marginBottom: 6 }}>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em', marginBottom: 8, fontVariantNumeric: 'tabular-nums' }}>
                 {formatCurrency(analytics?.ownerMetrics?.cashDrawer?.netCashEstimated || 0)}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600 }}>
-                <span style={{ color: '#16a34a' }}>+{formatCurrency(analytics?.ownerMetrics?.cashDrawer?.cashSales || 0)}</span>
-                <span style={{ color: 'var(--text-muted)' }}>/</span>
-                <span style={{ color: '#dc2626' }}>-{formatCurrency(analytics?.ownerMetrics?.cashDrawer?.cashExpenses || 0)}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+                <span style={{ color: '#059669', fontWeight: 600 }}>+{formatCurrency(analytics?.ownerMetrics?.cashDrawer?.cashSales || 0)}</span>
+                <span style={{ color: '#cbd5e1' }}>/</span>
+                <span style={{ color: '#e11d48', fontWeight: 600 }}>-{formatCurrency(analytics?.ownerMetrics?.cashDrawer?.cashExpenses || 0)}</span>
               </div>
             </div>
           </div>
 
       {/* Main Interactive Chart Section */}
       <div style={{
-        background: 'var(--surface)',
-        borderRadius: 'var(--radius-lg)',
-        border: '1px solid var(--border)',
+        background: '#ffffff',
+        borderRadius: 12,
+        border: '1px solid #e2e8f0',
         padding: '20px 24px',
-        boxShadow: 'var(--shadow-sm)'
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)'
       }}>
         {/* Chart Header */}
         <div style={{
@@ -1381,10 +1699,10 @@ export const ReportsPage: React.FC = () => {
           gap: 12
         }}>
           <div>
-            <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-              Sales & Revenue Progression Chart
+            <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+              Sales &amp; Revenue Progression
             </h3>
-            <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>
+            <p style={{ fontSize: 12, color: '#64748b', margin: '3px 0 0' }}>
               {period === 'daily' && 'Hourly sales velocity and transaction distribution'}
               {period === 'weekly' && 'Daily revenue trends over the 7-day period'}
               {period === 'monthly' && 'Full month day-by-day revenue pattern'}
@@ -1395,22 +1713,24 @@ export const ReportsPage: React.FC = () => {
           {/* Chart View Switcher */}
           <div style={{
             display: 'flex',
-            background: 'var(--surface-2)',
+            background: '#f1f5f9',
             padding: 3,
-            borderRadius: 'var(--radius)',
-            border: '1px solid var(--border)'
+            borderRadius: 8,
+            border: '1px solid #e2e8f0'
           }}>
             <button
               onClick={() => setChartMode('revenue')}
               style={{
-                padding: '5px 12px',
-                borderRadius: 'var(--radius-sm)',
-                border: 'none',
+                padding: '5px 14px',
+                borderRadius: 6,
+                border: chartMode === 'revenue' ? '1px solid #cbd5e1' : '1px solid transparent',
                 fontSize: 12,
-                fontWeight: chartMode === 'revenue' ? 700 : 500,
+                fontWeight: chartMode === 'revenue' ? 700 : 600,
                 cursor: 'pointer',
-                background: chartMode === 'revenue' ? '#16a34a' : 'transparent',
-                color: chartMode === 'revenue' ? '#ffffff' : 'var(--text-secondary)'
+                background: chartMode === 'revenue' ? '#ffffff' : 'transparent',
+                color: chartMode === 'revenue' ? '#0f172a' : '#64748b',
+                boxShadow: chartMode === 'revenue' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                transition: 'all 0.15s ease'
               }}
             >
               Revenue (Rs.)
@@ -1418,14 +1738,16 @@ export const ReportsPage: React.FC = () => {
             <button
               onClick={() => setChartMode('orders')}
               style={{
-                padding: '5px 12px',
-                borderRadius: 'var(--radius-sm)',
-                border: 'none',
+                padding: '5px 14px',
+                borderRadius: 6,
+                border: chartMode === 'orders' ? '1px solid #cbd5e1' : '1px solid transparent',
                 fontSize: 12,
-                fontWeight: chartMode === 'orders' ? 700 : 500,
+                fontWeight: chartMode === 'orders' ? 700 : 600,
                 cursor: 'pointer',
-                background: chartMode === 'orders' ? '#2563eb' : 'transparent',
-                color: chartMode === 'orders' ? '#ffffff' : 'var(--text-secondary)'
+                background: chartMode === 'orders' ? '#ffffff' : 'transparent',
+                color: chartMode === 'orders' ? '#0f172a' : '#64748b',
+                boxShadow: chartMode === 'orders' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                transition: 'all 0.15s ease'
               }}
             >
               Orders Count
@@ -1433,14 +1755,16 @@ export const ReportsPage: React.FC = () => {
             <button
               onClick={() => setChartMode('both')}
               style={{
-                padding: '5px 12px',
-                borderRadius: 'var(--radius-sm)',
-                border: 'none',
+                padding: '5px 14px',
+                borderRadius: 6,
+                border: chartMode === 'both' ? '1px solid #cbd5e1' : '1px solid transparent',
                 fontSize: 12,
-                fontWeight: chartMode === 'both' ? 700 : 500,
+                fontWeight: chartMode === 'both' ? 700 : 600,
                 cursor: 'pointer',
-                background: chartMode === 'both' ? 'var(--surface)' : 'transparent',
-                color: chartMode === 'both' ? 'var(--text-primary)' : 'var(--text-secondary)'
+                background: chartMode === 'both' ? '#ffffff' : 'transparent',
+                color: chartMode === 'both' ? '#0f172a' : '#64748b',
+                boxShadow: chartMode === 'both' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                transition: 'all 0.15s ease'
               }}
             >
               Combined View
@@ -1454,44 +1778,44 @@ export const ReportsPage: React.FC = () => {
             <ResponsiveContainer width="100%" height="100%">
               {chartMode === 'orders' ? (
                 <BarChart data={analytics.timeline} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.6} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis
                     dataKey="label"
-                    tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
-                    axisLine={{ stroke: 'var(--border)' }}
+                    tick={{ fontSize: 11, fill: '#64748b' }}
+                    axisLine={{ stroke: '#e2e8f0' }}
                     tickLine={false}
                   />
                   <YAxis
                     allowDecimals={false}
-                    tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
+                    tick={{ fontSize: 11, fill: '#64748b' }}
                     axisLine={false}
                     tickLine={false}
                   />
                   <Tooltip content={<CustomChartTooltip />} />
-                  <Bar dataKey="orders" name="Orders" fill="#2563eb" radius={[6, 6, 0, 0]} maxBarSize={45} />
+                  <Bar dataKey="orders" name="Orders" fill="#334155" radius={[4, 4, 0, 0]} maxBarSize={40} />
                 </BarChart>
               ) : (
                 <AreaChart data={analytics.timeline} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#16a34a" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#16a34a" stopOpacity={0.0} />
+                      <stop offset="5%" stopColor="#0f766e" stopOpacity={0.16} />
+                      <stop offset="95%" stopColor="#0f766e" stopOpacity={0.0} />
                     </linearGradient>
                     <linearGradient id="ordersGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0.0} />
+                      <stop offset="5%" stopColor="#334155" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#334155" stopOpacity={0.0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.6} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis
                     dataKey="label"
-                    tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
-                    axisLine={{ stroke: 'var(--border)' }}
+                    tick={{ fontSize: 11, fill: '#64748b' }}
+                    axisLine={{ stroke: '#e2e8f0' }}
                     tickLine={false}
                   />
                   <YAxis
                     yAxisId="left"
-                    tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
+                    tick={{ fontSize: 11, fill: '#64748b' }}
                     axisLine={false}
                     tickLine={false}
                     tickFormatter={(val) => `Rs.${(val / 1000).toFixed(0)}k`}
@@ -1500,7 +1824,7 @@ export const ReportsPage: React.FC = () => {
                     <YAxis
                       yAxisId="right"
                       orientation="right"
-                      tick={{ fontSize: 11, fill: '#2563eb' }}
+                      tick={{ fontSize: 11, fill: '#64748b' }}
                       axisLine={false}
                       tickLine={false}
                       allowDecimals={false}
@@ -1512,11 +1836,11 @@ export const ReportsPage: React.FC = () => {
                     type="monotone"
                     dataKey="revenue"
                     name="Revenue"
-                    stroke="#16a34a"
-                    strokeWidth={3}
+                    stroke="#0f766e"
+                    strokeWidth={2.5}
                     fillOpacity={1}
                     fill="url(#revenueGrad)"
-                    activeDot={{ r: 6, stroke: '#16a34a', strokeWidth: 2, fill: '#ffffff' }}
+                    activeDot={{ r: 5, stroke: '#0f766e', strokeWidth: 2, fill: '#ffffff' }}
                   />
                   {chartMode === 'both' && (
                     <Area
@@ -1524,8 +1848,8 @@ export const ReportsPage: React.FC = () => {
                       type="monotone"
                       dataKey="orders"
                       name="Orders"
-                      stroke="#2563eb"
-                      strokeWidth={2}
+                      stroke="#475569"
+                      strokeWidth={1.8}
                       strokeDasharray="4 4"
                       fillOpacity={1}
                       fill="url(#ordersGrad)"
@@ -1541,9 +1865,9 @@ export const ReportsPage: React.FC = () => {
               alignItems: 'center',
               justifyContent: 'center',
               height: '100%',
-              color: 'var(--text-muted)'
+              color: '#94a3b8'
             }}>
-              <BarChart3 size={36} style={{ marginBottom: 8, opacity: 0.5 }} />
+              <BarChart3 size={36} style={{ marginBottom: 8, opacity: 0.4 }} />
               <div style={{ fontSize: 13, fontWeight: 600 }}>No sales recorded for this period</div>
             </div>
           )}
@@ -1557,9 +1881,9 @@ export const ReportsPage: React.FC = () => {
             gap: 12,
             marginTop: 16,
             padding: '10px 16px',
-            background: 'var(--surface-2)',
-            borderRadius: 'var(--radius)',
-            border: '1px solid var(--border)'
+            background: '#f8fafc',
+            borderRadius: 8,
+            border: '1px solid #e2e8f0'
           }}>
             <div style={{
               display: 'flex',
@@ -1568,16 +1892,17 @@ export const ReportsPage: React.FC = () => {
               width: 28,
               height: 28,
               borderRadius: 6,
-              background: '#fef3c7',
-              color: '#d97706'
+              background: '#f1f5f9',
+              color: '#0f172a',
+              border: '1px solid #e2e8f0'
             }}>
-              <Sparkles size={16} />
+              <Sparkles size={15} />
             </div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-              <strong>Peak Performance Window:</strong> Highest sales occurred at{' '}
-              <strong style={{ color: 'var(--text-primary)' }}>{analytics.peakSlot.label}</strong> generating{' '}
-              <strong style={{ color: 'var(--primary)' }}>{formatCurrency(analytics.peakSlot.revenue)}</strong> across{' '}
-              <strong style={{ color: 'var(--text-primary)' }}>{analytics.peakSlot.orders} orders</strong>.
+            <div style={{ fontSize: 12, color: '#475569' }}>
+              <strong style={{ color: '#0f172a' }}>Peak Performance Window:</strong> Highest sales occurred at{' '}
+              <strong style={{ color: '#0f172a' }}>{analytics.peakSlot.label}</strong> generating{' '}
+              <strong style={{ color: '#0f172a' }}>{formatCurrency(analytics.peakSlot.revenue)}</strong> across{' '}
+              <strong style={{ color: '#0f172a' }}>{analytics.peakSlot.orders} orders</strong>.
             </div>
           </div>
         )}
@@ -1591,24 +1916,24 @@ export const ReportsPage: React.FC = () => {
       }}>
         {/* Payment Methods Breakdown */}
         <div style={{
-          background: 'var(--surface)',
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--border)',
+          background: '#ffffff',
+          borderRadius: 12,
+          border: '1px solid #e2e8f0',
           padding: 20,
-          boxShadow: 'var(--shadow-sm)'
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-              Payment Methods Breakdown
+            <h3 style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.01em' }}>
+              Payment Methods
             </h3>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>
               {analytics?.paymentBreakdown.reduce((sum, p) => sum + p.count, 0)} Total Payments
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 }}>
             {/* Donut Chart */}
-            <div style={{ width: 130, height: 130, flexShrink: 0 }}>
+            <div style={{ width: 125, height: 125, flexShrink: 0 }}>
               {analytics && analytics.paymentBreakdown.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -1619,7 +1944,7 @@ export const ReportsPage: React.FC = () => {
                       cx="50%"
                       cy="50%"
                       innerRadius={36}
-                      outerRadius={58}
+                      outerRadius={56}
                       paddingAngle={3}
                     >
                       {analytics.paymentBreakdown.map((entry) => (
@@ -1633,14 +1958,14 @@ export const ReportsPage: React.FC = () => {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: 'var(--text-muted)' }}>
+                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#94a3b8' }}>
                   No Data
                 </div>
               )}
             </div>
 
             {/* Payment List Details */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
               {['CASH', 'CARD', 'TRANSFER', 'MIXED'].map((method) => {
                 const found = analytics?.paymentBreakdown.find((p) => p.method === method)
                 const amount = found?.total_amount || 0
@@ -1655,20 +1980,20 @@ export const ReportsPage: React.FC = () => {
                     justifyContent: 'space-between',
                     padding: '6px 10px',
                     borderRadius: 8,
-                    background: 'var(--surface-2)',
-                    border: '1px solid var(--border-light)'
+                    background: '#f8fafc',
+                    border: '1px solid #f1f5f9'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ display: 'flex' }}>{PAYMENT_ICONS[method]}</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>
                         {method}
                       </span>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-primary)' }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>
                         {formatCurrency(amount)}
                       </div>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>
+                      <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>
                         {count} txns · <strong style={{ color }}>{percent}%</strong>
                       </div>
                     </div>
@@ -1681,23 +2006,23 @@ export const ReportsPage: React.FC = () => {
 
         {/* Top Selling Products */}
         <div style={{
-          background: 'var(--surface)',
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--border)',
+          background: '#ffffff',
+          borderRadius: 12,
+          border: '1px solid #e2e8f0',
           padding: 20,
-          boxShadow: 'var(--shadow-sm)'
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Award size={16} color="#eab308" />
+            <h3 style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '-0.01em' }}>
+              <Award size={16} color="#334155" />
               Top Selling Products
             </h3>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>
               By Revenue
             </span>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {analytics?.topProducts && analytics.topProducts.length > 0 ? (
               analytics.topProducts.slice(0, 5).map((prod, idx) => {
                 const maxRev = analytics.topProducts[0]?.total_revenue || 1
@@ -1707,17 +2032,18 @@ export const ReportsPage: React.FC = () => {
                   <div key={prod.product_name} style={{
                     padding: '8px 12px',
                     borderRadius: 8,
-                    background: 'var(--surface-2)',
-                    border: '1px solid var(--border-light)'
+                    background: '#f8fafc',
+                    border: '1px solid #f1f5f9'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{
                           width: 20,
                           height: 20,
-                          borderRadius: 99,
-                          background: idx === 0 ? '#fef08a' : idx === 1 ? '#e2e8f0' : '#fed7aa',
-                          color: idx === 0 ? '#854d0e' : '#475569',
+                          borderRadius: 6,
+                          background: idx === 0 ? '#0f172a' : '#f1f5f9',
+                          color: idx === 0 ? '#ffffff' : '#475569',
+                          border: idx === 0 ? 'none' : '1px solid #e2e8f0',
                           fontSize: 10,
                           fontWeight: 800,
                           display: 'flex',
@@ -1726,25 +2052,25 @@ export const ReportsPage: React.FC = () => {
                         }}>
                           {idx + 1}
                         </span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {prod.product_name}
                         </span>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-primary)' }}>
+                        <span style={{ fontSize: 12, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>
                           {formatCurrency(prod.total_revenue)}
                         </span>
-                        <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 6 }}>
+                        <span style={{ fontSize: 10, color: '#64748b', marginLeft: 6 }}>
                           ({prod.total_qty} sold)
                         </span>
                       </div>
                     </div>
                     {/* Progress Bar */}
-                    <div style={{ height: 4, background: 'var(--border)', borderRadius: 99, overflow: 'hidden' }}>
+                    <div style={{ height: 4, background: '#e2e8f0', borderRadius: 99, overflow: 'hidden' }}>
                       <div style={{
                         height: '100%',
                         width: `${pct}%`,
-                        background: idx === 0 ? '#16a34a' : '#3b82f6',
+                        background: idx === 0 ? '#0f766e' : '#64748b',
                         borderRadius: 99,
                         transition: 'width 0.4s ease'
                       }} />
@@ -1753,7 +2079,7 @@ export const ReportsPage: React.FC = () => {
                 )
               })
             ) : (
-              <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
+              <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8', fontSize: 12 }}>
                 No product sales recorded in this period
               </div>
             )}
@@ -1762,23 +2088,23 @@ export const ReportsPage: React.FC = () => {
 
         {/* Category Breakdown */}
         <div style={{
-          background: 'var(--surface)',
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--border)',
+          background: '#ffffff',
+          borderRadius: 12,
+          border: '1px solid #e2e8f0',
           padding: 20,
-          boxShadow: 'var(--shadow-sm)'
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Layers size={16} color="#8b5cf6" />
+            <h3 style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '-0.01em' }}>
+              <Layers size={16} color="#334155" />
               Category Distribution
             </h3>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>
               Sales Share
             </span>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {analytics?.categoryBreakdown && analytics.categoryBreakdown.length > 0 ? (
               analytics.categoryBreakdown.map((cat) => {
                 const totalRev = analytics.summary.total_revenue || 1
@@ -1788,33 +2114,33 @@ export const ReportsPage: React.FC = () => {
                   <div key={cat.category_name} style={{
                     padding: '8px 12px',
                     borderRadius: 8,
-                    background: 'var(--surface-2)',
-                    border: '1px solid var(--border-light)'
+                    background: '#f8fafc',
+                    border: '1px solid #f1f5f9'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{
-                          width: 10,
-                          height: 10,
+                          width: 8,
+                          height: 8,
                           borderRadius: 99,
-                          background: cat.color || '#6366f1'
+                          background: '#334155'
                         }} />
-                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>
                           {cat.category_name}
                         </span>
                       </div>
                       <div>
-                        <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-primary)' }}>
+                        <span style={{ fontSize: 12, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>
                           {formatCurrency(cat.total_revenue)}
                         </span>
                         <span style={{
                           fontSize: 10,
                           fontWeight: 700,
                           color: '#475569',
-                          background: 'var(--surface)',
+                          background: '#f1f5f9',
                           padding: '1px 6px',
-                          borderRadius: 99,
-                          border: '1px solid var(--border)',
+                          borderRadius: 4,
+                          border: '1px solid #e2e8f0',
                           marginLeft: 6
                         }}>
                           {pct}%
@@ -1822,11 +2148,11 @@ export const ReportsPage: React.FC = () => {
                       </div>
                     </div>
                     {/* Progress Bar */}
-                    <div style={{ height: 4, background: 'var(--border)', borderRadius: 99, overflow: 'hidden' }}>
+                    <div style={{ height: 4, background: '#e2e8f0', borderRadius: 99, overflow: 'hidden' }}>
                       <div style={{
                         height: '100%',
                         width: `${pct}%`,
-                        background: cat.color || '#6366f1',
+                        background: '#334155',
                         borderRadius: 99,
                         transition: 'width 0.4s ease'
                       }} />
@@ -1835,7 +2161,7 @@ export const ReportsPage: React.FC = () => {
                 )
               })
             ) : (
-              <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
+              <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8', fontSize: 12 }}>
                 No category data for this period
               </div>
             )}
@@ -1845,11 +2171,11 @@ export const ReportsPage: React.FC = () => {
 
       {/* Detailed Chronological Breakdown & Recent Transactions */}
       <div style={{
-        background: 'var(--surface)',
-        borderRadius: 'var(--radius-lg)',
-        border: '1px solid var(--border)',
+        background: '#ffffff',
+        borderRadius: 12,
+        border: '1px solid #e2e8f0',
         padding: 20,
-        boxShadow: 'var(--shadow-sm)',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)',
         marginBottom: 20
       }}>
         {/* Tabs */}
@@ -1857,11 +2183,18 @@ export const ReportsPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          borderBottom: '1px solid var(--border)',
-          paddingBottom: 12,
+          borderBottom: '1px solid #e2e8f0',
+          paddingBottom: 14,
           marginBottom: 16
         }}>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{
+            display: 'inline-flex',
+            background: '#f1f5f9',
+            padding: 3,
+            borderRadius: 8,
+            border: '1px solid #e2e8f0',
+            gap: 2
+          }}>
             <button
               onClick={() => setTableTab('items')}
               style={{
@@ -1869,16 +2202,18 @@ export const ReportsPage: React.FC = () => {
                 alignItems: 'center',
                 gap: 6,
                 padding: '6px 14px',
-                borderRadius: 'var(--radius-sm)',
-                border: 'none',
-                fontSize: 13,
-                fontWeight: tableTab === 'items' ? 800 : 600,
+                borderRadius: 6,
+                border: tableTab === 'items' ? '1px solid #cbd5e1' : '1px solid transparent',
+                fontSize: 12,
+                fontWeight: tableTab === 'items' ? 700 : 600,
                 cursor: 'pointer',
-                background: tableTab === 'items' ? 'var(--surface-2)' : 'transparent',
-                color: tableTab === 'items' ? 'var(--primary)' : 'var(--text-secondary)'
+                background: tableTab === 'items' ? '#ffffff' : 'transparent',
+                color: tableTab === 'items' ? '#0f172a' : '#64748b',
+                boxShadow: tableTab === 'items' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                transition: 'all 0.15s ease'
               }}
             >
-              <Package size={15} />
+              <Package size={14} />
               <span>Item-Wise Performance Breakdown ({filteredAndSortedItems.length})</span>
             </button>
             <button
@@ -1888,21 +2223,23 @@ export const ReportsPage: React.FC = () => {
                 alignItems: 'center',
                 gap: 6,
                 padding: '6px 14px',
-                borderRadius: 'var(--radius-sm)',
-                border: 'none',
-                fontSize: 13,
-                fontWeight: tableTab === 'orders' ? 800 : 600,
+                borderRadius: 6,
+                border: tableTab === 'orders' ? '1px solid #cbd5e1' : '1px solid transparent',
+                fontSize: 12,
+                fontWeight: tableTab === 'orders' ? 700 : 600,
                 cursor: 'pointer',
-                background: tableTab === 'orders' ? 'var(--surface-2)' : 'transparent',
-                color: tableTab === 'orders' ? 'var(--primary)' : 'var(--text-secondary)'
+                background: tableTab === 'orders' ? '#ffffff' : 'transparent',
+                color: tableTab === 'orders' ? '#0f172a' : '#64748b',
+                boxShadow: tableTab === 'orders' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                transition: 'all 0.15s ease'
               }}
             >
-              <Receipt size={15} />
+              <Receipt size={14} />
               <span>Completed Orders Log ({analytics?.recentOrders?.length || 0})</span>
             </button>
           </div>
 
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>
+          <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>
             {periodDisplayLabel}
           </span>
         </div>
@@ -1918,69 +2255,69 @@ export const ReportsPage: React.FC = () => {
               marginBottom: 16
             }}>
               <div style={{
-                background: 'var(--surface-2)',
-                padding: '10px 14px',
-                borderRadius: 'var(--radius)',
-                border: '1px solid var(--border-light)'
+                background: '#f8fafc',
+                padding: '12px 16px',
+                borderRadius: 8,
+                border: '1px solid #e2e8f0'
               }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Total Units Sold
                 </div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--primary)', marginTop: 2 }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>
                   {itemSummary.totalQty} units
                 </div>
-                <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
                   across {itemSummary.uniqueCount} unique menu items
                 </div>
               </div>
 
               <div style={{
-                background: 'var(--surface-2)',
-                padding: '10px 14px',
-                borderRadius: 'var(--radius)',
-                border: '1px solid var(--border-light)'
+                background: '#f8fafc',
+                padding: '12px 16px',
+                borderRadius: 8,
+                border: '1px solid #e2e8f0'
               }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Top Revenue Generator
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#2563eb', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {itemSummary.topRevenueItem?.product_name || 'None'}
                 </div>
-                <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
                   {itemSummary.topRevenueItem ? formatCurrency(itemSummary.topRevenueItem.total_revenue) : '-'} ({itemSummary.topRevenueItem?.total_qty || 0} sold)
                 </div>
               </div>
 
               <div style={{
-                background: 'var(--surface-2)',
-                padding: '10px 14px',
-                borderRadius: 'var(--radius)',
-                border: '1px solid var(--border-light)'
+                background: '#f8fafc',
+                padding: '12px 16px',
+                borderRadius: 8,
+                border: '1px solid #e2e8f0'
               }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Most Profitable Item
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#0891b2', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {itemSummary.topProfitItem?.product_name || 'None'}
                 </div>
-                <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
                   Profit: {itemSummary.topProfitItem ? formatCurrency(itemSummary.topProfitItem.gross_profit) : '-'}
                 </div>
               </div>
 
               <div style={{
-                background: 'var(--surface-2)',
-                padding: '10px 14px',
-                borderRadius: 'var(--radius)',
-                border: '1px solid var(--border-light)'
+                background: '#f8fafc',
+                padding: '12px 16px',
+                borderRadius: 8,
+                border: '1px solid #e2e8f0'
               }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Highest Margin Product
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#16a34a', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {itemSummary.topMarginItem?.product_name || 'None'}
                 </div>
-                <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
                   {itemSummary.topMarginItem?.margin_pct || 0}% Gross Margin
                 </div>
               </div>
@@ -1995,9 +2332,9 @@ export const ReportsPage: React.FC = () => {
               gap: 12,
               marginBottom: 16,
               padding: '10px 14px',
-              background: 'var(--surface-2)',
-              borderRadius: 'var(--radius)',
-              border: '1px solid var(--border)'
+              background: '#f8fafc',
+              borderRadius: 8,
+              border: '1px solid #e2e8f0'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 260 }}>
                 {/* Search Input */}
@@ -2005,14 +2342,14 @@ export const ReportsPage: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
-                  background: 'var(--surface)',
+                  background: '#ffffff',
                   padding: '6px 12px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--border)',
+                  borderRadius: 6,
+                  border: '1px solid #cbd5e1',
                   flex: 1,
                   maxWidth: 320
                 }}>
-                  <Search size={14} color="var(--text-muted)" />
+                  <Search size={14} color="#64748b" />
                   <input
                     type="text"
                     placeholder="Search item name or code..."
@@ -2024,13 +2361,13 @@ export const ReportsPage: React.FC = () => {
                       outline: 'none',
                       fontSize: 12,
                       width: '100%',
-                      color: 'var(--text-primary)'
+                      color: '#0f172a'
                     }}
                   />
                   {itemSearch && (
                     <button
                       onClick={() => setItemSearch('')}
-                      style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--text-muted)' }}
+                      style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 11, color: '#94a3b8' }}
                     >
                       ✕
                     </button>
@@ -2040,16 +2377,16 @@ export const ReportsPage: React.FC = () => {
                 {/* Category Filter */}
                 {uniqueCategories.length > 0 && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Filter size={13} color="var(--text-muted)" />
+                    <Filter size={13} color="#64748b" />
                     <select
                       value={itemCategoryFilter}
                       onChange={(e) => setItemCategoryFilter(e.target.value)}
                       style={{
                         padding: '6px 10px',
-                        borderRadius: 'var(--radius-sm)',
-                        border: '1px solid var(--border)',
-                        background: 'var(--surface)',
-                        color: 'var(--text-primary)',
+                        borderRadius: 6,
+                        border: '1px solid #cbd5e1',
+                        background: '#ffffff',
+                        color: '#0f172a',
                         fontSize: 12,
                         fontWeight: 600,
                         cursor: 'pointer'
@@ -2066,7 +2403,7 @@ export const ReportsPage: React.FC = () => {
 
               {/* Sort By Pills */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>Sort:</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>Sort:</span>
                 {[
                   { key: 'revenue', label: 'Revenue' },
                   { key: 'qty', label: 'Units Sold' },
@@ -2077,14 +2414,14 @@ export const ReportsPage: React.FC = () => {
                     key={s.key}
                     onClick={() => setItemSortKey(s.key as any)}
                     style={{
-                      padding: '4px 10px',
-                      borderRadius: 99,
+                      padding: '4px 12px',
+                      borderRadius: 6,
                       border: '1px solid',
-                      borderColor: itemSortKey === s.key ? 'var(--primary)' : 'var(--border)',
-                      background: itemSortKey === s.key ? 'var(--primary)' : 'var(--surface)',
-                      color: itemSortKey === s.key ? '#ffffff' : 'var(--text-secondary)',
+                      borderColor: itemSortKey === s.key ? '#0f172a' : '#cbd5e1',
+                      background: itemSortKey === s.key ? '#0f172a' : '#ffffff',
+                      color: itemSortKey === s.key ? '#ffffff' : '#64748b',
                       fontSize: 11,
-                      fontWeight: 700,
+                      fontWeight: itemSortKey === s.key ? 700 : 600,
                       cursor: 'pointer',
                       transition: 'all 0.15s ease'
                     }}
@@ -2099,35 +2436,35 @@ export const ReportsPage: React.FC = () => {
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
-                  <tr style={{ background: 'var(--surface-2)', borderBottom: '2px solid var(--border)' }}>
-                    <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 700, color: 'var(--text-secondary)', width: 60 }}>
-                      # / Code
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                    <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 700, color: '#475569', width: 60, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 10 }}>
+                      Code
                     </th>
-                    <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                    <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 10 }}>
                       Product / Item Name
                     </th>
-                    <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                    <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 10 }}>
                       Category
                     </th>
-                    <th style={{ textAlign: 'right', padding: '10px 12px', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                      Selling / Cost Price
+                    <th style={{ textAlign: 'right', padding: '10px 12px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 10 }}>
+                      Price / Cost
                     </th>
-                    <th style={{ textAlign: 'center', padding: '10px 14px', fontWeight: 700, color: 'var(--text-secondary)', width: 120 }}>
+                    <th style={{ textAlign: 'center', padding: '10px 14px', fontWeight: 700, color: '#475569', width: 120, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 10 }}>
                       Units Sold
                     </th>
-                    <th style={{ textAlign: 'right', padding: '10px 14px', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                      Gross Revenue
+                    <th style={{ textAlign: 'right', padding: '10px 14px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 10 }}>
+                      Revenue
                     </th>
-                    <th style={{ textAlign: 'right', padding: '10px 14px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                    <th style={{ textAlign: 'right', padding: '10px 14px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 10 }}>
                       COGS Cost
                     </th>
-                    <th style={{ textAlign: 'right', padding: '10px 14px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                    <th style={{ textAlign: 'right', padding: '10px 14px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 10 }}>
                       Gross Profit
                     </th>
-                    <th style={{ textAlign: 'center', padding: '10px 12px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                    <th style={{ textAlign: 'center', padding: '10px 12px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 10 }}>
                       Margin %
                     </th>
-                    <th style={{ textAlign: 'right', padding: '10px 12px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                    <th style={{ textAlign: 'right', padding: '10px 12px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 10 }}>
                       Share
                     </th>
                   </tr>
@@ -2142,18 +2479,19 @@ export const ReportsPage: React.FC = () => {
                         <tr
                           key={item.product_id || item.product_name + idx}
                           style={{
-                            borderBottom: '1px solid var(--border-light)',
-                            background: idx % 2 === 0 ? 'transparent' : 'rgba(241, 245, 249, 0.4)',
+                            borderBottom: '1px solid #f1f5f9',
+                            background: idx % 2 === 0 ? '#ffffff' : '#fafbfc',
                             transition: 'background 0.15s ease'
                           }}
                         >
-                          <td style={{ padding: '10px 12px', color: 'var(--text-muted)', fontWeight: 700 }}>
+                          <td style={{ padding: '10px 12px', color: '#64748b', fontWeight: 600 }}>
                             <span style={{
                               fontSize: 10,
-                              background: 'var(--surface-2)',
+                              background: '#f1f5f9',
                               padding: '2px 6px',
                               borderRadius: 4,
-                              border: '1px solid var(--border)'
+                              border: '1px solid #e2e8f0',
+                              color: '#475569'
                             }}>
                               {item.item_code || idx + 1}
                             </span>
@@ -2161,41 +2499,44 @@ export const ReportsPage: React.FC = () => {
 
                           <td style={{ padding: '10px 14px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <span style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: 13 }}>
+                              <span style={{ fontWeight: 700, color: '#0f172a', fontSize: 13 }}>
                                 {item.product_name}
                               </span>
                               {idx === 0 && (
                                 <span style={{
-                                  background: '#fef08a',
-                                  color: '#854d0e',
-                                  fontSize: 10,
-                                  fontWeight: 800,
+                                  background: '#0f172a',
+                                  color: '#ffffff',
+                                  fontSize: 9,
+                                  fontWeight: 700,
                                   padding: '1px 6px',
-                                  borderRadius: 99
+                                  borderRadius: 4,
+                                  letterSpacing: '0.03em'
                                 }}>
-                                  ⭐ TOP SELLER
+                                  TOP SELLER
                                 </span>
                               )}
                               {item.margin_pct >= 50 && (
                                 <span style={{
-                                  background: '#dcfce7',
-                                  color: '#16a34a',
-                                  fontSize: 10,
-                                  fontWeight: 800,
+                                  background: '#f0fdf4',
+                                  color: '#059669',
+                                  border: '1px solid #bbf7d0',
+                                  fontSize: 9,
+                                  fontWeight: 700,
                                   padding: '1px 6px',
-                                  borderRadius: 99
+                                  borderRadius: 4
                                 }}>
-                                  💎 HIGH MARGIN
+                                  HIGH MARGIN
                                 </span>
                               )}
                             </div>
                           </td>
 
-                          <td style={{ padding: '10px 12px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                          <td style={{ padding: '10px 12px', color: '#475569', fontWeight: 600 }}>
                             <span style={{
-                              background: 'var(--surface-2)',
+                              background: '#f1f5f9',
+                              border: '1px solid #e2e8f0',
                               padding: '2px 8px',
-                              borderRadius: 99,
+                              borderRadius: 4,
                               fontSize: 11
                             }}>
                               {item.category_name}
@@ -2203,37 +2544,37 @@ export const ReportsPage: React.FC = () => {
                           </td>
 
                           <td style={{ padding: '10px 12px', textAlign: 'right' }}>
-                            <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                            <div style={{ fontWeight: 700, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>
                               {formatCurrency(item.avg_unit_price)}
                             </div>
-                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                            <div style={{ fontSize: 10, color: '#64748b' }}>
                               Cost: {formatCurrency(item.avg_cost_price)}
                             </div>
                           </td>
 
                           <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                            <div style={{ fontWeight: 800, color: '#2563eb', fontSize: 13 }}>
+                            <div style={{ fontWeight: 800, color: '#0f172a', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
                               {item.total_qty}
                             </div>
-                            <div style={{ width: '100%', height: 4, background: 'var(--border)', borderRadius: 99, marginTop: 4, overflow: 'hidden' }}>
+                            <div style={{ width: '100%', height: 4, background: '#e2e8f0', borderRadius: 99, marginTop: 4, overflow: 'hidden' }}>
                               <div style={{
                                 height: '100%',
                                 width: `${qtyBarWidth}%`,
-                                background: idx === 0 ? '#16a34a' : '#3b82f6',
+                                background: idx === 0 ? '#0f766e' : '#64748b',
                                 borderRadius: 99
                               }} />
                             </div>
                           </td>
 
-                          <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, color: 'var(--primary)', fontSize: 13 }}>
+                          <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, color: '#0f172a', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
                             {formatCurrency(item.total_revenue)}
                           </td>
 
-                          <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 600, color: 'var(--text-muted)' }}>
+                          <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 600, color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>
                             {formatCurrency(item.total_cogs)}
                           </td>
 
-                          <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, color: item.gross_profit >= 0 ? '#0891b2' : '#ef4444', fontSize: 13 }}>
+                          <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: item.gross_profit >= 0 ? '#059669' : '#e11d48', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
                             {formatCurrency(item.gross_profit)}
                           </td>
 
@@ -2241,17 +2582,18 @@ export const ReportsPage: React.FC = () => {
                             <span style={{
                               display: 'inline-block',
                               padding: '2px 8px',
-                              borderRadius: 99,
+                              borderRadius: 4,
                               fontSize: 11,
-                              fontWeight: 800,
-                              background: item.margin_pct >= 40 ? '#dcfce7' : item.margin_pct >= 20 ? '#fef3c7' : '#fee2e2',
-                              color: item.margin_pct >= 40 ? '#16a34a' : item.margin_pct >= 20 ? '#d97706' : '#ef4444'
+                              fontWeight: 700,
+                              background: '#f1f5f9',
+                              border: '1px solid #e2e8f0',
+                              color: '#0f172a'
                             }}>
                               {item.margin_pct}%
                             </span>
                           </td>
 
-                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>
                             {item.revenue_share_pct}%
                           </td>
                         </tr>
@@ -2259,9 +2601,9 @@ export const ReportsPage: React.FC = () => {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={10} style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }}>
+                      <td colSpan={10} style={{ padding: 32, textAlign: 'center', color: '#94a3b8' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                          <Package size={28} color="var(--text-muted)" />
+                          <Package size={28} color="#cbd5e1" />
                           <span style={{ fontSize: 13, fontWeight: 600 }}>No item sales recorded matching your filters</span>
                         </div>
                       </td>
@@ -2272,30 +2614,30 @@ export const ReportsPage: React.FC = () => {
                 {/* Totals Summary Footer */}
                 {filteredAndSortedItems.length > 0 && (
                   <tfoot>
-                    <tr style={{ background: 'var(--surface-2)', borderTop: '2px solid var(--border)', fontWeight: 800 }}>
-                      <td colSpan={4} style={{ padding: '12px 14px', color: 'var(--text-primary)' }}>
+                    <tr style={{ background: '#f8fafc', borderTop: '2px solid #e2e8f0', fontWeight: 800 }}>
+                      <td colSpan={4} style={{ padding: '12px 14px', color: '#0f172a' }}>
                         TOTALS ({filteredAndSortedItems.length} Products Displayed)
                       </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'center', color: '#2563eb', fontSize: 13 }}>
+                      <td style={{ padding: '12px 14px', textAlign: 'center', color: '#0f172a', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
                         {filteredAndSortedItems.reduce((sum, i) => sum + i.total_qty, 0)} units
                       </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'right', color: 'var(--primary)', fontSize: 14 }}>
+                      <td style={{ padding: '12px 14px', textAlign: 'right', color: '#0f172a', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
                         {formatCurrency(filteredAndSortedItems.reduce((sum, i) => sum + i.total_revenue, 0))}
                       </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'right', color: 'var(--text-muted)' }}>
+                      <td style={{ padding: '12px 14px', textAlign: 'right', color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>
                         {formatCurrency(filteredAndSortedItems.reduce((sum, i) => sum + i.total_cogs, 0))}
                       </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'right', color: '#0891b2', fontSize: 14 }}>
+                      <td style={{ padding: '12px 14px', textAlign: 'right', color: '#059669', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
                         {formatCurrency(filteredAndSortedItems.reduce((sum, i) => sum + i.gross_profit, 0))}
                       </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'center', color: 'var(--text-primary)' }}>
+                      <td style={{ padding: '12px 14px', textAlign: 'center', color: '#0f172a' }}>
                         {(() => {
                           const rev = filteredAndSortedItems.reduce((sum, i) => sum + i.total_revenue, 0)
                           const prof = filteredAndSortedItems.reduce((sum, i) => sum + i.gross_profit, 0)
                           return rev > 0 ? `${((prof / rev) * 100).toFixed(1)}%` : '0%'
                         })()}
                       </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'right', color: 'var(--text-primary)' }}>
+                      <td style={{ padding: '12px 14px', textAlign: 'right', color: '#0f172a' }}>
                         {(() => {
                           const shareSum = filteredAndSortedItems.reduce((sum, i) => sum + i.revenue_share_pct, 0)
                           return `${Math.min(100, Math.round(shareSum))}%`
@@ -2314,14 +2656,14 @@ export const ReportsPage: React.FC = () => {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
-                <tr style={{ background: 'var(--surface-2)', borderBottom: '2px solid var(--border)' }}>
-                  <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: 'var(--text-secondary)' }}>Order No.</th>
-                  <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: 'var(--text-secondary)' }}>Time</th>
-                  <th style={{ textAlign: 'center', padding: '10px 14px', fontWeight: 700, color: 'var(--text-secondary)' }}>Items</th>
-                  <th style={{ textAlign: 'center', padding: '10px 14px', fontWeight: 700, color: 'var(--text-secondary)' }}>Payment</th>
-                  <th style={{ textAlign: 'right', padding: '10px 14px', fontWeight: 700, color: 'var(--text-secondary)' }}>Discount</th>
-                  <th style={{ textAlign: 'right', padding: '10px 14px', fontWeight: 700, color: 'var(--text-secondary)' }}>Total Amount</th>
-                  <th style={{ textAlign: 'center', padding: '10px 14px', fontWeight: 700, color: 'var(--text-secondary)' }}>Status</th>
+                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                  <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 10 }}>Order No.</th>
+                  <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 10 }}>Time</th>
+                  <th style={{ textAlign: 'center', padding: '10px 14px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 10 }}>Items</th>
+                  <th style={{ textAlign: 'center', padding: '10px 14px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 10 }}>Payment</th>
+                  <th style={{ textAlign: 'right', padding: '10px 14px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 10 }}>Discount</th>
+                  <th style={{ textAlign: 'right', padding: '10px 14px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 10 }}>Total Amount</th>
+                  <th style={{ textAlign: 'center', padding: '10px 14px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 10 }}>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -2330,17 +2672,17 @@ export const ReportsPage: React.FC = () => {
                     <tr
                       key={ord.id || ord.order_no}
                       style={{
-                        borderBottom: '1px solid var(--border-light)',
-                        background: idx % 2 === 0 ? 'transparent' : 'rgba(241, 245, 249, 0.4)'
+                        borderBottom: '1px solid #f1f5f9',
+                        background: idx % 2 === 0 ? '#ffffff' : '#fafbfc'
                       }}
                     >
-                      <td style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      <td style={{ padding: '10px 14px', fontWeight: 700, color: '#0f172a' }}>
                         {ord.order_no}
                       </td>
-                      <td style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>
+                      <td style={{ padding: '10px 14px', color: '#64748b' }}>
                         {formatDateTime(ord.created_at)}
                       </td>
-                      <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 600 }}>
+                      <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 600, color: '#475569' }}>
                         {ord.items_count || 1} items
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'center' }}>
@@ -2349,30 +2691,32 @@ export const ReportsPage: React.FC = () => {
                           alignItems: 'center',
                           gap: 4,
                           fontSize: 11,
-                          fontWeight: 700,
+                          fontWeight: 600,
                           padding: '2px 8px',
-                          borderRadius: 99,
-                          background: 'var(--surface-2)',
-                          border: '1px solid var(--border)'
+                          borderRadius: 4,
+                          background: '#f8fafc',
+                          border: '1px solid #e2e8f0',
+                          color: '#0f172a'
                         }}>
                           {PAYMENT_ICONS[ord.payment_method] || null}
                           {ord.payment_method}
                         </span>
                       </td>
-                      <td style={{ padding: '10px 14px', textAlign: 'right', color: ord.discount_amount > 0 ? '#d97706' : 'var(--text-muted)' }}>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>
                         {ord.discount_amount > 0 ? formatCurrency(ord.discount_amount) : '-'}
                       </td>
-                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, color: 'var(--primary)' }}>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>
                         {formatCurrency(ord.total_amount)}
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                         <span style={{
-                          background: '#dcfce7',
-                          color: '#16a34a',
+                          background: '#f0fdf4',
+                          color: '#059669',
+                          border: '1px solid #bbf7d0',
                           fontSize: 10,
-                          fontWeight: 800,
+                          fontWeight: 700,
                           padding: '2px 8px',
-                          borderRadius: 99
+                          borderRadius: 4
                         }}>
                           COMPLETED
                         </span>
@@ -2381,7 +2725,7 @@ export const ReportsPage: React.FC = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <td colSpan={7} style={{ padding: 24, textAlign: 'center', color: '#94a3b8' }}>
                       No orders completed in this period
                     </td>
                   </tr>
@@ -2400,100 +2744,100 @@ export const ReportsPage: React.FC = () => {
 
           {/* ── P&L Scoreboard Card ── */}
           <div style={{
-            background: 'var(--surface)',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border)',
+            background: '#ffffff',
+            borderRadius: 12,
+            border: '1px solid #e2e8f0',
             padding: 24,
-            boxShadow: 'var(--shadow-sm)'
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Crown size={20} color="#d97706" />
-                  <h3 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                  <Crown size={18} color="#0f172a" />
+                  <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
                     Executive Profit &amp; Loss (P&amp;L) Statement
                   </h3>
                 </div>
-                <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0' }}>
                   Comprehensive financial summary for {periodDisplayLabel}.
                 </p>
               </div>
               <div style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px',
-                borderRadius: 99,
-                background: owner.netProfit >= 0 ? 'rgba(22, 163, 74, 0.1)' : 'rgba(220, 38, 38, 0.1)',
-                border: `1px solid ${owner.netProfit >= 0 ? '#16a34a' : '#dc2626'}`,
-                color: owner.netProfit >= 0 ? '#16a34a' : '#dc2626',
-                fontSize: 12, fontWeight: 800
+                display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px',
+                borderRadius: 6,
+                background: owner.netProfit >= 0 ? '#f0fdf4' : '#fff1f2',
+                border: `1px solid ${owner.netProfit >= 0 ? '#bbf7d0' : '#fecdd3'}`,
+                color: owner.netProfit >= 0 ? '#059669' : '#e11d48',
+                fontSize: 12, fontWeight: 700
               }}>
                 <ShieldCheck size={14} />
                 <span>Net Margin: {owner.netProfitMargin}%</span>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 20 }}>
               <div
                 onClick={() => setDetailModal('revenue')}
                 role="button"
                 tabIndex={0}
-                style={{ background: 'var(--surface-2)', padding: '16px 18px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', cursor: 'pointer', transition: 'all 0.2s' }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-light)'; e.currentTarget.style.transform = 'none' }}
+                style={{ background: '#f8fafc', padding: '16px 18px', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.15s ease' }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none' }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>1. Gross Revenue ↗</span>
-                  <DollarSign size={16} color="var(--primary)" />
+                  <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>1. Gross Revenue ↗</span>
+                  <DollarSign size={15} color="#0f172a" />
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>{formatCurrency(analytics?.summary?.total_revenue || 0)}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>{analytics?.summary?.total_orders || 0} completed orders</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(analytics?.summary?.total_revenue || 0)}</div>
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{analytics?.summary?.total_orders || 0} completed orders</div>
               </div>
 
               <div
                 onClick={() => setDetailModal('profit')}
                 role="button"
                 tabIndex={0}
-                style={{ background: 'var(--surface-2)', padding: '16px 18px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', cursor: 'pointer', transition: 'all 0.2s' }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.transform = 'translateY(-2px)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-light)'; e.currentTarget.style.transform = 'none' }}
+                style={{ background: '#f8fafc', padding: '16px 18px', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.15s ease' }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none' }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>2. Product Cost (COGS) ↗</span>
-                  <Layers size={16} color="#6366f1" />
+                  <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>2. Product Cost (COGS) ↗</span>
+                  <Layers size={15} color="#475569" />
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#6366f1' }}>{formatCurrency(analytics?.summary?.total_cost || 0)}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>Direct ingredient &amp; production cost</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(analytics?.summary?.total_cost || 0)}</div>
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Direct ingredient &amp; production cost</div>
               </div>
 
               <div
                 onClick={() => setDetailModal('profit')}
                 role="button"
                 tabIndex={0}
-                style={{ background: 'var(--surface-2)', padding: '16px 18px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', cursor: 'pointer', transition: 'all 0.2s' }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#059669'; e.currentTarget.style.transform = 'translateY(-2px)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-light)'; e.currentTarget.style.transform = 'none' }}
+                style={{ background: '#f8fafc', padding: '16px 18px', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.15s ease' }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none' }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>3. Gross Profit ↗</span>
-                  <TrendingUp size={16} color="#059669" />
+                  <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>3. Gross Profit ↗</span>
+                  <TrendingUp size={15} color="#059669" />
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#059669' }}>{formatCurrency(owner.grossProfit)}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>Gross Margin: <strong style={{ color: '#059669' }}>{owner.grossProfitMargin}%</strong></div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.grossProfit)}</div>
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Gross Margin: <strong style={{ color: '#059669' }}>{owner.grossProfitMargin}%</strong></div>
               </div>
 
               <div
                 onClick={() => setDetailModal('expenses')}
                 role="button"
                 tabIndex={0}
-                style={{ background: 'var(--surface-2)', padding: '16px 18px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', cursor: 'pointer', transition: 'all 0.2s' }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#ea580c'; e.currentTarget.style.transform = 'translateY(-2px)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-light)'; e.currentTarget.style.transform = 'none' }}
+                style={{ background: '#f8fafc', padding: '16px 18px', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.15s ease' }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none' }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>4. Operating Expenses ↗</span>
-                  <TrendingDown size={16} color="#ea580c" />
+                  <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>4. Operating Expenses ↗</span>
+                  <TrendingDown size={15} color="#64748b" />
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#ea580c' }}>{formatCurrency(owner.totalExpenses)}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>{owner.expenseCategories.length} expense categories logged</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.totalExpenses)}</div>
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{owner.expenseCategories.length} expense categories logged</div>
               </div>
 
               <div
@@ -2501,38 +2845,38 @@ export const ReportsPage: React.FC = () => {
                 role="button"
                 tabIndex={0}
                 style={{
-                  background: owner.netProfit >= 0 ? 'rgba(22, 163, 74, 0.08)' : 'rgba(220, 38, 38, 0.08)',
-                  padding: '16px 18px', borderRadius: 'var(--radius)',
-                  border: `2px solid ${owner.netProfit >= 0 ? '#16a34a' : '#dc2626'}`,
-                  cursor: 'pointer', transition: 'all 0.2s'
+                  background: owner.netProfit >= 0 ? '#f0fdf4' : '#fff1f2',
+                  padding: '16px 18px', borderRadius: 8,
+                  border: `1px solid ${owner.netProfit >= 0 ? '#bbf7d0' : '#fecdd3'}`,
+                  cursor: 'pointer', transition: 'all 0.15s ease'
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)' }}
                 onMouseLeave={(e) => { e.currentTarget.style.transform = 'none' }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: owner.netProfit >= 0 ? '#16a34a' : '#dc2626', textTransform: 'uppercase' }}>5. Net Bottom Line ↗</span>
-                  <Crown size={16} color={owner.netProfit >= 0 ? '#16a34a' : '#dc2626'} />
+                  <span style={{ fontSize: 10, fontWeight: 800, color: owner.netProfit >= 0 ? '#059669' : '#e11d48', textTransform: 'uppercase', letterSpacing: '0.04em' }}>5. Net Bottom Line ↗</span>
+                  <Crown size={15} color={owner.netProfit >= 0 ? '#059669' : '#e11d48'} />
                 </div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: owner.netProfit >= 0 ? '#16a34a' : '#dc2626' }}>{formatCurrency(owner.netProfit)}</div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: owner.netProfit >= 0 ? '#15803d' : '#b91c1c', marginTop: 4 }}>Take-Home: {owner.netProfitMargin}% of revenue</div>
+                <div style={{ fontSize: 22, fontWeight: 900, color: owner.netProfit >= 0 ? '#059669' : '#e11d48', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.netProfit)}</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: owner.netProfit >= 0 ? '#047857' : '#be123c', marginTop: 4 }}>Take-Home: {owner.netProfitMargin}% of revenue</div>
               </div>
             </div>
 
             {analytics && analytics.summary.total_revenue > 0 && (
-              <div style={{ padding: '14px 16px', background: 'var(--surface-2)', borderRadius: 'var(--radius)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
+              <div style={{ padding: '14px 16px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, marginBottom: 8, color: '#0f172a' }}>
                   <span>Revenue Capital Allocation Waterfall</span>
-                  <span style={{ color: 'var(--text-muted)' }}>100% of {formatCurrency(analytics.summary.total_revenue)}</span>
+                  <span style={{ color: '#64748b' }}>100% of {formatCurrency(analytics.summary.total_revenue)}</span>
                 </div>
-                <div style={{ display: 'flex', height: 14, borderRadius: 7, overflow: 'hidden', background: '#e2e8f0', gap: 2 }}>
-                  <div style={{ width: `${Math.min(100, Math.max(0, (analytics.summary.total_cost / analytics.summary.total_revenue) * 100))}%`, background: '#6366f1' }} />
-                  <div style={{ width: `${Math.min(100, Math.max(0, (owner.totalExpenses / analytics.summary.total_revenue) * 100))}%`, background: '#ea580c' }} />
-                  <div style={{ width: `${Math.min(100, Math.max(0, (owner.netProfit / analytics.summary.total_revenue) * 100))}%`, background: owner.netProfit >= 0 ? '#16a34a' : '#dc2626' }} />
+                <div style={{ display: 'flex', height: 10, borderRadius: 99, overflow: 'hidden', background: '#e2e8f0', gap: 2 }}>
+                  <div style={{ width: `${Math.min(100, Math.max(0, (analytics.summary.total_cost / analytics.summary.total_revenue) * 100))}%`, background: '#334155' }} />
+                  <div style={{ width: `${Math.min(100, Math.max(0, (owner.totalExpenses / analytics.summary.total_revenue) * 100))}%`, background: '#64748b' }} />
+                  <div style={{ width: `${Math.min(100, Math.max(0, (owner.netProfit / analytics.summary.total_revenue) * 100))}%`, background: owner.netProfit >= 0 ? '#059669' : '#e11d48' }} />
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 10, fontSize: 11 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: '#6366f1' }} /><span>COGS: <strong>{Math.round((analytics.summary.total_cost / analytics.summary.total_revenue) * 100)}%</strong> ({formatCurrency(analytics.summary.total_cost)})</span></div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: '#ea580c' }} /><span>Expenses: <strong>{Math.round((owner.totalExpenses / analytics.summary.total_revenue) * 100)}%</strong> ({formatCurrency(owner.totalExpenses)})</span></div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: owner.netProfit >= 0 ? '#16a34a' : '#dc2626' }} /><span>Net Profit: <strong>{owner.netProfitMargin}%</strong> ({formatCurrency(owner.netProfit)})</span></div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 10, fontSize: 11, color: '#475569' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: '#334155' }} /><span>COGS: <strong style={{ color: '#0f172a' }}>{Math.round((analytics.summary.total_cost / analytics.summary.total_revenue) * 100)}%</strong> ({formatCurrency(analytics.summary.total_cost)})</span></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: '#64748b' }} /><span>Expenses: <strong style={{ color: '#0f172a' }}>{Math.round((owner.totalExpenses / analytics.summary.total_revenue) * 100)}%</strong> ({formatCurrency(owner.totalExpenses)})</span></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: owner.netProfit >= 0 ? '#059669' : '#e11d48' }} /><span>Net Profit: <strong style={{ color: '#0f172a' }}>{owner.netProfitMargin}%</strong> ({formatCurrency(owner.netProfit)})</span></div>
                 </div>
               </div>
             )}
@@ -2540,9 +2884,9 @@ export const ReportsPage: React.FC = () => {
 
           {/* ── Cash Reconciliation Label ── */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 4 }}>
-            <Wallet size={16} color="#16a34a" />
-            <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)' }}>Counter Cash Reconciliation &amp; Drawer Audit</span>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Real-time physical cash tracking</span>
+            <Wallet size={16} color="#0f172a" />
+            <span style={{ fontSize: 13, fontWeight: 800, color: '#0f172a' }}>Counter Cash Reconciliation &amp; Drawer Audit</span>
+            <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Real-time physical cash tracking</span>
           </div>
 
           {/* ── Cash Reconciliation 3 standalone cards ── */}
@@ -2551,81 +2895,94 @@ export const ReportsPage: React.FC = () => {
               onClick={() => setDetailModal('cash')}
               role="button"
               tabIndex={0}
-              style={{ background: 'var(--surface)', border: '1px solid rgba(22,163,74,0.3)', borderLeft: '4px solid #16a34a', padding: '18px 20px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', cursor: 'pointer', transition: 'all 0.2s' }}
-              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.transform = 'none' }}
+              style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '18px 20px', borderRadius: 12, boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)', cursor: 'pointer', transition: 'all 0.15s ease' }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none' }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#16a34a', fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
-                <ArrowUpRight size={16} /><span>Cash Inflow (Sales) ↗</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 6, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#059669' }}>
+                  <ArrowUpRight size={16} />
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>Cash Inflow (Sales) ↗</span>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: '#16a34a' }}>{formatCurrency(owner.cashDrawer.cashSales)}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>Collected directly from cash customers</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.cashDrawer.cashSales)}</div>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Collected directly from cash customers</div>
             </div>
 
             <div
               onClick={() => setDetailModal('cash')}
               role="button"
               tabIndex={0}
-              style={{ background: 'var(--surface)', border: '1px solid rgba(220,38,38,0.3)', borderLeft: '4px solid #dc2626', padding: '18px 20px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', cursor: 'pointer', transition: 'all 0.2s' }}
-              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.transform = 'none' }}
+              style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '18px 20px', borderRadius: 12, boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)', cursor: 'pointer', transition: 'all 0.15s ease' }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none' }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#dc2626', fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
-                <ArrowDownRight size={16} /><span>Cash Outflow (Counter Expenses) ↗</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 6, background: '#fff1f2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#e11d48' }}>
+                  <ArrowDownRight size={16} />
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>Cash Outflow (Drawer Expenses) ↗</span>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: '#dc2626' }}>{formatCurrency(owner.cashDrawer.cashExpenses)}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>Petty cash and vendor payments from drawer</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.cashDrawer.cashExpenses)}</div>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Petty cash and vendor payments from drawer</div>
             </div>
 
             <div
               onClick={() => setDetailModal('cash')}
               role="button"
               tabIndex={0}
-              style={{ background: 'var(--surface)', border: '2px solid var(--primary)', borderLeft: '4px solid var(--primary)', padding: '18px 20px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', cursor: 'pointer', transition: 'all 0.2s' }}
-              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.transform = 'none' }}
+              style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '18px 20px', borderRadius: 12, boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)', cursor: 'pointer', transition: 'all 0.15s ease' }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none' }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--primary)', fontSize: 12, fontWeight: 800, marginBottom: 8 }}>
-                <Coins size={16} /><span>Expected Cash In Register ↗</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 6, background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0f172a' }}>
+                  <Coins size={16} />
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>Expected Cash In Register ↗</span>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--primary)' }}>{formatCurrency(owner.cashDrawer.netCashEstimated)}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>Net sales cash minus payouts (excl. initial float)</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.cashDrawer.netCashEstimated)}</div>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Net sales cash minus payouts (excl. initial float)</div>
             </div>
           </div>
 
           {/* ── Staff & Cashier Accountability – standalone card ── */}
-          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: '20px 24px', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', padding: '20px 24px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-              <Users size={18} color="var(--primary)" />
+              <Users size={18} color="#0f172a" />
               <div>
-                <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>Staff &amp; Cashier Accountability Matrix</h4>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Track billing volumes, revenue contribution, and discounts given per staff</div>
+                <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: '#0f172a', letterSpacing: '-0.01em' }}>Staff &amp; Cashier Accountability Matrix</h4>
+                <div style={{ fontSize: 11, color: '#64748b' }}>Track billing volumes, revenue contribution, and discounts given per staff</div>
               </div>
             </div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
-                  <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
-                    <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: 'var(--text-muted)' }}>Cashier</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: 'var(--text-muted)' }}>Orders</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>Revenue</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>Discounts</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>Avg Ticket</th>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                    <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: '#475569', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Cashier</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: '#475569', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Orders</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: '#475569', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Revenue</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: '#475569', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Discounts</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: '#475569', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Avg Ticket</th>
                   </tr>
                 </thead>
                 <tbody>
                   {owner.cashierPerformance.length > 0 ? (
                     owner.cashierPerformance.map((c, idx) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid var(--border-light)' }}>
-                        <td style={{ padding: '8px 10px', fontWeight: 700, color: 'var(--text-primary)' }}>{c.cashier_name}</td>
-                        <td style={{ padding: '8px 10px', textAlign: 'center' }}><span style={{ background: 'var(--surface-2)', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>{c.orders_count}</span></td>
-                        <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: 'var(--primary)' }}>{formatCurrency(c.total_revenue)}</td>
-                        <td style={{ padding: '8px 10px', textAlign: 'right', color: c.total_discount > 0 ? '#d97706' : 'var(--text-muted)' }}>{c.total_discount > 0 ? formatCurrency(c.total_discount) : '-'}</td>
-                        <td style={{ padding: '8px 10px', textAlign: 'right', color: 'var(--text-secondary)' }}>{formatCurrency(c.avg_ticket)}</td>
+                      <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '8px 10px', fontWeight: 700, color: '#0f172a' }}>{c.cashier_name}</td>
+                        <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                          <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '2px 6px', borderRadius: 4, fontWeight: 700, color: '#0f172a' }}>
+                            {c.orders_count}
+                          </span>
+                        </td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(c.total_revenue)}</td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>{c.total_discount > 0 ? formatCurrency(c.total_discount) : '-'}</td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(c.avg_ticket)}</td>
                       </tr>
                     ))
                   ) : (
-                    <tr><td colSpan={5} style={{ padding: 16, textAlign: 'center', color: 'var(--text-muted)' }}>No cashier transactions recorded for this period</td></tr>
+                    <tr><td colSpan={5} style={{ padding: 16, textAlign: 'center', color: '#94a3b8' }}>No cashier transactions recorded for this period</td></tr>
                   )}
                 </tbody>
               </table>
@@ -2633,12 +2990,12 @@ export const ReportsPage: React.FC = () => {
           </div>
 
           {/* ── POS Terminal Sales – standalone card ── */}
-          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: '20px 24px', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', padding: '20px 24px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-              <Monitor size={18} color="var(--primary)" />
+              <Monitor size={18} color="#0f172a" />
               <div>
-                <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>POS Terminal Sales Performance</h4>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Compare workload and billings across Counter Terminals</div>
+                <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: '#0f172a', letterSpacing: '-0.01em' }}>POS Terminal Sales Performance</h4>
+                <div style={{ fontSize: 11, color: '#64748b' }}>Compare workload and billings across Counter Terminals</div>
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -2647,49 +3004,49 @@ export const ReportsPage: React.FC = () => {
                   const totalRev = analytics?.summary?.total_revenue || 1
                   const share = Math.round((t.total_revenue / totalRev) * 100)
                   return (
-                    <div key={idx} style={{ padding: '12px 14px', borderRadius: 'var(--radius)', background: 'var(--surface-2)', border: '1px solid var(--border-light)' }}>
+                    <div key={idx} style={{ padding: '12px 14px', borderRadius: 8, background: '#f8fafc', border: '1px solid #f1f5f9' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontWeight: 800, fontSize: 12, padding: '2px 8px', borderRadius: 4, background: 'var(--primary)', color: '#fff' }}>{t.terminal_id}</span>
-                          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t.orders_count} orders completed</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontWeight: 800, fontSize: 11, padding: '2px 8px', borderRadius: 4, background: '#0f172a', color: '#ffffff' }}>{t.terminal_id}</span>
+                          <span style={{ fontSize: 12, color: '#64748b' }}>{t.orders_count} orders completed</span>
                         </div>
-                        <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>{formatCurrency(t.total_revenue)}</span>
+                        <span style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(t.total_revenue)}</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'var(--border)', overflow: 'hidden' }}>
-                          <div style={{ width: `${share}%`, height: '100%', background: 'var(--primary)' }} />
+                        <div style={{ flex: 1, height: 4, borderRadius: 99, background: '#e2e8f0', overflow: 'hidden' }}>
+                          <div style={{ width: `${share}%`, height: '100%', background: '#334155' }} />
                         </div>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--primary)' }}>{share}%</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#0f172a' }}>{share}%</span>
                       </div>
                     </div>
                   )
                 })
               ) : (
-                <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>No terminal records for this period</div>
+                <div style={{ padding: 24, textAlign: 'center', color: '#94a3b8', fontSize: 12 }}>No terminal records for this period</div>
               )}
             </div>
           </div>
 
           {/* ── Operating Expenses Breakdown – standalone card ── */}
-          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: '20px 24px', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', padding: '20px 24px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <TrendingDown size={18} color="#ea580c" />
+                <TrendingDown size={18} color="#0f172a" />
                 <div>
-                  <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>Operating Expenses Breakdown</h4>
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Expenses categorized from store expenses registry</div>
+                  <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: '#0f172a', letterSpacing: '-0.01em' }}>Operating Expenses Breakdown</h4>
+                  <div style={{ fontSize: 11, color: '#64748b' }}>Expenses categorized from store expenses registry</div>
                 </div>
               </div>
-              <span style={{ fontSize: 13, fontWeight: 800, color: '#ea580c' }}>Total: {formatCurrency(owner.totalExpenses)}</span>
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>Total: {formatCurrency(owner.totalExpenses)}</span>
             </div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
-                  <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
-                    <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: 'var(--text-muted)' }}>Category</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: 'var(--text-muted)' }}>Vouchers</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>Amount</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>Share %</th>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                    <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: '#475569', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Category</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: '#475569', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Vouchers</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: '#475569', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Amount</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: '#475569', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Share %</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2697,16 +3054,20 @@ export const ReportsPage: React.FC = () => {
                     owner.expenseCategories.map((exp, idx) => {
                       const share = owner.totalExpenses > 0 ? Math.round((exp.total_amount / owner.totalExpenses) * 100) : 0
                       return (
-                        <tr key={idx} style={{ borderBottom: '1px solid var(--border-light)' }}>
-                          <td style={{ padding: '8px 10px', fontWeight: 700, color: 'var(--text-primary)' }}>{exp.category}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'center' }}><span style={{ background: 'var(--surface-2)', padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>{exp.count}</span></td>
-                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#ea580c' }}>{formatCurrency(exp.total_amount)}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>{share}%</td>
+                        <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '8px 10px', fontWeight: 700, color: '#0f172a' }}>{exp.category}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                            <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '2px 6px', borderRadius: 4, fontWeight: 600, color: '#0f172a' }}>
+                              {exp.count}
+                            </span>
+                          </td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(exp.total_amount)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', color: '#64748b', fontWeight: 600 }}>{share}%</td>
                         </tr>
                       )
                     })
                   ) : (
-                    <tr><td colSpan={4} style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>No operating expenses logged for this period</td></tr>
+                    <tr><td colSpan={4} style={{ padding: 20, textAlign: 'center', color: '#94a3b8' }}>No operating expenses logged for this period</td></tr>
                   )}
                 </tbody>
               </table>
@@ -2714,13 +3075,13 @@ export const ReportsPage: React.FC = () => {
           </div>
 
           {/* ── Inventory Capital Valuation – standalone card ── */}
-          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: '20px 24px', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', padding: '20px 24px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Package size={18} color="#2563eb" />
+                <Package size={18} color="#0f172a" />
                 <div>
-                  <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>Inventory Capital Valuation &amp; Spoilage Audit</h4>
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Live snapshot of locked capital, potential retail margin, and spoilage losses</div>
+                  <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: '#0f172a', letterSpacing: '-0.01em' }}>Inventory Capital Valuation &amp; Spoilage Audit</h4>
+                  <div style={{ fontSize: 11, color: '#64748b' }}>Live snapshot of locked capital, potential retail margin, and spoilage losses</div>
                 </div>
               </div>
               <button
@@ -2729,14 +3090,15 @@ export const ReportsPage: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 4,
-                  padding: '4px 10px',
+                  padding: '5px 12px',
                   borderRadius: 6,
-                  border: '1px solid var(--border)',
-                  background: 'var(--surface-2)',
+                  border: '1px solid #e2e8f0',
+                  background: '#f8fafc',
                   fontSize: 11,
                   fontWeight: 700,
                   cursor: 'pointer',
-                  color: '#2563eb'
+                  color: '#0f172a',
+                  transition: 'all 0.15s ease'
                 }}
               >
                 <span>Full Audit ↗</span>
@@ -2746,74 +3108,74 @@ export const ReportsPage: React.FC = () => {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 14 }}>
               <div
                 onClick={() => setDetailModal('inventory')}
-                style={{ background: 'var(--surface-2)', padding: '14px 16px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', cursor: 'pointer', transition: 'all 0.2s' }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = 'none' }}
+                style={{ background: '#f8fafc', padding: '14px 16px', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.15s ease' }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none' }}
               >
-                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Capital In Stock (At Cost) ↗</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>{formatCurrency(owner.inventoryValuation.totalCostValue)}</div>
-                <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>{owner.inventoryValuation.totalProducts} active products</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Capital In Stock (At Cost) ↗</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.inventoryValuation.totalCostValue)}</div>
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{owner.inventoryValuation.totalProducts} active products</div>
               </div>
 
               <div
                 onClick={() => setDetailModal('inventory')}
-                style={{ background: 'var(--surface-2)', padding: '14px 16px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', cursor: 'pointer', transition: 'all 0.2s' }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = 'none' }}
+                style={{ background: '#f8fafc', padding: '14px 16px', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.15s ease' }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none' }}
               >
-                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Retail Value (Selling Price) ↗</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#2563eb', marginTop: 4 }}>{formatCurrency(owner.inventoryValuation.totalRetailValue)}</div>
-                <div style={{ fontSize: 10, color: '#16a34a', fontWeight: 600, marginTop: 2 }}>+{formatCurrency(owner.inventoryValuation.potentialMarginValue)} profit potential</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Retail Value (Selling Price) ↗</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.inventoryValuation.totalRetailValue)}</div>
+                <div style={{ fontSize: 11, color: '#059669', fontWeight: 600, marginTop: 2 }}>+{formatCurrency(owner.inventoryValuation.potentialMarginValue)} profit potential</div>
               </div>
 
               <div
                 onClick={() => setDetailModal('inventory')}
                 style={{
-                  background: owner.inventoryValuation.lowStockCount > 0 ? 'rgba(217,119,6,0.08)' : 'var(--surface-2)',
-                  border: `1px solid ${owner.inventoryValuation.lowStockCount > 0 ? '#d97706' : 'var(--border-light)'}`,
-                  padding: '14px 16px', borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', gap: 10,
-                  cursor: 'pointer', transition: 'all 0.2s'
+                  background: owner.inventoryValuation.lowStockCount > 0 ? '#fffbeb' : '#f8fafc',
+                  border: `1px solid ${owner.inventoryValuation.lowStockCount > 0 ? '#fde68a' : '#e2e8f0'}`,
+                  padding: '14px 16px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10,
+                  cursor: 'pointer', transition: 'all 0.15s ease'
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)' }}
                 onMouseLeave={(e) => { e.currentTarget.style.transform = 'none' }}
               >
-                <AlertTriangle size={20} color={owner.inventoryValuation.lowStockCount > 0 ? '#d97706' : 'var(--text-muted)'} />
+                <AlertTriangle size={18} color={owner.inventoryValuation.lowStockCount > 0 ? '#b45309' : '#94a3b8'} />
                 <div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: owner.inventoryValuation.lowStockCount > 0 ? '#d97706' : 'var(--text-primary)' }}>{owner.inventoryValuation.lowStockCount} Items ↗</div>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Low Stock Warning</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: owner.inventoryValuation.lowStockCount > 0 ? '#b45309' : '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{owner.inventoryValuation.lowStockCount} Items ↗</div>
+                  <div style={{ fontSize: 10, color: owner.inventoryValuation.lowStockCount > 0 ? '#b45309' : '#64748b' }}>Low Stock Warning</div>
                 </div>
               </div>
 
               <div
                 onClick={() => setDetailModal('inventory')}
                 style={{
-                  background: owner.inventoryValuation.outOfStockCount > 0 ? 'rgba(220,38,38,0.08)' : 'var(--surface-2)',
-                  border: `1px solid ${owner.inventoryValuation.outOfStockCount > 0 ? '#dc2626' : 'var(--border-light)'}`,
-                  padding: '14px 16px', borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', gap: 10,
-                  cursor: 'pointer', transition: 'all 0.2s'
+                  background: owner.inventoryValuation.outOfStockCount > 0 ? '#fff1f2' : '#f8fafc',
+                  border: `1px solid ${owner.inventoryValuation.outOfStockCount > 0 ? '#fecdd3' : '#e2e8f0'}`,
+                  padding: '14px 16px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10,
+                  cursor: 'pointer', transition: 'all 0.15s ease'
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)' }}
                 onMouseLeave={(e) => { e.currentTarget.style.transform = 'none' }}
               >
-                <AlertTriangle size={20} color={owner.inventoryValuation.outOfStockCount > 0 ? '#dc2626' : 'var(--text-muted)'} />
+                <AlertTriangle size={18} color={owner.inventoryValuation.outOfStockCount > 0 ? '#e11d48' : '#94a3b8'} />
                 <div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: owner.inventoryValuation.outOfStockCount > 0 ? '#dc2626' : 'var(--text-primary)' }}>{owner.inventoryValuation.outOfStockCount} Items ↗</div>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Out of Stock Risk</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: owner.inventoryValuation.outOfStockCount > 0 ? '#e11d48' : '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{owner.inventoryValuation.outOfStockCount} Items ↗</div>
+                  <div style={{ fontSize: 10, color: owner.inventoryValuation.outOfStockCount > 0 ? '#e11d48' : '#64748b' }}>Out of Stock Risk</div>
                 </div>
               </div>
             </div>
 
             <div
               onClick={() => setDetailModal('inventory')}
-              style={{ padding: '12px 16px', borderRadius: 'var(--radius)', background: 'rgba(220,38,38,0.04)', border: '1px solid rgba(220,38,38,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
-              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+              style={{ padding: '12px 16px', borderRadius: 8, background: '#fff1f2', border: '1px solid #fecdd3', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', transition: 'all 0.15s ease' }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)' }}
               onMouseLeave={(e) => { e.currentTarget.style.transform = 'none' }}
             >
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#dc2626' }}>Spoilage &amp; Damaged Stock Lost ↗</div>
-                <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>{owner.damageLoss.quantity} units lost across {owner.damageLoss.events} incidents (Click to view breakdown)</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#be123c' }}>Spoilage &amp; Damaged Stock Lost ↗</div>
+                <div style={{ fontSize: 11, color: '#e11d48', marginTop: 2 }}>{owner.damageLoss.quantity} units lost across {owner.damageLoss.events} incidents (Click to view breakdown)</div>
               </div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: '#dc2626' }}>{formatCurrency(owner.damageLoss.cost)}</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: '#be123c', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.damageLoss.cost)}</div>
             </div>
           </div>
         </div>

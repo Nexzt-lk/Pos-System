@@ -21,7 +21,8 @@ export const CartItem: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRe
   const stepDelta = isGram ? 50 : isKg ? (item.quantity <= 0.5 ? 0.05 : 0.25) : 1
   const [hasImgError, setHasImgError] = React.useState(false)
 
-  const imgSrc = getProductImageSrc(item.image_path, item.product_name)
+  const activeImagePath = item.image_path || (item as any).imagePath
+  const imgSrc = getProductImageSrc(activeImagePath, item.product_name)
 
   // Formatted display string for quantity (e.g., 250g, 500g, 1.5kg, 3 pcs)
   const displayQty = React.useMemo(() => {
@@ -73,9 +74,14 @@ export const CartItem: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRe
             src={imgSrc}
             alt={item.product_name}
             onError={(e) => {
-              const clean = item.image_path?.startsWith('/') ? item.image_path.slice(1) : item.image_path
+              const clean = activeImagePath?.replace(/^\/+/, '') || ''
               if (e.currentTarget.src.startsWith('app-images:///')) {
-                e.currentTarget.src = `/images/${clean}`
+                const cached = typeof window !== 'undefined' ? localStorage.getItem(`pos_img_${clean}`) : null
+                if (cached) {
+                  e.currentTarget.src = cached
+                } else {
+                  e.currentTarget.src = `/images/${clean}`
+                }
               } else {
                 setHasImgError(true)
               }

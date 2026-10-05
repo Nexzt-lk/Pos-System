@@ -6,11 +6,9 @@ import {
   Package2,
   AlertTriangle,
   CheckCircle2,
-  RefreshCw,
   Barcode,
   Trash2,
   Layers,
-  Image as ImageIcon,
   Sparkles
 } from 'lucide-react'
 import { Modal, Form, Input, InputNumber, Select, Switch, message, Popconfirm } from 'antd'
@@ -20,9 +18,10 @@ import { categoriesApi } from '../../api/categoriesApi'
 import { useAppStore } from '../../store/appStore'
 import { formatCurrency } from '../../lib/formatters'
 import { generateCategoryItemCode } from '../../lib/skuGenerator'
-import { BAKERY_IMAGE_PRESETS, getAutoMatchedProductImage, getProductImageSrc } from '../../lib/imageHelper'
+import { getAutoMatchedProductImage, getProductImageSrc } from '../../lib/imageHelper'
 import { RefreshButton } from '../../components/RefreshButton'
 import { ProductCardItem } from './ProductCardItem'
+import { ProductImagePicker } from './ProductImagePicker'
 import { InventoryFilters } from '../inventory/InventoryFilters'
 
 export const ProductsPage: React.FC = () => {
@@ -689,11 +688,18 @@ export const ProductsPage: React.FC = () => {
                               }}
                             >
                               <img
-                                src={getProductImageSrc(product.image_path, product.name, product.category_name) || undefined}
+                                src={getProductImageSrc(product.image_path || (product as any).imagePath, product.name, product.category_name) || undefined}
                                 alt={product.name}
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                 onError={(e) => {
-                                  e.currentTarget.style.display = 'none'
+                                  const imgPath = product.image_path || (product as any).imagePath
+                                  const clean = imgPath?.replace(/^\/+/, '') || ''
+                                  const cached = typeof window !== 'undefined' ? localStorage.getItem(`pos_img_${clean}`) : null
+                                  if (cached && e.currentTarget.src !== cached) {
+                                    e.currentTarget.src = cached
+                                  } else {
+                                    e.currentTarget.style.display = 'none'
+                                  }
                                 }}
                               />
                               <Cake size={18} style={{ position: 'absolute', zIndex: 0, opacity: 0.7 }} />
@@ -1174,7 +1180,7 @@ export const ProductsPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Product Image & Auto-Match Preset Gallery */}
+          {/* Product Image Selection & Custom Upload */}
           <Form.Item
             noStyle
             shouldUpdate={(prev, cur) =>
@@ -1187,165 +1193,20 @@ export const ProductsPage: React.FC = () => {
               const currentName = getFieldValue('name') || ''
               const currentCatId = getFieldValue('category_id')
               const selectedCat = categories.find((c) => c.id === currentCatId)
-              const customImagePath = getFieldValue('image_path')
-              const autoMatchedImage = getAutoMatchedProductImage(currentName, selectedCat?.name)
-              const activeDisplayImage = customImagePath || autoMatchedImage
-              const isAuto = !customImagePath
+              const currentImagePath = getFieldValue('image_path')
 
               return (
-                <div
-                  style={{
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: 10,
-                    padding: 12,
-                    marginBottom: 14
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <ImageIcon size={15} style={{ color: '#db2777' }} />
-                      <span style={{ fontSize: 12.5, fontWeight: 700, color: '#1e293b' }}>
-                        Product Image
-                      </span>
-                    </div>
-                    {isAuto ? (
-                      <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color: '#059669',
-                          background: '#ecfdf5',
-                          padding: '2px 8px',
-                          borderRadius: 99,
-                          border: '1px solid #a7f3d0',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 4
-                        }}
-                      >
-                        <Sparkles size={12} /> Auto-Matched
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setFieldsValue({ image_path: undefined })}
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color: '#db2777',
-                          background: '#fdf2f8',
-                          padding: '2px 8px',
-                          borderRadius: 99,
-                          border: '1px solid #fbcfe8',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 4
-                        }}
-                      >
-                        <RefreshCw size={11} /> Reset to Auto
-                      </button>
-                    )}
-                  </div>
-
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                    {/* Live Image Preview */}
-                    <div
-                      style={{
-                        width: 58,
-                        height: 58,
-                        borderRadius: 10,
-                        border: '2px solid #e2e8f0',
-                        overflow: 'hidden',
-                        flexShrink: 0,
-                        background: '#ffffff',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-                        position: 'relative'
-                      }}
-                    >
-                      <img
-                        src={getProductImageSrc(activeDisplayImage, currentName, selectedCat?.name) || undefined}
-                        alt="Preview"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    </div>
-
-                    {/* Quick Preset Selector */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                        <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>
-                          {isAuto
-                            ? `Auto-matched for ${selectedCat?.name || 'Category'}:`
-                            : 'Select an image for this category:'}
-                        </span>
-                        {selectedCat && (
-                          <span style={{ fontSize: 10.5, fontWeight: 700, color: '#16a34a', background: '#f0fdf4', padding: '1px 6px', borderRadius: 6 }}>
-                            {selectedCat.name}
-                          </span>
-                        )}
-                      </div>
-
-                      <div
-                        style={{
-                          display: 'flex',
-                          gap: 6,
-                          overflowX: 'auto',
-                          paddingBottom: 4
-                        }}
-                      >
-                        {[...BAKERY_IMAGE_PRESETS]
-                          .sort((a, b) => {
-                            const cName = (selectedCat?.name || '').toLowerCase()
-                            const aMatch = a.categories.some((c) => cName.includes(c.toLowerCase()) || c.toLowerCase().includes(cName))
-                            const bMatch = b.categories.some((c) => cName.includes(c.toLowerCase()) || c.toLowerCase().includes(cName))
-                            if (aMatch && !bMatch) return -1
-                            if (!aMatch && bMatch) return 1
-                            return 0
-                          })
-                          .map((preset) => {
-                            const isSelected = activeDisplayImage === preset.path
-                            const isCategoryMatch = selectedCat && preset.categories.some((c) => (selectedCat.name || '').toLowerCase().includes(c.toLowerCase()))
-                            return (
-                              <div
-                                key={preset.id}
-                                onClick={() => setFieldsValue({ image_path: preset.path })}
-                                title={`${preset.name} (${preset.categories.join(', ')})`}
-                                style={{
-                                  width: 36,
-                                  height: 36,
-                                  borderRadius: 8,
-                                  overflow: 'hidden',
-                                  cursor: 'pointer',
-                                  flexShrink: 0,
-                                  border: isSelected
-                                    ? '2.5px solid #16a34a'
-                                    : isCategoryMatch
-                                      ? '1.5px solid #86efac'
-                                      : '1px solid #cbd5e1',
-                                  opacity: isSelected ? 1 : isCategoryMatch ? 0.9 : 0.6,
-                                  transform: isSelected ? 'scale(1.08)' : 'scale(1)',
-                                  boxShadow: isSelected ? '0 2px 8px rgba(22, 163, 74, 0.35)' : 'none',
-                                  transition: 'all 0.15s ease'
-                                }}
-                              >
-                                <img
-                                  src={preset.path}
-                                  alt={preset.name}
-                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                />
-                              </div>
-                            )
-                          })}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Hidden form field */}
+                <>
+                  <ProductImagePicker
+                    value={currentImagePath}
+                    onChange={(newPath) => setFieldsValue({ image_path: newPath })}
+                    productName={currentName}
+                    categoryName={selectedCat?.name}
+                  />
                   <Form.Item name="image_path" noStyle>
                     <Input type="hidden" />
                   </Form.Item>
-                </div>
+                </>
               )
             }}
           </Form.Item>
