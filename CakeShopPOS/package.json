@@ -1,9 +1,9 @@
 {
-  "name": "cake-shop-pos",
-  "version": "1.2.3",
-  "description": "High-Performance Multi-Branch Cake Shop POS System",
+  "name": "nexzt-pos",
+  "version": "1.3.0",
+  "description": "Nexzt POS - High-Performance Modern POS System",
   "main": "./out/main/main.js",
-  "author": "Wasana Cake - Katugastota",
+  "author": "Nexzt POS",
   "scripts": {
     "dev": "electron-vite dev --watch",
     "build": "electron-vite build",

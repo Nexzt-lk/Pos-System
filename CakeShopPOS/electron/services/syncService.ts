@@ -88,382 +88,206 @@ async function postSupabase(endpoint: string, data: any): Promise<boolean> {
   }
 }
 
-async function pullCloudCatalog(): Promise<void> {
+// ─────────────────────────────────────────────────────────────────────────────
+// FULL CLOUD → LOCAL PULL
+// Downloads EVERY row of every business table from Supabase (paginated, so the
+// 1000-row API cap never truncates data) and merges it into the local SQLite DB.
+//  • Rows with local un-synced changes (sync_status = 'pending') are never overwritten.
+//  • Only columns that exist locally are written, so cloud/local schema drift is safe.
+//  • All writes run in one transaction per table with a single disk save (fast).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PULL_PAGE_SIZE = 1000
+
+// Dependency order: parents before children.
+const PULL_TABLES: Array<{ table: string; conflict: string }> = [
+  { table: 'shops', conflict: 'id' },
+  { table: 'categories', conflict: 'id' },
+  { table: 'users', conflict: 'id' },
+  { table: 'suppliers', conflict: 'id' },
+  { table: 'products', conflict: 'id' },
+  { table: 'inventory', conflict: 'product_id' },
+  { table: 'orders', conflict: 'id' },
+  { table: 'order_items', conflict: 'id' },
+  { table: 'payments', conflict: 'id' },
+  { table: 'stock_movements', conflict: 'id' },
+  { table: 'expenses', conflict: 'id' },
+  { table: 'cash_sessions', conflict: 'id' }
+]
+
+let isPullInProgress = false
+
+async function fetchAllCloudRows(url: string, key: string, table: string): Promise<any[]> {
+  const rows: any[] = []
+  let offset = 0
+  // Loop until an empty page – works even if the server's max-rows cap is below PULL_PAGE_SIZE.
+  for (let guard = 0; guard < 1000; guard++) {
+    const res = await axios.get(
+      `${url}/rest/v1/${table}?select=*&order=id.asc&limit=${PULL_PAGE_SIZE}&offset=${offset}`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` }, timeout: 20000 }
+    )
+    const page = Array.isArray(res.data) ? res.data : []
+    if (page.length === 0) break
+    rows.push(...page)
+    offset += page.length
+  }
+  return rows
+}
+
+function getLocalColumns(db: any, table: string): Set<string> {
+  try {
+    const cols = db.query(`PRAGMA table_info(${table});`) as Array<{ name: string }>
+    return new Set(cols.map((c) => c.name))
+  } catch (_) {
+    return new Set()
+  }
+}
+
+/** Convert a Supabase row into the shape the local SQLite table expects. */
+function normalizeCloudRow(table: string, cloudRow: any): any {
+  const row: any = {}
+  for (const [k, v] of Object.entries(cloudRow)) {
+    if (typeof v === 'boolean') row[k] = v ? 1 : 0
+    else if (v !== null && typeof v === 'object') row[k] = JSON.stringify(v)
+    else row[k] = v
+  }
+  row.sync_status = 'synced'
+  const today = new Date().toISOString().split('T')[0]
+
+  switch (table) {
+    case 'products':
+      row.shop_id = row.shop_id || defaultShopId
+      row.barcode = row.barcode ? String(row.barcode).trim() : null
+      row.item_code = row.item_code || row.barcode || `ITM-${String(row.id).slice(0, 8)}`
+      break
+    case 'inventory':
+      row.id = row.id || `inv-${row.product_id}`
+      row.shop_id = row.shop_id || defaultShopId
+      break
+    case 'orders':
+      row.shop_id = row.shop_id || defaultShopId
+      row.local_id = row.local_id || row.id
+      row.status = String(row.status || 'completed').toLowerCase()
+      break
+    case 'order_items':
+      row.product_id = row.product_id || 'deleted-product'
+      row.product_name = row.product_name || 'Item'
+      break
+    case 'payments':
+      row.method = String(row.method || 'CASH').toUpperCase()
+      break
+    case 'stock_movements':
+      row.shop_id = row.shop_id || defaultShopId
+      row.product_id = row.product_id || 'deleted-product'
+      row.type = String(row.type || 'ADJUST').toUpperCase()
+      break
+    case 'expenses':
+      row.shop_id = row.shop_id || defaultShopId
+      row.local_id = row.local_id || row.id
+      row.description = row.description || 'Expense'
+      row.expense_date = String(row.expense_date || row.created_at || today).slice(0, 10)
+      break
+    case 'cash_sessions':
+      row.shop_id = row.shop_id || defaultShopId
+      row.session_date = String(row.session_date || row.created_at || today).slice(0, 10)
+      break
+  }
+  return row
+}
+
+function buildUpsertSql(table: string, keys: string[], conflict: string, hasSyncStatus: boolean): string {
+  const cols = keys.map((k) => `"${k}"`).join(', ')
+  const placeholders = keys.map(() => '?').join(', ')
+  const updatable = keys.filter((k) => k !== conflict && k !== 'id' && k !== 'created_at')
+
+  if (updatable.length === 0) {
+    return `INSERT INTO ${table} (${cols}) VALUES (${placeholders}) ON CONFLICT("${conflict}") DO NOTHING;`
+  }
+
+  const setClause = updatable
+    .map((k) =>
+      table === 'products' && k === 'image_path'
+        ? `"image_path" = CASE WHEN products.image_path IS NOT NULL AND products.image_path != '' THEN products.image_path ELSE excluded.image_path END`
+        : `"${k}" = excluded."${k}"`
+    )
+    .join(', ')
+
+  // Never clobber rows that have local changes still waiting to be pushed.
+  const guard = hasSyncStatus ? ` WHERE COALESCE(${table}.sync_status, 'pending') != 'pending'` : ''
+  return `INSERT INTO ${table} (${cols}) VALUES (${placeholders}) ON CONFLICT("${conflict}") DO UPDATE SET ${setClause}${guard};`
+}
+
+async function pullCloudCatalog(): Promise<{ success: boolean; tables: Record<string, { cloud: number; merged: number; skipped: number }>; error?: string }> {
+  const summary: Record<string, { cloud: number; merged: number; skipped: number }> = {}
+  if (isPullInProgress) return { success: true, tables: summary }
+  isPullInProgress = true
+
   try {
     const { url, key } = getSupabaseConfig()
     const db = await getDatabase()
 
-    // 1. Fetch Categories from Supabase Cloud
-    const catRes = await axios.get(`${url}/rest/v1/categories?select=*`, {
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`
-      },
-      timeout: 5000
-    })
-
-    if (catRes.data && Array.isArray(catRes.data) && catRes.data.length > 0) {
-      for (const cat of catRes.data) {
-        db.run(
-          `
-          INSERT INTO categories (id, name, code_prefix, color, icon, sort_order, is_active)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-          ON CONFLICT(id) DO UPDATE SET
-            name = excluded.name,
-            code_prefix = excluded.code_prefix,
-            color = excluded.color,
-            icon = excluded.icon,
-            sort_order = excluded.sort_order,
-            is_active = excluded.is_active;
-        `,
-          [
-            cat.id,
-            cat.name,
-            cat.code_prefix || 'CAT',
-            cat.color || '#6366f1',
-            cat.icon || 'cake',
-            cat.sort_order ?? 0,
-            cat.is_active !== false ? 1 : 0
-          ]
-        )
+    for (const { table, conflict } of PULL_TABLES) {
+      let cloudRows: any[] = []
+      try {
+        cloudRows = await fetchAllCloudRows(url, key, table)
+      } catch (fetchErr: any) {
+        console.warn(`[CloudPull] Could not fetch ${table}:`, fetchErr?.message || fetchErr)
+        continue
       }
+
+      const localCols = getLocalColumns(db, table)
+      if (localCols.size === 0) continue
+      const hasSyncStatus = localCols.has('sync_status')
+
+      let merged = 0
+      let skipped = 0
+
+      db.batch((exec) => {
+        for (const cloudRow of cloudRows) {
+          const row = normalizeCloudRow(table, cloudRow)
+          const keys = Object.keys(row).filter((k) => localCols.has(k) && row[k] !== undefined)
+          if (keys.length === 0) continue
+
+          try {
+            exec(buildUpsertSql(table, keys, conflict, hasSyncStatus), keys.map((k) => row[k]))
+            merged++
+          } catch (_) {
+            // A different UNIQUE key collided (e.g. same product item_code / order_no under
+            // a different id). For products, merge into the existing local record instead.
+            if (table === 'products') {
+              try {
+                const match = db.queryOne<{ id: string }>(
+                  `SELECT id FROM products
+                   WHERE (shop_id = ? OR shop_id IS NULL)
+                     AND ((item_code = ? AND item_code != '') OR (? IS NOT NULL AND barcode = ?))
+                   LIMIT 1;`,
+                  [row.shop_id, row.item_code, row.barcode, row.barcode]
+                )
+                if (match?.id) {
+                  const retryRow = { ...row, id: match.id }
+                  exec(buildUpsertSql(table, keys, conflict, hasSyncStatus), keys.map((k) => retryRow[k]))
+                  merged++
+                  continue
+                }
+              } catch (_) {}
+            }
+            // Otherwise the record already exists locally under another key – keep local copy.
+            skipped++
+          }
+        }
+      })
+
+      summary[table] = { cloud: cloudRows.length, merged, skipped }
     }
 
-    // 2. Fetch Products from Supabase Cloud
-    const prodRes = await axios.get(`${url}/rest/v1/products?select=*`, {
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`
-      },
-      timeout: 5000
-    })
-
-    if (prodRes.data && Array.isArray(prodRes.data) && prodRes.data.length > 0) {
-      for (const p of prodRes.data) {
-        try {
-          const itemCode = p.item_code || p.barcode || 'ITEM'
-          const pShopId = toValidUuid(p.shop_id) || defaultShopId
-          // Clean up any stale record with same item_code under a different id in the same shop
-          db.run(
-            `DELETE FROM products WHERE (item_code = ? AND item_code != '') AND id != ? AND shop_id = ?;`,
-            [itemCode, p.id, pShopId]
-          )
-          db.run(
-            `
-            INSERT INTO products (
-              id, category_id, item_code, name, description, price, cost_price,
-              barcode, image_path, unit, track_inventory, is_active, shop_id, sync_status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced')
-            ON CONFLICT(id) DO UPDATE SET
-              category_id = excluded.category_id,
-              item_code = excluded.item_code,
-              name = excluded.name,
-              description = excluded.description,
-              price = excluded.price,
-              cost_price = excluded.cost_price,
-              barcode = excluded.barcode,
-              image_path = CASE 
-                WHEN products.image_path IS NOT NULL AND products.image_path != '' THEN products.image_path 
-                ELSE excluded.image_path 
-              END,
-              unit = excluded.unit,
-              track_inventory = excluded.track_inventory,
-              is_active = excluded.is_active,
-              shop_id = excluded.shop_id,
-              sync_status = 'synced';
-          `,
-            [
-              p.id,
-              p.category_id || null,
-              itemCode,
-              p.name,
-              p.description || '',
-              Number(p.price) || 0,
-              p.cost_price ? Number(p.cost_price) : null,
-              p.barcode || null,
-              p.image_path || null,
-              p.unit || 'pcs',
-              p.track_inventory ? 1 : 0,
-              p.is_active !== false ? 1 : 0,
-              pShopId
-            ]
-          )
-
-          db.run(
-            `
-            INSERT OR IGNORE INTO inventory (id, product_id, shop_id, quantity, min_quantity)
-            VALUES (?, ?, ?, 0, 5.0);
-          `,
-            ['inv-' + p.id, p.id, pShopId]
-          )
-        } catch (itemErr: any) {
-          console.warn(`[AutoSync] Could not pull product ${p.name}:`, itemErr.message)
-        }
-      }
-    }
-
-    // 3. Fetch Real Inventory Stock Levels from Supabase Cloud
-    try {
-      const invRes = await axios.get(`${url}/rest/v1/inventory?select=*`, {
-        headers: {
-          apikey: key,
-          Authorization: `Bearer ${key}`
-        },
-        timeout: 5000
-      })
-
-      if (invRes.data && Array.isArray(invRes.data) && invRes.data.length > 0) {
-        for (const inv of invRes.data) {
-          const invId = inv.id || ('inv-' + inv.product_id)
-          const invShopId = toValidUuid(inv.shop_id) || defaultShopId
-          db.run(
-            `
-            INSERT INTO inventory (id, product_id, shop_id, quantity, min_quantity, updated_at)
-            VALUES (?, ?, ?, ?, ?, datetime('now'))
-            ON CONFLICT(id) DO UPDATE SET
-              quantity = excluded.quantity,
-              min_quantity = excluded.min_quantity,
-              shop_id = excluded.shop_id,
-              updated_at = datetime('now');
-          `,
-            [
-              invId,
-              inv.product_id,
-              invShopId,
-              Number(inv.quantity) || 0,
-              Number(inv.min_quantity) || 5
-            ]
-          )
-        }
-      }
-    } catch (_) {}
-
-    // 4. Fetch Users / Operator Profiles from Supabase Cloud
-    try {
-      const userRes = await axios.get(`${url}/rest/v1/users?select=*`, {
-        headers: {
-          apikey: key,
-          Authorization: `Bearer ${key}`
-        },
-        timeout: 5000
-      })
-
-      if (userRes.data && Array.isArray(userRes.data) && userRes.data.length > 0) {
-        for (const u of userRes.data) {
-          db.run(
-            `
-            INSERT INTO users (id, shop_id, name, email, pin_hash, password_hash, role, is_active)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-              name = excluded.name,
-              email = excluded.email,
-              pin_hash = excluded.pin_hash,
-              password_hash = excluded.password_hash,
-              role = excluded.role,
-              is_active = excluded.is_active;
-          `,
-            [
-              u.id,
-              u.shop_id || defaultShopId,
-              u.name,
-              u.email || null,
-              u.pin_hash || '123456',
-              u.password_hash || null,
-              u.role || 'cashier',
-              u.is_active !== false ? 1 : 0
-            ]
-          )
-        }
-      }
-    } catch (_) {}
-
-    // 4b. Fetch Suppliers from Supabase Cloud
-    try {
-      const supRes = await axios.get(`${url}/rest/v1/suppliers?select=*`, {
-        headers: { apikey: key, Authorization: `Bearer ${key}` },
-        timeout: 5000
-      })
-      if (supRes.data && Array.isArray(supRes.data) && supRes.data.length > 0) {
-        for (const s of supRes.data) {
-          db.run(
-            `
-            INSERT INTO suppliers (id, name, phone, contact_person, email, address, notes, is_active, sync_status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?)
-            ON CONFLICT(id) DO UPDATE SET
-              name = excluded.name,
-              phone = excluded.phone,
-              contact_person = excluded.contact_person,
-              email = excluded.email,
-              address = excluded.address,
-              notes = excluded.notes,
-              is_active = excluded.is_active,
-              sync_status = 'synced';
-          `,
-            [
-              s.id,
-              s.name,
-              s.phone || null,
-              s.contact_person || null,
-              s.email || null,
-              s.address || null,
-              s.notes || null,
-              s.is_active !== false ? 1 : 0,
-              s.created_at || new Date().toISOString()
-            ]
-          )
-        }
-      }
-    } catch (_) {}    // 5. Sync recent cloud orders & order items so multiple terminals stay synchronized
-    try {
-      const cloudOrders = await axios.get(`${url}/rest/v1/orders?select=*&order=created_at.desc&limit=100`, {
-        headers: { apikey: key, Authorization: `Bearer ${key}` },
-        timeout: 6000
-      })
-      if (cloudOrders.data && Array.isArray(cloudOrders.data)) {
-        for (const ord of cloudOrders.data) {
-          db.run(
-            `
-            INSERT OR IGNORE INTO orders (
-              id, shop_id, order_no, terminal_id, cashier_id, cashier_name,
-              subtotal, discount_type, discount_amount, tax_amount, total_amount,
-              status, note, local_id, sync_status, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?);
-          `,
-            [
-              ord.id,
-              ord.shop_id || defaultShopId,
-              ord.order_no,
-              ord.terminal_id || 'T1',
-              ord.cashier_id || null,
-              ord.cashier_name || 'Cashier',
-              Number(ord.subtotal) || 0,
-              ord.discount_type || 'fixed',
-              Number(ord.discount_amount) || 0,
-              Number(ord.tax_amount) || 0,
-              Number(ord.total_amount) || 0,
-              ord.status || 'completed',
-              ord.note || null,
-              ord.local_id || ord.id,
-              ord.created_at || new Date().toISOString()
-            ]
-          )
-        }
-      }
-
-      const cloudItems = await axios.get(`${url}/rest/v1/order_items?select=*&limit=500`, {
-        headers: { apikey: key, Authorization: `Bearer ${key}` },
-        timeout: 6000
-      })
-      if (cloudItems.data && Array.isArray(cloudItems.data)) {
-        for (const item of cloudItems.data) {
-          db.run(
-            `
-            INSERT OR IGNORE INTO order_items (
-              id, order_id, product_id, product_name, item_code,
-              unit_price, cost_price, quantity, discount, subtotal
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-          `,
-            [
-              item.id,
-              item.order_id,
-              item.product_id || null,
-              item.product_name || 'Item',
-              item.item_code || null,
-              Number(item.unit_price) || 0,
-              item.cost_price ? Number(item.cost_price) : null,
-              Number(item.quantity) || 1,
-              Number(item.discount) || 0,
-              Number(item.subtotal) || 0
-            ]
-          )
-        }
-      }
-    } catch (_) {}
-
-    // 6. Sync recent expenses from Supabase Cloud (for Owner Analytics)
-    try {
-      const cloudExpenses = await axios.get(`${url}/rest/v1/expenses?select=*&order=expense_date.desc&limit=300`, {
-        headers: { apikey: key, Authorization: `Bearer ${key}` },
-        timeout: 6000
-      })
-      if (cloudExpenses.data && Array.isArray(cloudExpenses.data)) {
-        for (const exp of cloudExpenses.data) {
-          const expDate = exp.expense_date ? exp.expense_date.slice(0, 10) : new Date().toISOString().split('T')[0]
-          db.run(
-            `
-            INSERT INTO expenses (
-              id, shop_id, category, description, amount, expense_date,
-              linked_product_id, linked_stock_movement_id, added_by,
-              local_id, sync_status, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?)
-            ON CONFLICT(id) DO UPDATE SET
-              category = excluded.category,
-              description = excluded.description,
-              amount = excluded.amount,
-              expense_date = excluded.expense_date,
-              shop_id = excluded.shop_id,
-              sync_status = 'synced';
-          `,
-            [
-              exp.id,
-              exp.shop_id || defaultShopId,
-              exp.category || 'General',
-              exp.description || 'Expense',
-              Number(exp.amount) || 0,
-              expDate,
-              exp.linked_product_id || null,
-              exp.linked_stock_movement_id || null,
-              exp.added_by || 'Staff',
-              exp.local_id || exp.id,
-              exp.created_at || new Date().toISOString()
-            ]
-          )
-        }
-      }
-    } catch (_) {}
-
-    // 7. Sync recent cash sessions from Supabase Cloud
-    try {
-      const cloudCs = await axios.get(`${url}/rest/v1/cash_sessions?select=*&order=session_date.desc&limit=100`, {
-        headers: { apikey: key, Authorization: `Bearer ${key}` },
-        timeout: 6000
-      })
-      if (cloudCs.data && Array.isArray(cloudCs.data)) {
-        for (const cs of cloudCs.data) {
-          const csDate = cs.session_date ? cs.session_date.slice(0, 10) : new Date().toISOString().split('T')[0]
-          db.run(
-            `
-            INSERT INTO cash_sessions (
-              id, shop_id, session_date, terminal_id, cashier_id,
-              cashier_name, opening_float, notes, sync_status, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?)
-            ON CONFLICT(id) DO UPDATE SET
-              opening_float = excluded.opening_float,
-              cashier_name = excluded.cashier_name,
-              session_date = excluded.session_date,
-              notes = excluded.notes,
-              sync_status = 'synced';
-          `,
-            [
-              cs.id,
-              cs.shop_id || defaultShopId,
-              csDate,
-              cs.terminal_id || 'T1',
-              cs.cashier_id || null,
-              cs.cashier_name || 'Cashier',
-              Number(cs.opening_float) || 0,
-              cs.notes || null,
-              cs.created_at || new Date().toISOString()
-            ]
-          )
-        }
-      }
-    } catch (_) {}
-
-    db.save()
-    console.log(`[AutoSync] 📥 Synchronized catalog, inventory & financial records from Supabase Cloud.`)
-  } catch (_) {
-    // Offline or network unreachable - continue smoothly offline
+    const totals = Object.entries(summary).map(([t, s]) => `${t}=${s.merged}/${s.cloud}`).join(', ')
+    console.log(`[CloudPull] 📥 Full Supabase → Local merge complete: ${totals}`)
+    return { success: true, tables: summary }
+  } catch (err: any) {
+    // Offline or network unreachable – continue smoothly offline
+    return { success: false, tables: summary, error: err?.message || String(err) }
+  } finally {
+    isPullInProgress = false
   }
 }
 

@@ -12,6 +12,8 @@ export interface POSDatabase {
   exec: (sql: string) => void
   query: <T = any>(sql: string, params?: any[]) => T[]
   queryOne: <T = any>(sql: string, params?: any[]) => T | undefined
+  /** Run many writes inside one transaction and save to disk only once. */
+  batch: (fn: (exec: (sql: string, params?: any[]) => void) => void) => void
 }
 
 let dbInstance: POSDatabase | null = null
@@ -100,6 +102,30 @@ export const getDatabase = async (): Promise<POSDatabase> => {
         }
       }
     } catch (_) {}
+  }
+
+  // Upgrade safety: if this install has no DB yet but an older build (before the
+  // "Nexzt POS" rename) left one in a legacy app-data folder, carry it over so the
+  // shop keeps all of its existing data.
+  if (isPackaged && !fs.existsSync(dbPath)) {
+    try {
+      const appData = app.getPath('appData')
+      const legacyCandidates = ['cake-shop-pos', 'Wasana Cake POS', 'wasana-cake-pos']
+        .map((dir) => path.join(appData, dir, 'database', 'cakeshop_local.db'))
+        .filter((p) => path.resolve(p) !== path.resolve(dbPath) && fs.existsSync(p))
+
+      let best: { p: string; count: number } | null = null
+      for (const p of legacyCandidates) {
+        const count = getProductCount(fs.readFileSync(p))
+        if (count > 0 && (!best || count > best.count)) best = { p, count }
+      }
+      if (best) {
+        fs.copyFileSync(best.p, dbPath)
+        console.log(`[Database] Migrated existing DB from legacy folder: ${best.p} (${best.count} products)`)
+      }
+    } catch (legacyErr) {
+      console.warn('[Database] Legacy DB migration notice:', legacyErr)
+    }
   }
 
   // Check if destination db needs first-time deployment (fresh install only)
@@ -573,6 +599,18 @@ export const getDatabase = async (): Promise<POSDatabase> => {
       }
       stmt.free()
       return result
+    },
+    batch: (fn: (exec: (sql: string, params?: any[]) => void) => void) => {
+      reloadFromDiskIfNeeded()
+      rawDb.run('BEGIN TRANSACTION;')
+      try {
+        fn((sql: string, params: any[] = []) => rawDb.run(sql, params))
+        rawDb.run('COMMIT;')
+      } catch (err) {
+        try { rawDb.run('ROLLBACK;') } catch (_) {}
+        throw err
+      }
+      saveToDisk()
     }
   }
 
