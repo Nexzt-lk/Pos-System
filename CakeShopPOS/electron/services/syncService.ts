@@ -275,6 +275,44 @@ async function pullCloudCatalog(): Promise<void> {
           )
         }
       }
+    } catch (_) {}
+
+    // 4b. Fetch Suppliers from Supabase Cloud
+    try {
+      const supRes = await axios.get(`${url}/rest/v1/suppliers?select=*`, {
+        headers: { apikey: key, Authorization: `Bearer ${key}` },
+        timeout: 5000
+      })
+      if (supRes.data && Array.isArray(supRes.data) && supRes.data.length > 0) {
+        for (const s of supRes.data) {
+          db.run(
+            `
+            INSERT INTO suppliers (id, name, phone, contact_person, email, address, notes, is_active, sync_status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?)
+            ON CONFLICT(id) DO UPDATE SET
+              name = excluded.name,
+              phone = excluded.phone,
+              contact_person = excluded.contact_person,
+              email = excluded.email,
+              address = excluded.address,
+              notes = excluded.notes,
+              is_active = excluded.is_active,
+              sync_status = 'synced';
+          `,
+            [
+              s.id,
+              s.name,
+              s.phone || null,
+              s.contact_person || null,
+              s.email || null,
+              s.address || null,
+              s.notes || null,
+              s.is_active !== false ? 1 : 0,
+              s.created_at || new Date().toISOString()
+            ]
+          )
+        }
+      }
     } catch (_) {}    // 5. Sync recent cloud orders & order items so multiple terminals stay synchronized
     try {
       const cloudOrders = await axios.get(`${url}/rest/v1/orders?select=*&order=created_at.desc&limit=100`, {
@@ -340,10 +378,90 @@ async function pullCloudCatalog(): Promise<void> {
           )
         }
       }
-    } catch (_) {}{}
+    } catch (_) {}
+
+    // 6. Sync recent expenses from Supabase Cloud (for Owner Analytics)
+    try {
+      const cloudExpenses = await axios.get(`${url}/rest/v1/expenses?select=*&order=expense_date.desc&limit=300`, {
+        headers: { apikey: key, Authorization: `Bearer ${key}` },
+        timeout: 6000
+      })
+      if (cloudExpenses.data && Array.isArray(cloudExpenses.data)) {
+        for (const exp of cloudExpenses.data) {
+          const expDate = exp.expense_date ? exp.expense_date.slice(0, 10) : new Date().toISOString().split('T')[0]
+          db.run(
+            `
+            INSERT INTO expenses (
+              id, shop_id, category, description, amount, expense_date,
+              linked_product_id, linked_stock_movement_id, added_by,
+              local_id, sync_status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?)
+            ON CONFLICT(id) DO UPDATE SET
+              category = excluded.category,
+              description = excluded.description,
+              amount = excluded.amount,
+              expense_date = excluded.expense_date,
+              shop_id = excluded.shop_id,
+              sync_status = 'synced';
+          `,
+            [
+              exp.id,
+              exp.shop_id || defaultShopId,
+              exp.category || 'General',
+              exp.description || 'Expense',
+              Number(exp.amount) || 0,
+              expDate,
+              exp.linked_product_id || null,
+              exp.linked_stock_movement_id || null,
+              exp.added_by || 'Staff',
+              exp.local_id || exp.id,
+              exp.created_at || new Date().toISOString()
+            ]
+          )
+        }
+      }
+    } catch (_) {}
+
+    // 7. Sync recent cash sessions from Supabase Cloud
+    try {
+      const cloudCs = await axios.get(`${url}/rest/v1/cash_sessions?select=*&order=session_date.desc&limit=100`, {
+        headers: { apikey: key, Authorization: `Bearer ${key}` },
+        timeout: 6000
+      })
+      if (cloudCs.data && Array.isArray(cloudCs.data)) {
+        for (const cs of cloudCs.data) {
+          const csDate = cs.session_date ? cs.session_date.slice(0, 10) : new Date().toISOString().split('T')[0]
+          db.run(
+            `
+            INSERT INTO cash_sessions (
+              id, shop_id, session_date, terminal_id, cashier_id,
+              cashier_name, opening_float, notes, sync_status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?)
+            ON CONFLICT(id) DO UPDATE SET
+              opening_float = excluded.opening_float,
+              cashier_name = excluded.cashier_name,
+              session_date = excluded.session_date,
+              notes = excluded.notes,
+              sync_status = 'synced';
+          `,
+            [
+              cs.id,
+              cs.shop_id || defaultShopId,
+              csDate,
+              cs.terminal_id || 'T1',
+              cs.cashier_id || null,
+              cs.cashier_name || 'Cashier',
+              Number(cs.opening_float) || 0,
+              cs.notes || null,
+              cs.created_at || new Date().toISOString()
+            ]
+          )
+        }
+      }
+    } catch (_) {}
 
     db.save()
-    console.log(`[AutoSync] 📥 Synchronized catalog & inventory from Supabase Cloud: ${prodRes.data?.length || 0} products verified.`)
+    console.log(`[AutoSync] 📥 Synchronized catalog, inventory & financial records from Supabase Cloud.`)
   } catch (_) {
     // Offline or network unreachable - continue smoothly offline
   }
@@ -446,6 +564,8 @@ export const syncService = {
         for (const sup of pendingSuppliers) {
           try {
             const validId = toValidUuid(sup.id) || sup.id
+            // Supabase suppliers table: id, name, phone, contact_person, email, address, notes, is_active, created_at
+            // NOTE: suppliers table has NO tenant_id / shop_id columns.
             const supPayload = {
               id: validId,
               name: sup.name,
@@ -457,14 +577,22 @@ export const syncService = {
               is_active: sup.is_active !== 0
             }
 
-            // 1. Try to post to Supabase 'suppliers' endpoint (if table exists)
+            // 1. Try to post directly to 'suppliers' table
+            // NOTE: If Supabase RLS blocks anon writes (code 42501), we gracefully
+            //       fall through and still mirror to sync_queue below.
             try {
               await postSupabase('suppliers', [supPayload])
+              console.log(`[AutoSync] ✅ Synced Supplier "${sup.name}" directly to Supabase.`)
             } catch (supErr: any) {
-              // Direct table might not exist on cloud - gracefully continue to sync_queue
+              const code = supErr.message?.match(/42501|RLS|security policy/i)
+              if (code) {
+                console.warn(`[AutoSync] ⚠️ Supplier "${sup.name}" blocked by RLS – stored in sync_queue instead.`)
+              } else {
+                console.warn(`[AutoSync] ⚠️ Supplier direct post notice: ${supErr.message}`)
+              }
             }
 
-            // 2. Mirror into Supabase 'sync_queue' table (guarantees cloud persistence in JSONB)
+            // 2. Always mirror rich payload into sync_queue (guaranteed cloud persistence)
             try {
               await postSupabase('sync_queue', [{
                 table_name: 'suppliers',
@@ -481,9 +609,8 @@ export const syncService = {
             db.run(`UPDATE suppliers SET sync_status = 'synced' WHERE id = ?;`, [sup.id])
             db.run(`UPDATE sync_queue SET status = 'synced', synced_at = datetime('now') WHERE table_name = 'suppliers' AND record_id = ?;`, [sup.id])
             totalSynced++
-            console.log(`[AutoSync] ✅ Mirrored Supplier "${sup.name}" to Supabase Cloud.`)
           } catch (supErr: any) {
-            console.error(`[AutoSync] ❌ Could not mirror Supplier "${sup.name}":`, supErr.message)
+            console.error(`[AutoSync] ❌ Could not sync Supplier "${sup.name}":`, supErr.message)
           }
         }
       }
@@ -899,6 +1026,9 @@ export const syncService = {
             const csShopId = toValidUuid(cs.shop_id) || defaultShopId
             const sessionDate = cs.session_date ? cs.session_date.slice(0, 10) : new Date().toISOString().split('T')[0]
 
+            // Supabase cash_sessions: id, shop_id, cashier_id, cashier_name,
+            //   session_date, terminal_id, opening_float, notes, created_at, updated_at
+            // NOTE: no sync_status column in Supabase cash_sessions.
             const csPayload: any = {
               id: csId,
               shop_id: csShopId,
@@ -911,15 +1041,29 @@ export const syncService = {
               created_at: cs.created_at || new Date().toISOString()
             }
 
+            // 1. Try direct table insert
+            // NOTE: If Supabase RLS blocks anon writes (42501) we fall through
+            //       gracefully and mirror to sync_queue below.
             try {
-              await postSupabase('cash_sessions', [csPayload])
-            } catch (postErr: any) {
-              console.warn('[AutoSync] Retrying cash_session post with detached FKs:', postErr.message)
-              csPayload.cashier_id = null
-              await postSupabase('cash_sessions', [csPayload])
-            }
+              const csPayloadNoFk = { ...csPayload }
+              try {
+                await postSupabase('cash_sessions', [csPayloadNoFk])
+                console.log(`[AutoSync] ✅ Synced Cash Session (${sessionDate}) directly to Supabase.`)
+              } catch (postErr: any) {
+                const isRls = postErr.message?.match(/42501|RLS|security policy/i)
+                const isFk  = postErr.message?.match(/23503|foreign key/i)
+                if (isFk) {
+                  csPayloadNoFk.cashier_id = null
+                  await postSupabase('cash_sessions', [csPayloadNoFk])
+                } else if (isRls) {
+                  console.warn(`[AutoSync] ⚠️ Cash Session blocked by RLS – stored in sync_queue instead.`)
+                } else {
+                  console.warn('[AutoSync] ⚠️ Cash session direct post notice:', postErr.message)
+                }
+              }
+            } catch (_) {}
 
-            // Also mirror into Supabase sync_queue table
+            // 2. Always mirror into sync_queue (guaranteed cloud persistence)
             try {
               await postSupabase('sync_queue', [{
                 table_name: 'cash_sessions',

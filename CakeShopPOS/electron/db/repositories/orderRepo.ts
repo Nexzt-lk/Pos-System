@@ -723,7 +723,7 @@ export const orderRepo = {
     })
 
     // 9. Owner's Executive Business Intelligence Metrics
-    // Expenses query
+    // Expenses query (matching both expense_date and created_at fallback)
     const expensesSummary = db.queryOne<{
       total_expenses: number
       expense_count: number
@@ -733,7 +733,8 @@ export const orderRepo = {
         COALESCE(sum(amount), 0) as total_expenses,
         count(*) as expense_count
       FROM expenses
-      WHERE substr(expense_date, 1, 10) >= ? AND substr(expense_date, 1, 10) <= ?
+      WHERE COALESCE(substr(expense_date, 1, 10), substr(created_at, 1, 10), date('now')) >= ?
+        AND COALESCE(substr(expense_date, 1, 10), substr(created_at, 1, 10), date('now')) <= ?
         AND (? = 0 OR shop_id = ? OR (shop_id IS NULL AND ? = 'b0000000-0000-0000-0000-000000000001'))
     `,
       [startDateStr, endDateStr, isSpecificShop ? 1 : 0, targetShopId, targetShopId]
@@ -750,7 +751,8 @@ export const orderRepo = {
         COALESCE(sum(amount), 0) as total_amount,
         count(*) as count
       FROM expenses
-      WHERE substr(expense_date, 1, 10) >= ? AND substr(expense_date, 1, 10) <= ?
+      WHERE COALESCE(substr(expense_date, 1, 10), substr(created_at, 1, 10), date('now')) >= ?
+        AND COALESCE(substr(expense_date, 1, 10), substr(created_at, 1, 10), date('now')) <= ?
         AND (? = 0 OR shop_id = ? OR (shop_id IS NULL AND ? = 'b0000000-0000-0000-0000-000000000001'))
       GROUP BY COALESCE(category, 'General')
       ORDER BY total_amount DESC
@@ -871,13 +873,14 @@ export const orderRepo = {
         COALESCE(category, 'General') as category,
         COALESCE(description, '') as description,
         COALESCE(amount, 0) as amount,
-        COALESCE(expense_date, '') as expense_date,
+        COALESCE(substr(expense_date, 1, 10), substr(created_at, 1, 10), date('now')) as expense_date,
         COALESCE(added_by, 'Staff') as added_by,
-        'CASH' as payment_method,
-        '' as notes,
+        COALESCE(payment_method, 'CASH') as payment_method,
+        COALESCE(supplier_name, invoice_no, '') as notes,
         COALESCE(shop_id, 'b0000000-0000-0000-0000-000000000001') as shop_id
       FROM expenses
-      WHERE substr(expense_date, 1, 10) >= ? AND substr(expense_date, 1, 10) <= ?
+      WHERE COALESCE(substr(expense_date, 1, 10), substr(created_at, 1, 10), date('now')) >= ?
+        AND COALESCE(substr(expense_date, 1, 10), substr(created_at, 1, 10), date('now')) <= ?
         AND (? = 0 OR shop_id = ? OR (shop_id IS NULL AND ? = 'b0000000-0000-0000-0000-000000000001'))
       ORDER BY expense_date DESC, created_at DESC
     `,
@@ -1012,7 +1015,8 @@ export const orderRepo = {
       const bExpenses = db.queryOne<{ total_expenses: number }>(
         `SELECT COALESCE(sum(amount), 0) as total_expenses
          FROM expenses
-         WHERE substr(expense_date, 1, 10) >= ? AND substr(expense_date, 1, 10) <= ?
+         WHERE COALESCE(substr(expense_date, 1, 10), substr(created_at, 1, 10), date('now')) >= ?
+           AND COALESCE(substr(expense_date, 1, 10), substr(created_at, 1, 10), date('now')) <= ?
            AND (shop_id = ? OR (shop_id IS NULL AND ? = 'b0000000-0000-0000-0000-000000000001'))`,
         [startDateStr, endDateStr, sId, sId]
       )?.total_expenses || 0

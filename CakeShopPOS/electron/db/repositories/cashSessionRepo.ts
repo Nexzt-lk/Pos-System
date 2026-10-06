@@ -82,6 +82,27 @@ export const cashSessionRepo = {
       ]
     )
 
+    // Enqueue in sync_queue for immediate cloud sync
+    try {
+      db.run(
+        `INSERT INTO sync_queue (table_name, operation, record_id, payload, status, created_at)
+         VALUES ('cash_sessions', 'UPSERT', ?, ?, 'pending', datetime('now'))`,
+        [
+          id,
+          JSON.stringify({
+            id,
+            shop_id: shopId,
+            session_date: sessionDate,
+            terminal_id: terminalId,
+            cashier_id: data.cashierId || null,
+            cashier_name: data.cashierName || null,
+            opening_float: Number(data.openingFloat) || 0,
+            notes: data.notes || null
+          })
+        ]
+      )
+    } catch (_) {}
+
     db.save()
 
     return {

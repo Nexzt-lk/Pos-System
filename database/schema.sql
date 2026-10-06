@@ -241,6 +241,66 @@ CREATE TABLE IF NOT EXISTS sync_queue (
 );
 
 -- ============================================================================
+-- 14b. SUPPLIERS
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS suppliers (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name            VARCHAR(150) NOT NULL,
+    phone           VARCHAR(30),
+    contact_person  VARCHAR(100),
+    email           VARCHAR(150),
+    address         TEXT,
+    notes           TEXT,
+    is_active       BOOLEAN      DEFAULT true,
+    created_at      TIMESTAMPTZ  DEFAULT now(),
+    updated_at      TIMESTAMPTZ  DEFAULT now()
+);
+
+DROP TRIGGER IF EXISTS trg_suppliers_updated_at ON suppliers;
+CREATE TRIGGER trg_suppliers_updated_at
+    BEFORE UPDATE ON suppliers
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- 14c. CASH SESSIONS
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS cash_sessions (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    shop_id         UUID REFERENCES shops(id) ON DELETE CASCADE,
+    cashier_id      UUID REFERENCES users(id) ON DELETE SET NULL,
+    cashier_name    VARCHAR(100),
+    session_date    DATE         NOT NULL DEFAULT CURRENT_DATE,
+    terminal_id     VARCHAR(20)  DEFAULT 'T1',
+    opening_float   DECIMAL(12,2) DEFAULT 0,
+    closing_float   DECIMAL(12,2),
+    notes           TEXT,
+    created_at      TIMESTAMPTZ  DEFAULT now(),
+    updated_at      TIMESTAMPTZ  DEFAULT now()
+);
+
+DROP TRIGGER IF EXISTS trg_cash_sessions_updated_at ON cash_sessions;
+CREATE TRIGGER trg_cash_sessions_updated_at
+    BEFORE UPDATE ON cash_sessions
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- 14d. SETTINGS (Per-shop key-value store)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS settings (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    shop_id     UUID REFERENCES shops(id) ON DELETE CASCADE,
+    key         VARCHAR(100) NOT NULL,
+    value       TEXT,
+    updated_at  TIMESTAMPTZ  DEFAULT now(),
+    UNIQUE(shop_id, key)
+);
+
+DROP TRIGGER IF EXISTS trg_settings_updated_at ON settings;
+CREATE TRIGGER trg_settings_updated_at
+    BEFORE UPDATE ON settings
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
 -- 15. AUTOMATED UPDATED_AT TRIGGERS
 -- ============================================================================
 DROP TRIGGER IF EXISTS trg_tenants_updated_at ON tenants;
@@ -298,6 +358,9 @@ ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sync_queue ENABLE ROW LEVEL SECURITY;
+ALTER TABLE suppliers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cash_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 
 -- Allow read/write access via API Service Role or authenticated POS client
 CREATE POLICY "Allow public access for POS operations" ON tenants FOR ALL USING (true) WITH CHECK (true);
@@ -312,6 +375,10 @@ CREATE POLICY "Allow public access for POS operations" ON order_items FOR ALL US
 CREATE POLICY "Allow public access for POS operations" ON payments FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public access for POS operations" ON expenses FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public access for POS operations" ON sync_queue FOR ALL USING (true) WITH CHECK (true);
+-- NEW tables (suppliers, cash_sessions, settings) — allow anon POS client writes
+CREATE POLICY "Allow public access for POS operations" ON suppliers     FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public access for POS operations" ON cash_sessions FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public access for POS operations" ON settings      FOR ALL USING (true) WITH CHECK (true);
 
 -- ============================================================================
 -- 18. SUPABASE REALTIME REPLICATION (For instant live sync across terminals)
@@ -319,7 +386,9 @@ CREATE POLICY "Allow public access for POS operations" ON sync_queue FOR ALL USI
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
-        ALTER PUBLICATION supabase_realtime ADD TABLE products, inventory, orders, order_items, stock_movements, categories, expenses;
+        ALTER PUBLICATION supabase_realtime ADD TABLE
+            products, inventory, orders, order_items, stock_movements,
+            categories, expenses, suppliers, cash_sessions, settings;
     END IF;
 EXCEPTION
     WHEN duplicate_object THEN NULL;

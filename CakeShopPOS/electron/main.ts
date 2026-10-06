@@ -58,7 +58,7 @@ const createWindow = async () => {
     minHeight: 600,
     backgroundColor: '#f8fafc',
     autoHideMenuBar: true,
-    title: 'Wasana Cake - Katugastota — POS Terminal',
+    title: 'Nexzt POS',
     icon: iconPath,
     webPreferences: {
       preload: preloadPath,

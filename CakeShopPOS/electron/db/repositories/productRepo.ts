@@ -126,6 +126,26 @@ export const productRepo = {
     )
     const targetId = existing?.id || productId
 
+    // ── BARCODE CONFLICT GUARD ────────────────────────────────────────────────
+    // If another (different) product in the same shop already has this barcode,
+    // clear that product's barcode first so the UNIQUE index never fires during
+    // the upcoming INSERT … ON CONFLICT(id) DO UPDATE SET barcode = ?.
+    // This happens when an admin re-assigns a barcode from one product to another.
+    if (cleanBarcode) {
+      try {
+        db.run(
+          `UPDATE products
+           SET    barcode      = NULL,
+                  sync_status  = 'pending',
+                  updated_at   = datetime('now')
+           WHERE  barcode  = ?
+             AND  (shop_id = ? OR shop_id IS NULL)
+             AND  id      != ?;`,
+          [cleanBarcode, shopId, targetId]
+        )
+      } catch (_) { /* non-critical – carry on */ }
+    }
+
     db.run(
       `
       INSERT INTO products (
