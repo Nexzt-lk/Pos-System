@@ -78,17 +78,17 @@ export const EXPENSE_CATEGORIES: ExpenseCategoryDef[] = [
     value: 'Utilities',
     label: 'Utilities (Gas, Electricity, Water)',
     icon: Flame,
-    color: '#2563eb',
-    bgColor: '#eff6ff',
-    borderColor: '#bfdbfe'
+    color: '#0f172a',
+    bgColor: '#f8fafc',
+    borderColor: '#e2e8f0'
   },
   {
     value: 'Packaging',
     label: 'Cake Boxes, Boards & Packaging',
     icon: Package,
-    color: '#7c3aed',
-    bgColor: '#faf5ff',
-    borderColor: '#e9d5ff'
+    color: '#334155',
+    bgColor: '#f1f5f9',
+    borderColor: '#cbd5e1'
   },
   {
     value: 'Staff Meals',
@@ -102,9 +102,9 @@ export const EXPENSE_CATEGORIES: ExpenseCategoryDef[] = [
     value: 'Transport',
     label: 'Transport & Delivery Fuel',
     icon: Truck,
-    color: '#0284c7',
-    bgColor: '#f0f9ff',
-    borderColor: '#bae6fd'
+    color: '#475569',
+    bgColor: '#f8fafc',
+    borderColor: '#e2e8f0'
   },
   {
     value: 'Maintenance',
@@ -126,9 +126,9 @@ export const EXPENSE_CATEGORIES: ExpenseCategoryDef[] = [
     value: 'Shop Rent',
     label: 'Shop Rent & Property Rates',
     icon: Building,
-    color: '#4f46e5',
-    bgColor: '#eef2ff',
-    borderColor: '#c7d2fe'
+    color: '#1e293b',
+    bgColor: '#f8fafc',
+    borderColor: '#e2e8f0'
   },
   {
     value: 'Other',
@@ -1195,19 +1195,6 @@ export const ExpensesPage: React.FC = () => {
                   <th
                     style={{
                       padding: '13px 16px',
-                      width: 140,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: '#64748b',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em'
-                    }}
-                  >
-                    Branch
-                  </th>
-                  <th
-                    style={{
-                      padding: '13px 16px',
                       width: 170,
                       fontSize: 11,
                       fontWeight: 700,
@@ -1290,7 +1277,7 @@ export const ExpensesPage: React.FC = () => {
                 {filtered.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={7}
                       style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}
                     >
                       <Receipt
@@ -1344,30 +1331,6 @@ export const ExpensesPage: React.FC = () => {
                           >
                             {exp.localId ? exp.localId.slice(-8) : exp.id.slice(0, 8)}
                           </span>
-                        </td>
-
-                        {/* Branch Badge */}
-                        <td style={{ padding: '12px 16px' }}>
-                          {(() => {
-                            const sid = exp.shopId || exp.shop_id || 'b0000000-0000-0000-0000-000000000001'
-                            const isB2 = sid === 'b0000000-0000-0000-0000-000000000002'
-                            return (
-                              <span
-                                style={{
-                                  backgroundColor: isB2 ? '#fdf2f8' : '#eff6ff',
-                                  color: isB2 ? '#db2777' : '#2563eb',
-                                  border: `1px solid ${isB2 ? '#fbcfe8' : '#bfdbfe'}`,
-                                  fontWeight: 700,
-                                  fontSize: 11,
-                                  padding: '2px 8px',
-                                  borderRadius: 6,
-                                  display: 'inline-block'
-                                }}
-                              >
-                                {isB2 ? '🎂 Poojapitiya' : '🏢 Katugastota'}
-                              </span>
-                            )
-                          })()}
                         </td>
 
                         {/* Category Badge */}
@@ -1509,8 +1472,8 @@ export const ExpensesPage: React.FC = () => {
                                   transition: 'all 0.15s'
                                 }}
                                 onMouseEnter={(e) => {
-                                  e.currentTarget.style.borderColor = '#2563eb'
-                                  e.currentTarget.style.color = '#2563eb'
+                                  e.currentTarget.style.borderColor = '#15803d'
+                                  e.currentTarget.style.color = '#15803d'
                                 }}
                                 onMouseLeave={(e) => {
                                   e.currentTarget.style.borderColor = '#cbd5e1'
@@ -1671,12 +1634,12 @@ export const ExpensesPage: React.FC = () => {
                 width: 36,
                 height: 36,
                 borderRadius: 10,
-                background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
-                color: '#2563eb',
+                background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                color: '#15803d',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                border: '1px solid #bfdbfe'
+                border: '1px solid #bbf7d0'
               }}
             >
               <Pencil size={18} />
@@ -1694,8 +1657,8 @@ export const ExpensesPage: React.FC = () => {
         okText="Save Changes"
         okButtonProps={{
           style: {
-            background: '#2563eb',
-            borderColor: '#2563eb',
+            background: '#15803d',
+            borderColor: '#15803d',
             fontWeight: 700,
             height: 40,
             borderRadius: 8

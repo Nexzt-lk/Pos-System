@@ -69,7 +69,7 @@ export const SyncIndicator: React.FC = () => {
     return (
       <div 
         className="sync-badge" 
-        style={{ background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe', cursor: 'pointer' }}
+        style={{ background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', cursor: 'pointer' }}
         title="Syncing with Supabase Cloud..."
       >
         <RefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} />

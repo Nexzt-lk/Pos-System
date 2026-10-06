@@ -231,17 +231,17 @@ export const ProductImagePicker: React.FC<ProductImagePickerProps> = ({
               style={{
                 fontSize: 11,
                 fontWeight: 700,
-                color: '#2563eb',
-                background: '#eff6ff',
+                color: '#15803d',
+                background: '#f0fdf4',
                 padding: '2px 8px',
                 borderRadius: 99,
-                border: '1px solid #bfdbfe',
+                border: '1px solid #bbf7d0',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 4
               }}
             >
-              📸 Custom Photo
+              Custom Photo
             </span>
           )}
 
@@ -250,17 +250,17 @@ export const ProductImagePicker: React.FC<ProductImagePickerProps> = ({
               style={{
                 fontSize: 11,
                 fontWeight: 700,
-                color: '#7c3aed',
-                background: '#f5f3ff',
+                color: '#0f172a',
+                background: '#f8fafc',
                 padding: '2px 8px',
                 borderRadius: 99,
-                border: '1px solid #ddd6fe',
+                border: '1px solid #e2e8f0',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 4
               }}
             >
-              🎨 Preset
+              Preset
             </span>
           )}
 
@@ -279,12 +279,12 @@ export const ProductImagePicker: React.FC<ProductImagePickerProps> = ({
                 gap: 4
               }}
             >
-              🌐 Web Link
+              Web Link
             </span>
           )}
 
           {!isAuto && (
-            <Tooltip title="Reset to Category Default (ස්වයංක්‍රීය පින්තූරය තෝරන්න)">
+            <Tooltip title="Reset to Category Default">
               <button
                 type="button"
                 onClick={() => onChange(undefined)}
@@ -323,10 +323,10 @@ export const ProductImagePicker: React.FC<ProductImagePickerProps> = ({
             width: 76,
             height: 76,
             borderRadius: 12,
-            border: isDragging ? '2.5px dashed #2563eb' : '2px solid #cbd5e1',
+            border: isDragging ? '2.5px dashed #15803d' : '2px solid #cbd5e1',
             overflow: 'hidden',
             flexShrink: 0,
-            background: isDragging ? '#eff6ff' : '#ffffff',
+            background: isDragging ? '#f0fdf4' : '#ffffff',
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             position: 'relative',
             cursor: 'pointer',
@@ -510,8 +510,8 @@ export const ProductImagePicker: React.FC<ProductImagePickerProps> = ({
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 style={{
-                  border: isDragging ? '1.5px dashed #2563eb' : '1px dashed #cbd5e1',
-                  background: isDragging ? '#eff6ff' : '#ffffff',
+                  border: isDragging ? '1.5px dashed #15803d' : '1px dashed #cbd5e1',
+                  background: isDragging ? '#f0fdf4' : '#ffffff',
                   borderRadius: 8,
                   padding: '8px 12px',
                   display: 'flex',

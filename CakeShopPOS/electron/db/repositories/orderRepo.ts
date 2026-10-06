@@ -975,7 +975,7 @@ export const orderRepo = {
       address: string
       phone: string
     }>(
-      `SELECT id, name, branch_code, address, phone FROM shops WHERE is_active = 1 OR is_active IS NULL ORDER BY branch_code ASC`
+      `SELECT id, name, branch_code, address, phone FROM shops ORDER BY branch_code ASC`
     )
 
     const branchBreakdown = allRegisteredShops.map((s) => {

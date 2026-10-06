@@ -376,13 +376,13 @@ export const ProductsPage: React.FC = () => {
           }}
         >
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Total Products
             </div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: '#2563eb', marginTop: 2 }}>
+            <div style={{ fontSize: 24, fontWeight: 900, color: '#0f172a', marginTop: 2 }}>
               {totalCount}
             </div>
-            <div style={{ fontSize: 11, color: '#3b82f6', fontWeight: 600, marginTop: 1 }}>
+            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, marginTop: 1 }}>
               Catalog items
             </div>
           </div>
@@ -391,12 +391,12 @@ export const ProductsPage: React.FC = () => {
               width: 44,
               height: 44,
               borderRadius: 12,
-              background: '#eff6ff',
-              border: '1px solid #bfdbfe',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#2563eb'
+              color: '#0f172a'
             }}
           >
             <Package2 size={22} />
@@ -841,22 +841,22 @@ export const ProductsPage: React.FC = () => {
                                 width: 32,
                                 height: 32,
                                 borderRadius: 8,
-                                border: '1px solid #bfdbfe',
-                                background: '#eff6ff',
+                                border: '1px solid #bbf7d0',
+                                background: '#f0fdf4',
                                 cursor: 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                color: '#2563eb',
+                                color: '#15803d',
                                 transition: 'all 0.15s ease'
                               }}
                               onMouseEnter={(e) => {
-                                e.currentTarget.style.background = '#dbeafe'
+                                e.currentTarget.style.background = '#dcfce7'
                                 e.currentTarget.style.transform = 'translateY(-1px)'
-                                e.currentTarget.style.boxShadow = '0 2px 6px rgba(37, 99, 235, 0.2)'
+                                e.currentTarget.style.boxShadow = '0 2px 6px rgba(21, 128, 61, 0.2)'
                               }}
                               onMouseLeave={(e) => {
-                                e.currentTarget.style.background = '#eff6ff'
+                                e.currentTarget.style.background = '#f0fdf4'
                                 e.currentTarget.style.transform = 'none'
                                 e.currentTarget.style.boxShadow = 'none'
                               }}
@@ -1413,7 +1413,7 @@ export const ProductsPage: React.FC = () => {
 
                         {/* Quick By Money Value Calculation for Initial Stock */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: '#15803d' }}>💵 By Money Amount:</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: '#15803d' }}>By Money Amount:</span>
                           {[1000, 2000, 2500, 5000, 7500, 10000, 20000].map((amt) => (
                             <span
                               key={amt}

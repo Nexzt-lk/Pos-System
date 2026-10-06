@@ -223,18 +223,20 @@ interface AnalyticsState {
 }
 
 const PAYMENT_COLORS: Record<string, string> = {
-  CASH: '#0f766e',
-  CARD: '#334155',
-  TRANSFER: '#64748b',
-  MIXED: '#94a3b8'
+  CASH: '#16a34a',
+  CARD: '#0f172a',
+  TRANSFER: '#334155',
+  MIXED: '#d97706'
 }
 
 const PAYMENT_ICONS: Record<string, React.ReactNode> = {
-  CASH: <Banknote size={15} color="#0f766e" />,
-  CARD: <CreditCard size={15} color="#334155" />,
-  TRANSFER: <Building2 size={15} color="#64748b" />,
-  MIXED: <Layers size={15} color="#94a3b8" />
+  CASH: <Banknote size={15} color="#16a34a" />,
+  CARD: <CreditCard size={15} color="#0f172a" />,
+  TRANSFER: <Building2 size={15} color="#334155" />,
+  MIXED: <Layers size={15} color="#d97706" />
 }
+
+const CATEGORY_PALETTE = ['#16a34a', '#0f172a', '#059669', '#334155', '#15803d', '#475569', '#d97706', '#64748b']
 
 export const ReportsPage: React.FC = () => {
   const currentShop = useAppStore((state) => state.currentShop)
@@ -315,7 +317,7 @@ export const ReportsPage: React.FC = () => {
 
         const mappedCategories = (backendReport.categoryBreakdown || []).map((cb, idx) => ({
           category_name: cb.categoryName,
-          color: ['#16a34a', '#2563eb', '#8b5cf6', '#ec4899', '#f59e0b', '#06b6d4', '#e11d48', '#10b981'][idx % 8],
+          color: ['#0f172a', '#334155', '#475569', '#64748b', '#0f766e', '#0d9488', '#059669', '#15803d'][idx % 8],
           total_qty: cb.quantitySold,
           total_revenue: cb.revenue
         }))
@@ -1008,7 +1010,7 @@ export const ReportsPage: React.FC = () => {
             }}
           >
             <Building2 size={13} />
-            <span>All Branches (සියල්ල)</span>
+            <span>All Branches</span>
           </button>
 
           <button
@@ -1019,16 +1021,16 @@ export const ReportsPage: React.FC = () => {
               gap: 6,
               padding: '6px 12px',
               borderRadius: 6,
-              border: selectedBranchId === 'b0000000-0000-0000-0000-000000000001' ? '1px solid #16a34a' : '1px solid transparent',
+              border: selectedBranchId === 'b0000000-0000-0000-0000-000000000001' ? '1px solid #0f172a' : '1px solid transparent',
               fontSize: 12,
               fontWeight: selectedBranchId === 'b0000000-0000-0000-0000-000000000001' ? 700 : 500,
               cursor: 'pointer',
-              background: selectedBranchId === 'b0000000-0000-0000-0000-000000000001' ? '#16a34a' : 'transparent',
+              background: selectedBranchId === 'b0000000-0000-0000-0000-000000000001' ? '#0f172a' : 'transparent',
               color: selectedBranchId === 'b0000000-0000-0000-0000-000000000001' ? '#ffffff' : '#64748b',
               transition: 'all 0.15s ease'
             }}
           >
-            <span>🏢 Katugastota (B1)</span>
+            <span>Katugastota (B1)</span>
           </button>
 
           <button
@@ -1039,16 +1041,16 @@ export const ReportsPage: React.FC = () => {
               gap: 6,
               padding: '6px 12px',
               borderRadius: 6,
-              border: selectedBranchId === 'b0000000-0000-0000-0000-000000000002' ? '1px solid #ea580c' : '1px solid transparent',
+              border: selectedBranchId === 'b0000000-0000-0000-0000-000000000002' ? '1px solid #0f172a' : '1px solid transparent',
               fontSize: 12,
               fontWeight: selectedBranchId === 'b0000000-0000-0000-0000-000000000002' ? 700 : 500,
               cursor: 'pointer',
-              background: selectedBranchId === 'b0000000-0000-0000-0000-000000000002' ? '#ea580c' : 'transparent',
+              background: selectedBranchId === 'b0000000-0000-0000-0000-000000000002' ? '#0f172a' : 'transparent',
               color: selectedBranchId === 'b0000000-0000-0000-0000-000000000002' ? '#ffffff' : '#64748b',
               transition: 'all 0.15s ease'
             }}
           >
-            <span>🎂 Poojapitiya (B2)</span>
+            <span>Poojapitiya (B2)</span>
           </button>
         </div>
 
@@ -1079,29 +1081,31 @@ export const ReportsPage: React.FC = () => {
               height: 38,
               borderRadius: 12,
               background: viewMode === 'store'
-                ? 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)'
+                ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)'
                 : 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: viewMode === 'store' ? '#2563eb' : '#d97706',
+              color: viewMode === 'store' ? '#15803d' : '#d97706',
               boxShadow: viewMode === 'store'
-                ? '0 2px 6px rgba(37, 99, 235, 0.15)'
+                ? '0 2px 6px rgba(21, 128, 61, 0.15)'
                 : '0 2px 6px rgba(217, 119, 6, 0.15)',
-              border: viewMode === 'store' ? '1px solid #bfdbfe' : '1px solid #fde68a'
+              border: viewMode === 'store' ? '1px solid #bbf7d0' : '1px solid #fde68a'
             }}>
               {viewMode === 'store' ? <BarChart3 size={20} /> : <Crown size={20} />}
             </div>
-            <span>{viewMode === 'store' ? 'Sales & Revenue Analytics' : "Owner's Executive Business Hub"}</span>
+            <span style={{ fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
+              {viewMode === 'store' ? 'Sales & Revenue Analytics' : "Owner's Executive Business Hub"}
+            </span>
             <span style={{
               fontSize: 11,
               fontWeight: 700,
-              color: viewMode === 'store' ? '#1e40af' : '#b45309',
-              background: viewMode === 'store' ? '#eff6ff' : '#fef3c7',
-              border: viewMode === 'store' ? '1px solid #bfdbfe' : '1px solid #fde68a',
+              color: viewMode === 'store' ? '#15803d' : '#b45309',
+              background: viewMode === 'store' ? '#f0fdf4' : '#fef3c7',
+              border: viewMode === 'store' ? '1px solid #bbf7d0' : '1px solid #fde68a',
               padding: '2px 8px',
               borderRadius: 99,
-              marginLeft: 4
+              marginLeft: 6
             }}>
               {periodDisplayLabel}
             </span>
@@ -1111,18 +1115,22 @@ export const ReportsPage: React.FC = () => {
               ? 'Performance Insights, Item Breakdown, and Store Activity'
               : 'Profit & Loss, Operational Outflow, Cash Drawer & Staff Audit'} ·{' '}
             <span style={{
-              color: selectedBranchId === 'b0000000-0000-0000-0000-000000000002' ? '#ea580c' : (selectedBranchId === 'all' ? '#0f172a' : '#16a34a'),
+              color: selectedBranchId === 'b0000000-0000-0000-0000-000000000002' ? '#c2410c' : (selectedBranchId === 'all' ? '#0f172a' : '#15803d'),
               fontWeight: 700,
-              background: selectedBranchId === 'b0000000-0000-0000-0000-000000000002' ? '#fff7ed' : (selectedBranchId === 'all' ? '#f1f5f9' : '#f0fdf4'),
-              padding: '1px 8px',
+              background: selectedBranchId === 'b0000000-0000-0000-0000-000000000002' ? '#fff7ed' : (selectedBranchId === 'all' ? '#f8fafc' : '#f0fdf4'),
+              padding: '2px 8px',
               borderRadius: 6,
-              border: `1px solid ${selectedBranchId === 'b0000000-0000-0000-0000-000000000002' ? '#fed7aa' : (selectedBranchId === 'all' ? '#e2e8f0' : '#bbf7d0')}`
+              border: `1px solid ${selectedBranchId === 'b0000000-0000-0000-0000-000000000002' ? '#fed7aa' : (selectedBranchId === 'all' ? '#e2e8f0' : '#bbf7d0')}`,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4
             }}>
+              <Building2 size={11} />
               {selectedBranchId === 'all'
-                ? '🏢 All Branches Combined (සියලුම ශාඛා)'
+                ? 'All Branches Combined'
                 : selectedBranchId === 'b0000000-0000-0000-0000-000000000002'
-                ? '🎂 Wasana Cake - Poojapitiya (B2)'
-                : '🏢 Wasana Cake - Katugastota (B1)'}
+                ? 'Wasana Cake - Poojapitiya (B2)'
+                : 'Wasana Cake - Katugastota (B1)'}
             </span>
           </div>
         </div>
@@ -1328,8 +1336,8 @@ export const ReportsPage: React.FC = () => {
                   {
                     key: 'current',
                     label: tableTab === 'items'
-                      ? '📊 Product Sales & Profit (Current View)'
-                      : '🧾 Completed Orders Ledger (Current View)',
+                      ? 'Product Sales & Profit (Current View)'
+                      : 'Completed Orders Ledger (Current View)',
                     onClick: handleExportCSV
                   },
                   {
@@ -1337,22 +1345,22 @@ export const ReportsPage: React.FC = () => {
                   },
                   {
                     key: 'products',
-                    label: '📊 Product-wise Sales & Profit (භාණ්ඩ අනුව ලාභ)',
+                    label: 'Product-wise Sales & Profit',
                     onClick: handleExportProductsCSV
                   },
                   {
                     key: 'orders',
-                    label: '🧾 Completed Orders Ledger (සියලු ඇණවුම්)',
+                    label: 'Completed Orders Ledger',
                     onClick: handleExportOrdersCSV
                   },
                   {
                     key: 'timeline',
-                    label: '📈 Sales Timeline Breakdown (කාලීන විකුණුම්)',
+                    label: 'Sales Timeline Breakdown',
                     onClick: handleExportTimelineCSV
                   },
                   {
                     key: 'summary',
-                    label: '💼 Financial Executive Summary (මූල්‍ය සාරාංශය)',
+                    label: 'Financial Executive Summary',
                     onClick: handleExportSummaryCSV
                   }
                 ]
@@ -1446,41 +1454,41 @@ export const ReportsPage: React.FC = () => {
                 background: '#ffffff',
                 padding: '18px 20px',
                 borderRadius: 14,
-                border: '1px solid #e8ecf1',
-                boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
                 cursor: 'pointer',
                 transition: 'all 0.18s ease'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)'
-                e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(15, 23, 42, 0.07)'
-                e.currentTarget.style.borderColor = '#cbd5e1'
+                e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(22, 101, 52, 0.12)'
+                e.currentTarget.style.borderColor = '#bbf7d0'
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'none'
-                e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.03)'
-                e.currentTarget.style.borderColor = '#e8ecf1'
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.03)'
+                e.currentTarget.style.borderColor = '#e2e8f0'
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Total Revenue
                 </span>
                 <div style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: '#f0fdf4',
+                  border: '1px solid #bbf7d0',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#334155'
+                  color: '#16a34a'
                 }}>
-                  <DollarSign size={16} />
+                  <DollarSign size={18} />
                 </div>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em', marginBottom: 8, fontVariantNumeric: 'tabular-nums' }}>
+              <div style={{ fontSize: 24, fontWeight: 900, color: '#15803d', letterSpacing: '-0.03em', marginBottom: 8, fontVariantNumeric: 'tabular-nums' }}>
                 {formatCurrency(analytics?.summary?.total_revenue || 0)}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
@@ -1513,7 +1521,7 @@ export const ReportsPage: React.FC = () => {
                     <ArrowDownRight size={12} /> {analytics?.summary.revenue_growth_pct}%
                   </span>
                 )}
-                <span style={{ color: '#64748b', fontWeight: 500 }}>{analytics?.summary?.total_orders || 0} bills</span>
+                <span style={{ color: '#16a34a', fontWeight: 600 }}>{analytics?.summary?.total_orders || 0} bills</span>
               </div>
             </div>
 
@@ -1526,55 +1534,55 @@ export const ReportsPage: React.FC = () => {
                 background: '#ffffff',
                 padding: '18px 20px',
                 borderRadius: 14,
-                border: '1px solid #e8ecf1',
-                boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
                 cursor: 'pointer',
                 transition: 'all 0.18s ease'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)'
-                e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(15, 23, 42, 0.07)'
-                e.currentTarget.style.borderColor = '#cbd5e1'
+                e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(220, 38, 38, 0.12)'
+                e.currentTarget.style.borderColor = '#fecaca'
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'none'
-                e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.03)'
-                e.currentTarget.style.borderColor = '#e8ecf1'
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.03)'
+                e.currentTarget.style.borderColor = '#e2e8f0'
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#991b1b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Operating Expenses
                 </span>
                 <div style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#334155'
+                  color: '#dc2626'
                 }}>
-                  <TrendingDown size={16} />
+                  <TrendingDown size={18} />
                 </div>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em', marginBottom: 8, fontVariantNumeric: 'tabular-nums' }}>
+              <div style={{ fontSize: 24, fontWeight: 900, color: '#dc2626', letterSpacing: '-0.03em', marginBottom: 8, fontVariantNumeric: 'tabular-nums' }}>
                 {formatCurrency(analytics?.ownerMetrics?.totalExpenses || 0)}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
                 <span style={{
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  color: '#475569',
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#b91c1c',
                   padding: '2px 7px',
                   borderRadius: 6,
                   fontWeight: 600
                 }}>
                   {analytics?.ownerMetrics?.expenseCategories?.length || 0} categories
                 </span>
-                <span style={{ color: '#64748b', fontWeight: 500 }}>
+                <span style={{ color: '#b91c1c', fontWeight: 600 }}>
                   Paid: {formatCurrency(analytics?.ownerMetrics?.cashDrawer?.cashExpenses || analytics?.ownerMetrics?.totalExpenses || 0)}
                 </span>
               </div>
@@ -1589,55 +1597,55 @@ export const ReportsPage: React.FC = () => {
                 background: '#ffffff',
                 padding: '18px 20px',
                 borderRadius: 14,
-                border: '1px solid #e8ecf1',
-                boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
                 cursor: 'pointer',
                 transition: 'all 0.18s ease'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)'
-                e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(15, 23, 42, 0.07)'
-                e.currentTarget.style.borderColor = '#cbd5e1'
+                e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(5, 150, 105, 0.12)'
+                e.currentTarget.style.borderColor = '#a7f3d0'
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'none'
-                e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.03)'
-                e.currentTarget.style.borderColor = '#e8ecf1'
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.03)'
+                e.currentTarget.style.borderColor = '#e2e8f0'
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#065f46', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Net Profit (Bottom Line)
                 </span>
                 <div style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: '#ecfdf5',
+                  border: '1px solid #a7f3d0',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#334155'
+                  color: '#059669'
                 }}>
-                  <TrendingUp size={16} />
+                  <TrendingUp size={18} />
                 </div>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: (analytics?.ownerMetrics?.netProfit || 0) >= 0 ? '#0f172a' : '#e11d48', letterSpacing: '-0.03em', marginBottom: 8, fontVariantNumeric: 'tabular-nums' }}>
+              <div style={{ fontSize: 24, fontWeight: 900, color: (analytics?.ownerMetrics?.netProfit || 0) >= 0 ? '#059669' : '#dc2626', letterSpacing: '-0.03em', marginBottom: 8, fontVariantNumeric: 'tabular-nums' }}>
                 {formatCurrency(analytics?.ownerMetrics?.netProfit ?? analytics?.summary?.estimated_profit ?? 0)}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
                 <span style={{
-                  background: (analytics?.ownerMetrics?.netProfitMargin || 0) >= 15 ? '#f0fdf4' : '#fff1f2',
-                  border: `1px solid ${(analytics?.ownerMetrics?.netProfitMargin || 0) >= 15 ? '#bbf7d0' : '#fecdd3'}`,
-                  color: (analytics?.ownerMetrics?.netProfitMargin || 0) >= 15 ? '#059669' : '#e11d48',
+                  background: (analytics?.ownerMetrics?.netProfitMargin || 0) >= 15 ? '#ecfdf5' : '#fff1f2',
+                  border: `1px solid ${(analytics?.ownerMetrics?.netProfitMargin || 0) >= 15 ? '#a7f3d0' : '#fecdd3'}`,
+                  color: (analytics?.ownerMetrics?.netProfitMargin || 0) >= 15 ? '#047857' : '#e11d48',
                   padding: '2px 7px',
                   borderRadius: 6,
                   fontWeight: 700
                 }}>
                   {analytics?.ownerMetrics?.netProfitMargin ?? analytics?.summary?.profit_margin_pct ?? 0}% Net Margin
                 </span>
-                <span style={{ color: '#64748b', fontWeight: 500 }}>
+                <span style={{ color: '#047857', fontWeight: 600 }}>
                   Take-home
                 </span>
               </div>
@@ -1652,41 +1660,41 @@ export const ReportsPage: React.FC = () => {
                 background: '#ffffff',
                 padding: '18px 20px',
                 borderRadius: 14,
-                border: '1px solid #e8ecf1',
-                boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
                 cursor: 'pointer',
                 transition: 'all 0.18s ease'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)'
-                e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(15, 23, 42, 0.07)'
+                e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(15, 23, 42, 0.08)'
                 e.currentTarget.style.borderColor = '#cbd5e1'
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'none'
-                e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.03)'
-                e.currentTarget.style.borderColor = '#e8ecf1'
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.03)'
+                e.currentTarget.style.borderColor = '#e2e8f0'
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Stock Value (At Cost)
                 </span>
                 <div style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
                   background: '#f8fafc',
                   border: '1px solid #e2e8f0',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#334155'
+                  color: '#0f172a'
                 }}>
-                  <Package size={16} />
+                  <Package size={18} />
                 </div>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em', marginBottom: 8, fontVariantNumeric: 'tabular-nums' }}>
+              <div style={{ fontSize: 24, fontWeight: 900, color: '#0f172a', letterSpacing: '-0.03em', marginBottom: 8, fontVariantNumeric: 'tabular-nums' }}>
                 {formatCurrency(analytics?.ownerMetrics?.inventoryValuation?.totalCostValue || 0)}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
@@ -1699,21 +1707,21 @@ export const ReportsPage: React.FC = () => {
                     borderRadius: 6,
                     fontWeight: 700
                   }}>
-                    ⚠ {analytics?.ownerMetrics?.inventoryValuation?.lowStockCount} Low Stock
+                    {analytics?.ownerMetrics?.inventoryValuation?.lowStockCount} Low Stock
                   </span>
                 ) : (
                   <span style={{
                     background: '#f0fdf4',
                     border: '1px solid #bbf7d0',
-                    color: '#059669',
+                    color: '#15803d',
                     padding: '2px 7px',
                     borderRadius: 6,
                     fontWeight: 700
                   }}>
-                    ✓ Stock Healthy
+                    Stock Healthy
                   </span>
                 )}
-                <span style={{ color: '#64748b', fontWeight: 500 }}>
+                <span style={{ color: '#64748b', fontWeight: 600 }}>
                   Retail: {formatCurrency(analytics?.ownerMetrics?.inventoryValuation?.totalRetailValue || 0)}
                 </span>
               </div>
@@ -1728,48 +1736,48 @@ export const ReportsPage: React.FC = () => {
                 background: '#ffffff',
                 padding: '18px 20px',
                 borderRadius: 14,
-                border: '1px solid #e8ecf1',
-                boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
                 cursor: 'pointer',
                 transition: 'all 0.18s ease'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)'
-                e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(15, 23, 42, 0.07)'
+                e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(15, 23, 42, 0.08)'
                 e.currentTarget.style.borderColor = '#cbd5e1'
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'none'
-                e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.03)'
-                e.currentTarget.style.borderColor = '#e8ecf1'
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.03)'
+                e.currentTarget.style.borderColor = '#e2e8f0'
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Orders &amp; Avg Ticket
                 </span>
                 <div style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
                   background: '#f8fafc',
                   border: '1px solid #e2e8f0',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#334155'
+                  color: '#0f172a'
                 }}>
-                  <Receipt size={16} />
+                  <Receipt size={18} />
                 </div>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em', marginBottom: 8, fontVariantNumeric: 'tabular-nums' }}>
+              <div style={{ fontSize: 24, fontWeight: 900, color: '#0f172a', letterSpacing: '-0.03em', marginBottom: 8, fontVariantNumeric: 'tabular-nums' }}>
                 {analytics?.summary?.total_orders || 0}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
                 <span style={{
-                  background: '#f8fafc',
+                  background: '#f1f5f9',
                   border: '1px solid #e2e8f0',
-                  color: '#475569',
+                  color: '#334155',
                   padding: '2px 7px',
                   borderRadius: 6,
                   fontWeight: 600
@@ -1789,47 +1797,47 @@ export const ReportsPage: React.FC = () => {
                 background: '#ffffff',
                 padding: '18px 20px',
                 borderRadius: 14,
-                border: '1px solid #e8ecf1',
-                boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
                 cursor: 'pointer',
                 transition: 'all 0.18s ease'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)'
-                e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(15, 23, 42, 0.07)'
-                e.currentTarget.style.borderColor = '#cbd5e1'
+                e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(217, 119, 6, 0.12)'
+                e.currentTarget.style.borderColor = '#fde68a'
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'none'
-                e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.03)'
-                e.currentTarget.style.borderColor = '#e8ecf1'
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.03)'
+                e.currentTarget.style.borderColor = '#e2e8f0'
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Cash In Register
                 </span>
                 <div style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: '#fffbeb',
+                  border: '1px solid #fde68a',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#334155'
+                  color: '#d97706'
                 }}>
-                  <Wallet size={16} />
+                  <Wallet size={18} />
                 </div>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em', marginBottom: 8, fontVariantNumeric: 'tabular-nums' }}>
+              <div style={{ fontSize: 24, fontWeight: 900, color: '#d97706', letterSpacing: '-0.03em', marginBottom: 8, fontVariantNumeric: 'tabular-nums' }}>
                 {formatCurrency(analytics?.ownerMetrics?.cashDrawer?.netCashEstimated || 0)}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
-                <span style={{ color: '#059669', fontWeight: 600 }}>+{formatCurrency(analytics?.ownerMetrics?.cashDrawer?.cashSales || 0)}</span>
+                <span style={{ color: '#15803d', fontWeight: 700 }}>+{formatCurrency(analytics?.ownerMetrics?.cashDrawer?.cashSales || 0)}</span>
                 <span style={{ color: '#cbd5e1' }}>/</span>
-                <span style={{ color: '#e11d48', fontWeight: 600 }}>-{formatCurrency(analytics?.ownerMetrics?.cashDrawer?.cashExpenses || 0)}</span>
+                <span style={{ color: '#dc2626', fontWeight: 700 }}>-{formatCurrency(analytics?.ownerMetrics?.cashDrawer?.cashExpenses || 0)}</span>
               </div>
             </div>
           </div>
@@ -1852,10 +1860,13 @@ export const ReportsPage: React.FC = () => {
           gap: 12
         }}>
           <div>
-            <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+            <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 7 }}>
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 6, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                <TrendingUp size={15} color="#15803d" />
+              </span>
               Sales &amp; Revenue Progression
             </h3>
-            <p style={{ fontSize: 12, color: '#64748b', margin: '3px 0 0' }}>
+            <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0' }}>
               {period === 'daily' && 'Hourly sales velocity and transaction distribution'}
               {period === 'weekly' && 'Daily revenue trends over the 7-day period'}
               {period === 'monthly' && 'Full month day-by-day revenue pattern'}
@@ -1869,20 +1880,21 @@ export const ReportsPage: React.FC = () => {
             background: '#f1f5f9',
             padding: 3,
             borderRadius: 8,
-            border: '1px solid #e2e8f0'
+            border: '1px solid #e2e8f0',
+            gap: 3
           }}>
             <button
               onClick={() => setChartMode('revenue')}
               style={{
                 padding: '5px 14px',
                 borderRadius: 6,
-                border: chartMode === 'revenue' ? '1px solid #cbd5e1' : '1px solid transparent',
+                border: chartMode === 'revenue' ? '1px solid #bbf7d0' : '1px solid transparent',
                 fontSize: 12,
                 fontWeight: chartMode === 'revenue' ? 700 : 600,
                 cursor: 'pointer',
-                background: chartMode === 'revenue' ? '#ffffff' : 'transparent',
-                color: chartMode === 'revenue' ? '#0f172a' : '#64748b',
-                boxShadow: chartMode === 'revenue' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                background: chartMode === 'revenue' ? '#f0fdf4' : 'transparent',
+                color: chartMode === 'revenue' ? '#15803d' : '#64748b',
+                boxShadow: chartMode === 'revenue' ? '0 1px 2px rgba(22,163,74,0.1)' : 'none',
                 transition: 'all 0.15s ease'
               }}
             >
@@ -1893,13 +1905,13 @@ export const ReportsPage: React.FC = () => {
               style={{
                 padding: '5px 14px',
                 borderRadius: 6,
-                border: chartMode === 'orders' ? '1px solid #cbd5e1' : '1px solid transparent',
+                border: chartMode === 'orders' ? '1px solid #0f172a' : '1px solid transparent',
                 fontSize: 12,
                 fontWeight: chartMode === 'orders' ? 700 : 600,
                 cursor: 'pointer',
-                background: chartMode === 'orders' ? '#ffffff' : 'transparent',
-                color: chartMode === 'orders' ? '#0f172a' : '#64748b',
-                boxShadow: chartMode === 'orders' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                background: chartMode === 'orders' ? '#0f172a' : 'transparent',
+                color: chartMode === 'orders' ? '#ffffff' : '#64748b',
+                boxShadow: chartMode === 'orders' ? '0 1px 3px rgba(15,23,42,0.15)' : 'none',
                 transition: 'all 0.15s ease'
               }}
             >
@@ -1910,13 +1922,13 @@ export const ReportsPage: React.FC = () => {
               style={{
                 padding: '5px 14px',
                 borderRadius: 6,
-                border: chartMode === 'both' ? '1px solid #cbd5e1' : '1px solid transparent',
+                border: chartMode === 'both' ? '1px solid #0f172a' : '1px solid transparent',
                 fontSize: 12,
                 fontWeight: chartMode === 'both' ? 700 : 600,
                 cursor: 'pointer',
-                background: chartMode === 'both' ? '#ffffff' : 'transparent',
+                background: chartMode === 'both' ? '#f1f5f9' : 'transparent',
                 color: chartMode === 'both' ? '#0f172a' : '#64748b',
-                boxShadow: chartMode === 'both' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                boxShadow: chartMode === 'both' ? '0 1px 3px rgba(15,23,42,0.08)' : 'none',
                 transition: 'all 0.15s ease'
               }}
             >
@@ -1945,18 +1957,18 @@ export const ReportsPage: React.FC = () => {
                     tickLine={false}
                   />
                   <Tooltip content={<CustomChartTooltip />} />
-                  <Bar dataKey="orders" name="Orders" fill="#334155" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                  <Bar dataKey="orders" name="Orders" fill="#0f172a" radius={[6, 6, 0, 0]} maxBarSize={40} />
                 </BarChart>
               ) : (
                 <AreaChart data={analytics.timeline} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0f766e" stopOpacity={0.16} />
-                      <stop offset="95%" stopColor="#0f766e" stopOpacity={0.0} />
+                      <stop offset="5%" stopColor="#16a34a" stopOpacity={0.22} />
+                      <stop offset="95%" stopColor="#16a34a" stopOpacity={0.0} />
                     </linearGradient>
                     <linearGradient id="ordersGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#334155" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="#334155" stopOpacity={0.0} />
+                      <stop offset="5%" stopColor="#0f172a" stopOpacity={0.20} />
+                      <stop offset="95%" stopColor="#0f172a" stopOpacity={0.0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -1989,11 +2001,11 @@ export const ReportsPage: React.FC = () => {
                     type="monotone"
                     dataKey="revenue"
                     name="Revenue"
-                    stroke="#0f766e"
+                    stroke="#16a34a"
                     strokeWidth={2.5}
                     fillOpacity={1}
                     fill="url(#revenueGrad)"
-                    activeDot={{ r: 5, stroke: '#0f766e', strokeWidth: 2, fill: '#ffffff' }}
+                    activeDot={{ r: 5, stroke: '#16a34a', strokeWidth: 2, fill: '#ffffff' }}
                   />
                   {chartMode === 'both' && (
                     <Area
@@ -2001,8 +2013,8 @@ export const ReportsPage: React.FC = () => {
                       type="monotone"
                       dataKey="orders"
                       name="Orders"
-                      stroke="#475569"
-                      strokeWidth={1.8}
+                      stroke="#0f172a"
+                      strokeWidth={2}
                       strokeDasharray="4 4"
                       fillOpacity={1}
                       fill="url(#ordersGrad)"
@@ -2033,28 +2045,29 @@ export const ReportsPage: React.FC = () => {
             alignItems: 'center',
             gap: 12,
             marginTop: 16,
-            padding: '10px 16px',
-            background: '#f8fafc',
-            borderRadius: 8,
-            border: '1px solid #e2e8f0'
+            padding: '12px 16px',
+            background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+            borderRadius: 10,
+            border: '1px solid #fde68a'
           }}>
             <div style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: 28,
-              height: 28,
-              borderRadius: 6,
-              background: '#f1f5f9',
-              color: '#0f172a',
-              border: '1px solid #e2e8f0'
+              width: 30,
+              height: 30,
+              borderRadius: 8,
+              background: '#ffffff',
+              color: '#d97706',
+              border: '1px solid #fde68a',
+              boxShadow: '0 1px 3px rgba(217, 119, 6, 0.12)'
             }}>
-              <Sparkles size={15} />
+              <Sparkles size={16} />
             </div>
-            <div style={{ fontSize: 12, color: '#475569' }}>
-              <strong style={{ color: '#0f172a' }}>Peak Performance Window:</strong> Highest sales occurred at{' '}
-              <strong style={{ color: '#0f172a' }}>{analytics.peakSlot.label}</strong> generating{' '}
-              <strong style={{ color: '#0f172a' }}>{formatCurrency(analytics.peakSlot.revenue)}</strong> across{' '}
+            <div style={{ fontSize: 12.5, color: '#92400e' }}>
+              <strong style={{ color: '#78350f' }}>Peak Performance Window:</strong> Highest sales occurred at{' '}
+              <strong style={{ color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: 4, border: '1px solid #fde68a' }}>{analytics.peakSlot.label}</strong> generating{' '}
+              <strong style={{ color: '#15803d' }}>{formatCurrency(analytics.peakSlot.revenue)}</strong> across{' '}
               <strong style={{ color: '#0f172a' }}>{analytics.peakSlot.orders} orders</strong>.
             </div>
           </div>
@@ -2076,10 +2089,13 @@ export const ReportsPage: React.FC = () => {
           boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.01em' }}>
+            <h3 style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 7, letterSpacing: '-0.01em' }}>
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 6, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                <CreditCard size={14} color="#0f172a" />
+              </span>
               Payment Methods
             </h3>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#0f172a', background: '#f8fafc', padding: '2px 8px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
               {analytics?.paymentBreakdown.reduce((sum, p) => sum + p.count, 0)} Total Payments
             </span>
           </div>
@@ -2125,16 +2141,23 @@ export const ReportsPage: React.FC = () => {
                 const percent = found?.percent || 0
                 const count = found?.count || 0
                 const color = PAYMENT_COLORS[method] || '#64748b'
+                const methodStyles: Record<string, { bg: string; border: string }> = {
+                  CASH: { bg: '#f0fdf4', border: '#dcfce7' },
+                  CARD: { bg: '#f8fafc', border: '#e2e8f0' },
+                  TRANSFER: { bg: '#f1f5f9', border: '#cbd5e1' },
+                  MIXED: { bg: '#fffbeb', border: '#fef3c7' }
+                }
+                const mStyle = methodStyles[method] || { bg: '#f8fafc', border: '#f1f5f9' }
 
                 return (
                   <div key={method} style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '6px 10px',
+                    padding: '7px 10px',
                     borderRadius: 8,
-                    background: '#f8fafc',
-                    border: '1px solid #f1f5f9'
+                    background: mStyle.bg,
+                    border: `1px solid ${mStyle.border}`
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ display: 'flex' }}>{PAYMENT_ICONS[method]}</span>
@@ -2143,7 +2166,7 @@ export const ReportsPage: React.FC = () => {
                       </span>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 12, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: color, fontVariantNumeric: 'tabular-nums' }}>
                         {formatCurrency(amount)}
                       </div>
                       <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>
@@ -2166,11 +2189,13 @@ export const ReportsPage: React.FC = () => {
           boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '-0.01em' }}>
-              <Award size={16} color="#334155" />
+            <h3 style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 7, letterSpacing: '-0.01em' }}>
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 6, background: '#fffbeb', border: '1px solid #fde68a' }}>
+                <Award size={14} color="#d97706" />
+              </span>
               Top Selling Products
             </h3>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#b45309', background: '#fffbeb', padding: '2px 8px', borderRadius: 6, border: '1px solid #fde68a' }}>
               By Revenue
             </span>
           </div>
@@ -2180,6 +2205,14 @@ export const ReportsPage: React.FC = () => {
               analytics.topProducts.slice(0, 5).map((prod, idx) => {
                 const maxRev = analytics.topProducts[0]?.total_revenue || 1
                 const pct = Math.round((prod.total_revenue / maxRev) * 100)
+                const rankStyles = [
+                  { bg: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', text: '#b45309', border: '#fcd34d', bar: '#16a34a' },
+                  { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0', bar: '#16a34a' },
+                  { bg: '#fff7ed', text: '#c2410c', border: '#fed7aa', bar: '#ea580c' },
+                  { bg: '#f8fafc', text: '#334155', border: '#e2e8f0', bar: '#475569' },
+                  { bg: '#f8fafc', text: '#475569', border: '#e2e8f0', bar: '#64748b' }
+                ]
+                const curRank = rankStyles[idx] || rankStyles[4]
 
                 return (
                   <div key={prod.product_name} style={{
@@ -2194,9 +2227,9 @@ export const ReportsPage: React.FC = () => {
                           width: 20,
                           height: 20,
                           borderRadius: 6,
-                          background: idx === 0 ? '#0f172a' : '#f1f5f9',
-                          color: idx === 0 ? '#ffffff' : '#475569',
-                          border: idx === 0 ? 'none' : '1px solid #e2e8f0',
+                          background: curRank.bg,
+                          color: curRank.text,
+                          border: `1px solid ${curRank.border}`,
                           fontSize: 10,
                           fontWeight: 800,
                           display: 'flex',
@@ -2223,7 +2256,7 @@ export const ReportsPage: React.FC = () => {
                       <div style={{
                         height: '100%',
                         width: `${pct}%`,
-                        background: idx === 0 ? '#0f766e' : '#64748b',
+                        background: curRank.bar,
                         borderRadius: 99,
                         transition: 'width 0.4s ease'
                       }} />
@@ -2248,20 +2281,23 @@ export const ReportsPage: React.FC = () => {
           boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '-0.01em' }}>
-              <Layers size={16} color="#334155" />
+            <h3 style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 7, letterSpacing: '-0.01em' }}>
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 6, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                <Layers size={14} color="#0f172a" />
+              </span>
               Category Distribution
             </h3>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '2px 8px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
               Sales Share
             </span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {analytics?.categoryBreakdown && analytics.categoryBreakdown.length > 0 ? (
-              analytics.categoryBreakdown.map((cat) => {
+              analytics.categoryBreakdown.map((cat, idx) => {
                 const totalRev = analytics.summary.total_revenue || 1
                 const pct = ((cat.total_revenue / totalRev) * 100).toFixed(1)
+                const catColor = CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length]
 
                 return (
                   <div key={cat.category_name} style={{
@@ -2276,7 +2312,7 @@ export const ReportsPage: React.FC = () => {
                           width: 8,
                           height: 8,
                           borderRadius: 99,
-                          background: '#334155'
+                          background: catColor
                         }} />
                         <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>
                           {cat.category_name}
@@ -2289,11 +2325,11 @@ export const ReportsPage: React.FC = () => {
                         <span style={{
                           fontSize: 10,
                           fontWeight: 700,
-                          color: '#475569',
-                          background: '#f1f5f9',
+                          color: catColor,
+                          background: `${catColor}15`,
                           padding: '1px 6px',
                           borderRadius: 4,
-                          border: '1px solid #e2e8f0',
+                          border: `1px solid ${catColor}35`,
                           marginLeft: 6
                         }}>
                           {pct}%
@@ -2305,7 +2341,7 @@ export const ReportsPage: React.FC = () => {
                       <div style={{
                         height: '100%',
                         width: `${pct}%`,
-                        background: '#334155',
+                        background: catColor,
                         borderRadius: 99,
                         transition: 'width 0.4s ease'
                       }} />
@@ -2356,17 +2392,17 @@ export const ReportsPage: React.FC = () => {
                 gap: 6,
                 padding: '6px 14px',
                 borderRadius: 6,
-                border: tableTab === 'items' ? '1px solid #cbd5e1' : '1px solid transparent',
+                border: tableTab === 'items' ? '1px solid #0f172a' : '1px solid transparent',
                 fontSize: 12,
                 fontWeight: tableTab === 'items' ? 700 : 600,
                 cursor: 'pointer',
-                background: tableTab === 'items' ? '#ffffff' : 'transparent',
-                color: tableTab === 'items' ? '#0f172a' : '#64748b',
-                boxShadow: tableTab === 'items' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                background: tableTab === 'items' ? '#0f172a' : 'transparent',
+                color: tableTab === 'items' ? '#ffffff' : '#64748b',
+                boxShadow: tableTab === 'items' ? '0 1px 2px rgba(15,23,42,0.15)' : 'none',
                 transition: 'all 0.15s ease'
               }}
             >
-              <Package size={14} />
+              <Package size={14} color={tableTab === 'items' ? '#ffffff' : '#64748b'} />
               <span>Item-Wise Performance Breakdown ({filteredAndSortedItems.length})</span>
             </button>
             <button
@@ -2377,17 +2413,17 @@ export const ReportsPage: React.FC = () => {
                 gap: 6,
                 padding: '6px 14px',
                 borderRadius: 6,
-                border: tableTab === 'orders' ? '1px solid #cbd5e1' : '1px solid transparent',
+                border: tableTab === 'orders' ? '1px solid #bbf7d0' : '1px solid transparent',
                 fontSize: 12,
                 fontWeight: tableTab === 'orders' ? 700 : 600,
                 cursor: 'pointer',
-                background: tableTab === 'orders' ? '#ffffff' : 'transparent',
-                color: tableTab === 'orders' ? '#0f172a' : '#64748b',
-                boxShadow: tableTab === 'orders' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                background: tableTab === 'orders' ? '#f0fdf4' : 'transparent',
+                color: tableTab === 'orders' ? '#15803d' : '#64748b',
+                boxShadow: tableTab === 'orders' ? '0 1px 2px rgba(22,163,74,0.08)' : 'none',
                 transition: 'all 0.15s ease'
               }}
             >
-              <Receipt size={14} />
+              <Receipt size={14} color={tableTab === 'orders' ? '#16a34a' : '#64748b'} />
               <span>Completed Orders Log ({analytics?.recentOrders?.length || 0})</span>
             </button>
           </div>
@@ -2410,67 +2446,67 @@ export const ReportsPage: React.FC = () => {
               <div style={{
                 background: '#f8fafc',
                 padding: '12px 16px',
-                borderRadius: 8,
+                borderRadius: 10,
                 border: '1px solid #e2e8f0'
               }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Total Units Sold
                 </div>
                 <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>
                   {itemSummary.totalQty} units
                 </div>
-                <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, marginTop: 2 }}>
                   across {itemSummary.uniqueCount} unique menu items
                 </div>
               </div>
 
               <div style={{
-                background: '#f8fafc',
+                background: '#f0fdf4',
                 padding: '12px 16px',
-                borderRadius: 8,
-                border: '1px solid #e2e8f0'
+                borderRadius: 10,
+                border: '1px solid #bbf7d0'
               }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Top Revenue Generator
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#15803d', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {itemSummary.topRevenueItem?.product_name || 'None'}
                 </div>
-                <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 600, marginTop: 2 }}>
                   {itemSummary.topRevenueItem ? formatCurrency(itemSummary.topRevenueItem.total_revenue) : '-'} ({itemSummary.topRevenueItem?.total_qty || 0} sold)
                 </div>
               </div>
 
               <div style={{
-                background: '#f8fafc',
+                background: '#ecfdf5',
                 padding: '12px 16px',
-                borderRadius: 8,
-                border: '1px solid #e2e8f0'
+                borderRadius: 10,
+                border: '1px solid #a7f3d0'
               }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#065f46', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Most Profitable Item
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#059669', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {itemSummary.topProfitItem?.product_name || 'None'}
                 </div>
-                <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: '#047857', fontWeight: 600, marginTop: 2 }}>
                   Profit: {itemSummary.topProfitItem ? formatCurrency(itemSummary.topProfitItem.gross_profit) : '-'}
                 </div>
               </div>
 
               <div style={{
-                background: '#f8fafc',
+                background: '#fffbeb',
                 padding: '12px 16px',
-                borderRadius: 8,
-                border: '1px solid #e2e8f0'
+                borderRadius: 10,
+                border: '1px solid #fde68a'
               }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Highest Margin Product
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#b45309', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {itemSummary.topMarginItem?.product_name || 'None'}
                 </div>
-                <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: '#d97706', fontWeight: 600, marginTop: 2 }}>
                   {itemSummary.topMarginItem?.margin_pct || 0}% Gross Margin
                 </div>
               </div>
@@ -2576,6 +2612,7 @@ export const ReportsPage: React.FC = () => {
                       fontSize: 11,
                       fontWeight: itemSortKey === s.key ? 700 : 600,
                       cursor: 'pointer',
+                      boxShadow: itemSortKey === s.key ? '0 1px 2px rgba(15,23,42,0.2)' : 'none',
                       transition: 'all 0.15s ease'
                     }}
                   >
@@ -2657,10 +2694,11 @@ export const ReportsPage: React.FC = () => {
                               </span>
                               {idx === 0 && (
                                 <span style={{
-                                  background: '#0f172a',
-                                  color: '#ffffff',
+                                  background: '#fef3c7',
+                                  color: '#b45309',
+                                  border: '1px solid #fde68a',
                                   fontSize: 9,
-                                  fontWeight: 700,
+                                  fontWeight: 800,
                                   padding: '1px 6px',
                                   borderRadius: 4,
                                   letterSpacing: '0.03em'
@@ -2713,7 +2751,7 @@ export const ReportsPage: React.FC = () => {
                               <div style={{
                                 height: '100%',
                                 width: `${qtyBarWidth}%`,
-                                background: idx === 0 ? '#0f766e' : '#64748b',
+                                background: idx === 0 ? '#16a34a' : '#0f172a',
                                 borderRadius: 99
                               }} />
                             </div>
@@ -2913,12 +2951,12 @@ export const ReportsPage: React.FC = () => {
                     </h3>
                     <span style={{
                       fontSize: 11,
-                      fontWeight: 800,
-                      background: '#eff6ff',
-                      color: '#2563eb',
+                      fontWeight: 700,
+                      background: '#f1f5f9',
+                      color: '#334155',
                       padding: '2px 8px',
                       borderRadius: 6,
-                      border: '1px solid #bfdbfe'
+                      border: '1px solid #e2e8f0'
                     }}>
                       {analytics.branchBreakdown.length} Active Branches
                     </span>
@@ -2954,14 +2992,14 @@ export const ReportsPage: React.FC = () => {
                         borderRadius: 6,
                         fontSize: 12,
                         fontWeight: selectedBranchId === b.shopId ? 700 : 500,
-                        border: `1px solid ${b.branchCode === 'B1' ? '#16a34a' : '#ea580c'}`,
-                        background: selectedBranchId === b.shopId ? (b.branchCode === 'B1' ? '#16a34a' : '#ea580c') : '#ffffff',
-                        color: selectedBranchId === b.shopId ? '#ffffff' : (b.branchCode === 'B1' ? '#16a34a' : '#ea580c'),
+                        border: selectedBranchId === b.shopId ? '1px solid #0f172a' : '1px solid #e2e8f0',
+                        background: selectedBranchId === b.shopId ? '#0f172a' : '#ffffff',
+                        color: selectedBranchId === b.shopId ? '#ffffff' : '#64748b',
                         cursor: 'pointer',
                         transition: 'all 0.15s ease'
                       }}
                     >
-                      {b.branchCode === 'B1' ? '🏢 Katugastota (B1)' : '🎂 Poojapitiya (B2)'}
+                      {b.branchCode === 'B1' ? 'Katugastota (B1)' : 'Poojapitiya (B2)'}
                     </button>
                   ))}
                 </div>
@@ -3033,7 +3071,7 @@ export const ReportsPage: React.FC = () => {
                             cursor: 'pointer'
                           }}
                         >
-                          {isSelected ? '✓ Viewing This Branch' : 'Isolate This Branch'}
+                          {isSelected ? 'Viewing This Branch' : 'Isolate This Branch'}
                         </button>
                       </div>
 
@@ -3106,11 +3144,11 @@ export const ReportsPage: React.FC = () => {
                         <div>
                           {b.lowStockCount > 0 ? (
                             <span style={{ color: '#d97706', fontWeight: 700, background: '#fef3c7', padding: '2px 8px', borderRadius: 4 }}>
-                              ⚠ {b.lowStockCount} Low Stock
+                              {b.lowStockCount} Low Stock
                             </span>
                           ) : (
                             <span style={{ color: '#16a34a', fontWeight: 700, background: '#f0fdf4', padding: '2px 8px', borderRadius: 4 }}>
-                              ✓ Stock Healthy
+                              Stock Healthy
                             </span>
                           )}
                         </div>
@@ -3133,7 +3171,9 @@ export const ReportsPage: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Crown size={18} color="#0f172a" />
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6, background: '#fffbeb', border: '1px solid #fde68a' }}>
+                    <Crown size={16} color="#d97706" />
+                  </span>
                   <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
                     Executive Profit &amp; Loss (P&amp;L) Statement
                   </h3>
@@ -3160,64 +3200,64 @@ export const ReportsPage: React.FC = () => {
                 onClick={() => setDetailModal('revenue')}
                 role="button"
                 tabIndex={0}
-                style={{ background: '#f8fafc', padding: '16px 18px', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.15s ease' }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-1px)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none' }}
+                style={{ background: '#f0fdf4', padding: '16px 18px', borderRadius: 10, border: '1px solid #bbf7d0', cursor: 'pointer', transition: 'all 0.15s ease' }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#16a34a'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#bbf7d0'; e.currentTarget.style.transform = 'none' }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>1. Gross Revenue ↗</span>
-                  <DollarSign size={15} color="#0f172a" />
+                  <span style={{ fontSize: 10, fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.04em' }}>1. Gross Revenue ↗</span>
+                  <DollarSign size={15} color="#16a34a" />
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(analytics?.summary?.total_revenue || 0)}</div>
-                <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{analytics?.summary?.total_orders || 0} completed orders</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#15803d', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(analytics?.summary?.total_revenue || 0)}</div>
+                <div style={{ fontSize: 11, color: '#16a34a', marginTop: 4 }}>{analytics?.summary?.total_orders || 0} completed orders</div>
               </div>
 
               <div
                 onClick={() => setDetailModal('profit')}
                 role="button"
                 tabIndex={0}
-                style={{ background: '#f8fafc', padding: '16px 18px', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.15s ease' }}
+                style={{ background: '#f8fafc', padding: '16px 18px', borderRadius: 10, border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.15s ease' }}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-1px)' }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none' }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>2. Product Cost (COGS) ↗</span>
-                  <Layers size={15} color="#475569" />
+                  <span style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>2. Product Cost (COGS) ↗</span>
+                  <Layers size={15} color="#0f172a" />
                 </div>
                 <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(analytics?.summary?.total_cost || 0)}</div>
-                <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Direct ingredient &amp; production cost</div>
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Direct recipe &amp; production cost</div>
               </div>
 
               <div
                 onClick={() => setDetailModal('profit')}
                 role="button"
                 tabIndex={0}
-                style={{ background: '#f8fafc', padding: '16px 18px', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.15s ease' }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-1px)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none' }}
+                style={{ background: '#f0fdf4', padding: '16px 18px', borderRadius: 10, border: '1px solid #bbf7d0', cursor: 'pointer', transition: 'all 0.15s ease' }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#16a34a'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#bbf7d0'; e.currentTarget.style.transform = 'none' }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>3. Gross Profit ↗</span>
-                  <TrendingUp size={15} color="#059669" />
+                  <span style={{ fontSize: 10, fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.04em' }}>3. Gross Profit ↗</span>
+                  <TrendingUp size={15} color="#15803d" />
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.grossProfit)}</div>
-                <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Gross Margin: <strong style={{ color: '#059669' }}>{owner.grossProfitMargin}%</strong></div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#15803d', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.grossProfit)}</div>
+                <div style={{ fontSize: 11, color: '#16a34a', marginTop: 4 }}>Gross Margin: <strong style={{ color: '#15803d' }}>{owner.grossProfitMargin}%</strong></div>
               </div>
 
               <div
                 onClick={() => setDetailModal('expenses')}
                 role="button"
                 tabIndex={0}
-                style={{ background: '#f8fafc', padding: '16px 18px', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.15s ease' }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-1px)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none' }}
+                style={{ background: '#fef2f2', padding: '16px 18px', borderRadius: 10, border: '1px solid #fecaca', cursor: 'pointer', transition: 'all 0.15s ease' }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#dc2626'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#fecaca'; e.currentTarget.style.transform = 'none' }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>4. Operating Expenses ↗</span>
-                  <TrendingDown size={15} color="#64748b" />
+                  <span style={{ fontSize: 10, fontWeight: 700, color: '#991b1b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>4. Operating Expenses ↗</span>
+                  <TrendingDown size={15} color="#dc2626" />
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.totalExpenses)}</div>
-                <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{owner.expenseCategories.length} expense categories logged</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#dc2626', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.totalExpenses)}</div>
+                <div style={{ fontSize: 11, color: '#b91c1c', marginTop: 4 }}>{owner.expenseCategories.length} expense categories logged</div>
               </div>
 
               <div
@@ -3225,16 +3265,16 @@ export const ReportsPage: React.FC = () => {
                 role="button"
                 tabIndex={0}
                 style={{
-                  background: owner.netProfit >= 0 ? '#f0fdf4' : '#fff1f2',
-                  padding: '16px 18px', borderRadius: 8,
-                  border: `1px solid ${owner.netProfit >= 0 ? '#bbf7d0' : '#fecdd3'}`,
+                  background: owner.netProfit >= 0 ? '#ecfdf5' : '#fff1f2',
+                  padding: '16px 18px', borderRadius: 10,
+                  border: `1px solid ${owner.netProfit >= 0 ? '#a7f3d0' : '#fecdd3'}`,
                   cursor: 'pointer', transition: 'all 0.15s ease'
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)' }}
                 onMouseLeave={(e) => { e.currentTarget.style.transform = 'none' }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: 10, fontWeight: 800, color: owner.netProfit >= 0 ? '#059669' : '#e11d48', textTransform: 'uppercase', letterSpacing: '0.04em' }}>5. Net Bottom Line ↗</span>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: owner.netProfit >= 0 ? '#065f46' : '#991b1b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>5. Net Bottom Line ↗</span>
                   <Crown size={15} color={owner.netProfit >= 0 ? '#059669' : '#e11d48'} />
                 </div>
                 <div style={{ fontSize: 22, fontWeight: 900, color: owner.netProfit >= 0 ? '#059669' : '#e11d48', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.netProfit)}</div>
@@ -3249,14 +3289,14 @@ export const ReportsPage: React.FC = () => {
                   <span style={{ color: '#64748b' }}>100% of {formatCurrency(analytics.summary.total_revenue)}</span>
                 </div>
                 <div style={{ display: 'flex', height: 10, borderRadius: 99, overflow: 'hidden', background: '#e2e8f0', gap: 2 }}>
-                  <div style={{ width: `${Math.min(100, Math.max(0, (analytics.summary.total_cost / analytics.summary.total_revenue) * 100))}%`, background: '#334155' }} />
-                  <div style={{ width: `${Math.min(100, Math.max(0, (owner.totalExpenses / analytics.summary.total_revenue) * 100))}%`, background: '#64748b' }} />
+                  <div style={{ width: `${Math.min(100, Math.max(0, (analytics.summary.total_cost / analytics.summary.total_revenue) * 100))}%`, background: '#0f172a' }} />
+                  <div style={{ width: `${Math.min(100, Math.max(0, (owner.totalExpenses / analytics.summary.total_revenue) * 100))}%`, background: '#dc2626' }} />
                   <div style={{ width: `${Math.min(100, Math.max(0, (owner.netProfit / analytics.summary.total_revenue) * 100))}%`, background: owner.netProfit >= 0 ? '#059669' : '#e11d48' }} />
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 10, fontSize: 11, color: '#475569' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: '#334155' }} /><span>COGS: <strong style={{ color: '#0f172a' }}>{Math.round((analytics.summary.total_cost / analytics.summary.total_revenue) * 100)}%</strong> ({formatCurrency(analytics.summary.total_cost)})</span></div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: '#64748b' }} /><span>Expenses: <strong style={{ color: '#0f172a' }}>{Math.round((owner.totalExpenses / analytics.summary.total_revenue) * 100)}%</strong> ({formatCurrency(owner.totalExpenses)})</span></div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: owner.netProfit >= 0 ? '#059669' : '#e11d48' }} /><span>Net Profit: <strong style={{ color: '#0f172a' }}>{owner.netProfitMargin}%</strong> ({formatCurrency(owner.netProfit)})</span></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: '#0f172a' }} /><span>COGS: <strong style={{ color: '#0f172a' }}>{Math.round((analytics.summary.total_cost / analytics.summary.total_revenue) * 100)}%</strong> ({formatCurrency(analytics.summary.total_cost)})</span></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: '#dc2626' }} /><span>Expenses: <strong style={{ color: '#dc2626' }}>{Math.round((owner.totalExpenses / analytics.summary.total_revenue) * 100)}%</strong> ({formatCurrency(owner.totalExpenses)})</span></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: owner.netProfit >= 0 ? '#059669' : '#e11d48' }} /><span>Net Profit: <strong style={{ color: owner.netProfit >= 0 ? '#059669' : '#e11d48' }}>{owner.netProfitMargin}%</strong> ({formatCurrency(owner.netProfit)})</span></div>
                 </div>
               </div>
             )}
@@ -3264,7 +3304,9 @@ export const ReportsPage: React.FC = () => {
 
           {/* ── Cash Reconciliation Label ── */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 4 }}>
-            <Wallet size={16} color="#0f172a" />
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 6, background: '#fffbeb', border: '1px solid #fde68a' }}>
+              <Wallet size={14} color="#d97706" />
+            </span>
             <span style={{ fontSize: 13, fontWeight: 800, color: '#0f172a' }}>Counter Cash Reconciliation &amp; Drawer Audit</span>
             <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Real-time physical cash tracking</span>
           </div>
@@ -3275,61 +3317,63 @@ export const ReportsPage: React.FC = () => {
               onClick={() => setDetailModal('cash')}
               role="button"
               tabIndex={0}
-              style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '18px 20px', borderRadius: 12, boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)', cursor: 'pointer', transition: 'all 0.15s ease' }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-1px)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none' }}
+              style={{ background: '#ffffff', border: '1px solid #bbf7d0', padding: '18px 20px', borderRadius: 12, boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)', cursor: 'pointer', transition: 'all 0.15s ease' }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#16a34a'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#bbf7d0'; e.currentTarget.style.transform = 'none' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <div style={{ width: 28, height: 28, borderRadius: 6, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#059669' }}>
+                <div style={{ width: 28, height: 28, borderRadius: 6, background: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16a34a' }}>
                   <ArrowUpRight size={16} />
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>Cash Inflow (Sales) ↗</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#166534' }}>Cash Inflow (Sales) ↗</span>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.cashDrawer.cashSales)}</div>
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Collected directly from cash customers</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#15803d', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.cashDrawer.cashSales)}</div>
+              <div style={{ fontSize: 11, color: '#16a34a', marginTop: 4 }}>Collected directly from cash customers</div>
             </div>
 
             <div
               onClick={() => setDetailModal('cash')}
               role="button"
               tabIndex={0}
-              style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '18px 20px', borderRadius: 12, boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)', cursor: 'pointer', transition: 'all 0.15s ease' }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-1px)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none' }}
+              style={{ background: '#ffffff', border: '1px solid #fecaca', padding: '18px 20px', borderRadius: 12, boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)', cursor: 'pointer', transition: 'all 0.15s ease' }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#dc2626'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#fecaca'; e.currentTarget.style.transform = 'none' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <div style={{ width: 28, height: 28, borderRadius: 6, background: '#fff1f2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#e11d48' }}>
+                <div style={{ width: 28, height: 28, borderRadius: 6, background: '#fef2f2', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626' }}>
                   <ArrowDownRight size={16} />
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>Cash Outflow (Drawer Expenses) ↗</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#991b1b' }}>Cash Outflow (Drawer Expenses) ↗</span>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.cashDrawer.cashExpenses)}</div>
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Petty cash and vendor payments from drawer</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#dc2626', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.cashDrawer.cashExpenses)}</div>
+              <div style={{ fontSize: 11, color: '#b91c1c', marginTop: 4 }}>Petty cash and vendor payments from drawer</div>
             </div>
 
             <div
               onClick={() => setDetailModal('cash')}
               role="button"
               tabIndex={0}
-              style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '18px 20px', borderRadius: 12, boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)', cursor: 'pointer', transition: 'all 0.15s ease' }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-1px)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none' }}
+              style={{ background: '#ffffff', border: '1px solid #fde68a', padding: '18px 20px', borderRadius: 12, boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)', cursor: 'pointer', transition: 'all 0.15s ease' }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#d97706'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#fde68a'; e.currentTarget.style.transform = 'none' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <div style={{ width: 28, height: 28, borderRadius: 6, background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0f172a' }}>
+                <div style={{ width: 28, height: 28, borderRadius: 6, background: '#fffbeb', border: '1px solid #fde68a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706' }}>
                   <Coins size={16} />
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>Expected Cash In Register ↗</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Expected Cash In Register ↗</span>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.cashDrawer.netCashEstimated)}</div>
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Net sales cash minus payouts (excl. initial float)</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#d97706', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.cashDrawer.netCashEstimated)}</div>
+              <div style={{ fontSize: 11, color: '#b45309', marginTop: 4 }}>Net sales cash minus payouts (excl. initial float)</div>
             </div>
           </div>
 
           {/* ── Staff & Cashier Accountability – standalone card ── */}
           <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', padding: '20px 24px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-              <Users size={18} color="#0f172a" />
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                <Users size={15} color="#0f172a" />
+              </span>
               <div>
                 <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: '#0f172a', letterSpacing: '-0.01em' }}>Staff &amp; Cashier Accountability Matrix</h4>
                 <div style={{ fontSize: 11, color: '#64748b' }}>Track billing volumes, revenue contribution, and discounts given per staff</div>
@@ -3352,12 +3396,12 @@ export const ReportsPage: React.FC = () => {
                       <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '8px 10px', fontWeight: 700, color: '#0f172a' }}>{c.cashier_name}</td>
                         <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                          <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '2px 6px', borderRadius: 4, fontWeight: 700, color: '#0f172a' }}>
+                          <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '2px 8px', borderRadius: 4, fontWeight: 700, color: '#0f172a' }}>
                             {c.orders_count}
                           </span>
                         </td>
-                        <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(c.total_revenue)}</td>
-                        <td style={{ padding: '8px 10px', textAlign: 'right', color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>{c.total_discount > 0 ? formatCurrency(c.total_discount) : '-'}</td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#15803d', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(c.total_revenue)}</td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', color: '#d97706', fontVariantNumeric: 'tabular-nums' }}>{c.total_discount > 0 ? formatCurrency(c.total_discount) : '-'}</td>
                         <td style={{ padding: '8px 10px', textAlign: 'right', color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(c.avg_ticket)}</td>
                       </tr>
                     ))
@@ -3372,7 +3416,9 @@ export const ReportsPage: React.FC = () => {
           {/* ── POS Terminal Sales – standalone card ── */}
           <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', padding: '20px 24px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-              <Monitor size={18} color="#0f172a" />
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                <Monitor size={15} color="#0f172a" />
+              </span>
               <div>
                 <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: '#0f172a', letterSpacing: '-0.01em' }}>POS Terminal Sales Performance</h4>
                 <div style={{ fontSize: 11, color: '#64748b' }}>Compare workload and billings across Counter Terminals</div>
@@ -3394,7 +3440,7 @@ export const ReportsPage: React.FC = () => {
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <div style={{ flex: 1, height: 4, borderRadius: 99, background: '#e2e8f0', overflow: 'hidden' }}>
-                          <div style={{ width: `${share}%`, height: '100%', background: '#334155' }} />
+                          <div style={{ width: `${share}%`, height: '100%', background: '#0f172a' }} />
                         </div>
                         <span style={{ fontSize: 11, fontWeight: 700, color: '#0f172a' }}>{share}%</span>
                       </div>
@@ -3411,13 +3457,15 @@ export const ReportsPage: React.FC = () => {
           <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', padding: '20px 24px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <TrendingDown size={18} color="#0f172a" />
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6, background: '#fef2f2', border: '1px solid #fecaca' }}>
+                  <TrendingDown size={15} color="#dc2626" />
+                </span>
                 <div>
                   <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: '#0f172a', letterSpacing: '-0.01em' }}>Operating Expenses Breakdown</h4>
                   <div style={{ fontSize: 11, color: '#64748b' }}>Expenses categorized from store expenses registry</div>
                 </div>
               </div>
-              <span style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>Total: {formatCurrency(owner.totalExpenses)}</span>
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#dc2626', fontVariantNumeric: 'tabular-nums' }}>Total: {formatCurrency(owner.totalExpenses)}</span>
             </div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -3441,7 +3489,7 @@ export const ReportsPage: React.FC = () => {
                               {exp.count}
                             </span>
                           </td>
-                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(exp.total_amount)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#dc2626', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(exp.total_amount)}</td>
                           <td style={{ padding: '8px 10px', textAlign: 'right', color: '#64748b', fontWeight: 600 }}>{share}%</td>
                         </tr>
                       )
@@ -3458,7 +3506,9 @@ export const ReportsPage: React.FC = () => {
           <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', padding: '20px 24px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Package size={18} color="#0f172a" />
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                  <Package size={15} color="#0f172a" />
+                </span>
                 <div>
                   <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: '#0f172a', letterSpacing: '-0.01em' }}>Inventory Capital Valuation &amp; Spoilage Audit</h4>
                   <div style={{ fontSize: 11, color: '#64748b' }}>Live snapshot of locked capital, potential retail margin, and spoilage losses</div>
@@ -3500,12 +3550,12 @@ export const ReportsPage: React.FC = () => {
               <div
                 onClick={() => setDetailModal('inventory')}
                 style={{ background: '#f8fafc', padding: '14px 16px', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.15s ease' }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#059669'; e.currentTarget.style.transform = 'translateY(-1px)' }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none' }}
               >
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Retail Value (Selling Price) ↗</div>
                 <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.inventoryValuation.totalRetailValue)}</div>
-                <div style={{ fontSize: 11, color: '#059669', fontWeight: 600, marginTop: 2 }}>+{formatCurrency(owner.inventoryValuation.potentialMarginValue)} profit potential</div>
+                <div style={{ fontSize: 11, color: '#15803d', fontWeight: 600, marginTop: 2 }}>+{formatCurrency(owner.inventoryValuation.potentialMarginValue)} profit potential</div>
               </div>
 
               <div

@@ -323,44 +323,68 @@ export const AnalyticsDetailModal: React.FC<AnalyticsDetailModalProps> = ({
     revenue: {
       title: 'Daily Sales & Income Breakdown',
       sinhalaTitle: 'දෛනික ආදායම් හා විකුණුම් විස්තරය',
-      icon: <DollarSign size={22} color="#16a34a" />,
-      color: '#16a34a',
-      bgColor: '#dcfce7'
+      icon: <DollarSign size={20} color="#16a34a" />,
+      color: '#15803d',
+      bgColor: '#f0fdf4',
+      borderColor: '#bbf7d0',
+      pillBg: '#f0fdf4',
+      pillColor: '#166534',
+      pillBorder: '#bbf7d0'
     },
     expenses: {
       title: 'Daily Operating Expenses Audit',
       sinhalaTitle: 'දෛනික මෙහෙයුම් වියදම් විගණනය',
-      icon: <TrendingDown size={22} color="#ea580c" />,
-      color: '#ea580c',
-      bgColor: '#ffedd5'
+      icon: <TrendingDown size={20} color="#dc2626" />,
+      color: '#dc2626',
+      bgColor: '#fef2f2',
+      borderColor: '#fecaca',
+      pillBg: '#fef2f2',
+      pillColor: '#991b1b',
+      pillBorder: '#fecaca'
     },
     profit: {
       title: 'Executive Profit & Loss (P&L) Statement',
       sinhalaTitle: 'විධායක ලාභ-අලාභ (P&L) වාර්තාව',
-      icon: <TrendingUp size={22} color="#059669" />,
+      icon: <TrendingUp size={20} color="#059669" />,
       color: '#059669',
-      bgColor: '#d1fae5'
+      bgColor: '#ecfdf5',
+      borderColor: '#a7f3d0',
+      pillBg: '#ecfdf5',
+      pillColor: '#065f46',
+      pillBorder: '#a7f3d0'
     },
     inventory: {
       title: 'Inventory Capital & Low Stock Audit',
       sinhalaTitle: 'තොග වටිනාකම හා අඩු තොග විගණනය',
-      icon: <Package size={22} color="#2563eb" />,
-      color: '#2563eb',
-      bgColor: '#dbeafe'
+      icon: <Package size={20} color="#0f172a" />,
+      color: '#0f172a',
+      bgColor: '#f8fafc',
+      borderColor: '#e2e8f0',
+      pillBg: '#f1f5f9',
+      pillColor: '#334155',
+      pillBorder: '#e2e8f0'
     },
     orders: {
       title: 'Customer Bills & Order Volume Log',
       sinhalaTitle: 'මුළු බිල්පත් හා පාරිභෝගික වාර්තාව',
-      icon: <Receipt size={22} color="#0284c7" />,
-      color: '#0284c7',
-      bgColor: '#e0f2fe'
+      icon: <Receipt size={20} color="#0f172a" />,
+      color: '#0f172a',
+      bgColor: '#f8fafc',
+      borderColor: '#e2e8f0',
+      pillBg: '#f1f5f9',
+      pillColor: '#334155',
+      pillBorder: '#e2e8f0'
     },
     cash: {
       title: 'Counter Cash Reconciliation & Drawer Audit',
       sinhalaTitle: 'මුදල් ලාච්චුවේ ශේෂය හා ගිණුම් විගණනය',
-      icon: <Wallet size={22} color="#d97706" />,
+      icon: <Wallet size={20} color="#d97706" />,
       color: '#d97706',
-      bgColor: '#fef3c7'
+      bgColor: '#fffbeb',
+      borderColor: '#fde68a',
+      pillBg: '#fffbeb',
+      pillColor: '#92400e',
+      pillBorder: '#fde68a'
     }
   }[type]
 
@@ -412,36 +436,40 @@ export const AnalyticsDetailModal: React.FC<AnalyticsDetailModalProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div
               style={{
-                width: 42,
-                height: 42,
-                borderRadius: 12,
+                width: 38,
+                height: 38,
+                borderRadius: 10,
                 background: modalConfig.bgColor,
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center'
+                justifyContent: 'center',
+                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.05)',
+                border: `1px solid ${modalConfig.borderColor}`
               }}
             >
               {modalConfig.icon}
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <h2 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: 'var(--text-primary, #0f172a)' }}>
+                <h2 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
                   {modalConfig.title}
                 </h2>
                 <span
                   style={{
-                    fontSize: 11,
+                    fontSize: 10.5,
                     fontWeight: 700,
                     padding: '2px 8px',
-                    borderRadius: 99,
-                    background: modalConfig.bgColor,
-                    color: modalConfig.color
+                    borderRadius: 6,
+                    background: modalConfig.pillBg,
+                    color: modalConfig.pillColor,
+                    border: `1px solid ${modalConfig.pillBorder}`,
+                    letterSpacing: '0.03em'
                   }}
                 >
                   LIVE BREAKDOWN
                 </span>
               </div>
-              <p style={{ fontSize: 12, color: 'var(--text-secondary, #64748b)', margin: '2px 0 0' }}>
+              <p style={{ fontSize: 11.5, color: '#64748b', margin: '2px 0 0' }}>
                 {modalConfig.sinhalaTitle} · {shopName} ({periodLabel})
               </p>
             </div>
@@ -881,7 +909,7 @@ export const AnalyticsDetailModal: React.FC<AnalyticsDetailModalProps> = ({
                 </div>
                 <div style={{ background: 'var(--surface-2, #f8fafc)', padding: '14px 16px', borderRadius: 10, border: '1px solid var(--border, #e2e8f0)' }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted, #94a3b8)', textTransform: 'uppercase' }}>Retail Selling Value</div>
-                  <div style={{ fontSize: 22, fontWeight: 900, color: '#2563eb', marginTop: 4 }}>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: '#0f172a', marginTop: 4 }}>
                     {formatCurrency(owner.inventoryValuation?.totalRetailValue || 0)}
                   </div>
                   <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 600, marginTop: 2 }}>
@@ -965,7 +993,7 @@ export const AnalyticsDetailModal: React.FC<AnalyticsDetailModalProps> = ({
                       ) : (
                         <tr>
                           <td colSpan={8} style={{ padding: 24, textAlign: 'center', color: '#16a34a', fontWeight: 600 }}>
-                            ✓ All items have sufficient stock levels!
+                            All items have sufficient stock levels
                           </td>
                         </tr>
                       )}
@@ -1122,12 +1150,12 @@ export const AnalyticsDetailModal: React.FC<AnalyticsDetailModalProps> = ({
                   <div style={{ fontSize: 11, color: '#b91c1c', marginTop: 2 }}>Petty cash paid out of register</div>
                 </div>
 
-                <div style={{ background: '#eff6ff', border: '2px solid #2563eb', padding: '16px 18px', borderRadius: 10 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: '#1e40af', textTransform: 'uppercase' }}>Net Cash in Drawer</div>
-                  <div style={{ fontSize: 24, fontWeight: 900, color: '#2563eb', marginTop: 4 }}>
+                <div style={{ background: '#fffbeb', border: '1px solid #fde68a', padding: '16px 18px', borderRadius: 10 }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: '#92400e', textTransform: 'uppercase' }}>Net Cash in Drawer</div>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: '#d97706', marginTop: 4 }}>
                     {formatCurrency(owner.cashDrawer?.netCashEstimated || 0)}
                   </div>
-                  <div style={{ fontSize: 11, color: '#1d4ed8', marginTop: 2 }}>Expected physical notes + coins (excl. opening float)</div>
+                  <div style={{ fontSize: 11, color: '#b45309', marginTop: 2 }}>Expected physical notes + coins (excl. opening float)</div>
                 </div>
               </div>
 

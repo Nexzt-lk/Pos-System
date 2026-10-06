@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   Package,
   Package2,
@@ -645,13 +645,13 @@ export const InventoryPage: React.FC = () => {
                 width: 38,
                 height: 38,
                 borderRadius: 12,
-                background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
-                color: '#2563eb',
+                background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                color: '#15803d',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 2px 6px rgba(37, 99, 235, 0.12)',
-                border: '1px solid #bfdbfe'
+                boxShadow: '0 2px 6px rgba(21, 128, 61, 0.12)',
+                border: '1px solid #bbf7d0'
               }}
             >
               <Package size={20} />
@@ -661,9 +661,9 @@ export const InventoryPage: React.FC = () => {
               style={{
                 fontSize: 11,
                 fontWeight: 700,
-                color: '#1e40af',
-                background: '#eff6ff',
-                border: '1px solid #dbeafe',
+                color: '#15803d',
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
                 padding: '2px 8px',
                 borderRadius: 99,
                 marginLeft: 4
@@ -784,12 +784,12 @@ export const InventoryPage: React.FC = () => {
               width: 44,
               height: 44,
               borderRadius: 12,
-              background: '#eff6ff',
-              border: '1px solid #dbeafe',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#3b82f6'
+              color: '#0f172a'
             }}
           >
             <Package2 size={22} />
@@ -1370,13 +1370,13 @@ export const InventoryPage: React.FC = () => {
                 height: 42,
                 borderRadius: 12,
                 background: entryMode === 'NEW' 
-                  ? 'linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(37, 99, 235, 0.04) 100%)'
-                  : 'linear-gradient(135deg, rgba(238, 77, 45, 0.12) 0%, rgba(238, 77, 45, 0.04) 100%)',
-                border: `1.5px solid ${entryMode === 'NEW' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(238, 77, 45, 0.25)'}`,
+                  ? 'linear-gradient(135deg, rgba(21, 128, 61, 0.12) 0%, rgba(21, 128, 61, 0.04) 100%)'
+                  : 'linear-gradient(135deg, rgba(15, 23, 42, 0.08) 0%, rgba(15, 23, 42, 0.02) 100%)',
+                border: `1.5px solid ${entryMode === 'NEW' ? 'rgba(21, 128, 61, 0.25)' : 'rgba(15, 23, 42, 0.15)'}`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: entryMode === 'NEW' ? '#2563eb' : 'var(--primary)',
+                color: entryMode === 'NEW' ? '#15803d' : '#0f172a',
                 flexShrink: 0
               }}>
                 {entryMode === 'NEW' ? <PlusCircle size={22} /> : <Package2 size={22} />}
@@ -1725,12 +1725,12 @@ export const InventoryPage: React.FC = () => {
                               width: 28,
                               height: 28,
                               borderRadius: 8,
-                              background: '#eff6ff',
-                              border: '1px solid #bfdbfe',
+                              background: '#f8fafc',
+                              border: '1px solid #e2e8f0',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              color: '#2563eb'
+                              color: '#0f172a'
                             }}>
                               <Package size={15} />
                             </div>
@@ -2495,12 +2495,12 @@ export const InventoryPage: React.FC = () => {
                         width: 28,
                         height: 28,
                         borderRadius: 8,
-                        background: '#eff6ff',
-                        border: '1px solid #bfdbfe',
+                        background: '#f8fafc',
+                        border: '1px solid #e2e8f0',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: '#2563eb'
+                        color: '#0f172a'
                       }}>
                         <Package size={15} />
                       </div>
@@ -3185,12 +3185,12 @@ export const InventoryPage: React.FC = () => {
                             width: 48,
                             height: 48,
                             borderRadius: 12,
-                            background: '#eff6ff',
-                            border: '1.5px solid #bfdbfe',
+                            background: '#f8fafc',
+                            border: '1.5px solid #e2e8f0',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            color: '#2563eb',
+                            color: '#0f172a',
                             flexShrink: 0
                           }}
                         >
@@ -3334,7 +3334,7 @@ export const InventoryPage: React.FC = () => {
                                   <span style={{ fontWeight: 700, color: '#16a34a' }}>Cash Drawer</span>
                                 </Select.Option>
                                 <Select.Option value="BANK">
-                                  <span style={{ fontWeight: 700, color: '#2563eb' }}>Bank Transfer</span>
+                                  <span style={{ fontWeight: 700, color: '#0f172a' }}>Bank Transfer</span>
                                 </Select.Option>
                                 <Select.Option value="CREDIT">
                                   <span style={{ fontWeight: 700, color: '#d97706' }}>Credit / Pay Later</span>

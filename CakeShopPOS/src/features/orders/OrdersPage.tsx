@@ -472,29 +472,6 @@ export const OrdersPage: React.FC = () => {
       }
     },
     {
-      title: 'Branch / ශාඛාව',
-      key: 'branch',
-      width: 150,
-      render: (_, record) => {
-        const sId = (record as any).shopId || (record as any).shop_id
-        const isB2 = sId === 'b0000000-0000-0000-0000-000000000002'
-        return (
-          <Tag
-            color={isB2 ? 'magenta' : 'blue'}
-            style={{
-              borderRadius: 6,
-              fontWeight: 700,
-              fontSize: 11,
-              padding: '2px 8px',
-              margin: 0
-            }}
-          >
-            {isB2 ? '🎂 Poojapitiya (B2)' : '🏢 Katugastota (B1)'}
-          </Tag>
-        )
-      }
-    },
-    {
       title: 'Items Breakdown',
       dataIndex: 'items',
       key: 'items',
@@ -506,13 +483,15 @@ export const OrdersPage: React.FC = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <Tag
-                color="blue"
                 style={{
                   borderRadius: 12,
                   fontWeight: 600,
                   fontSize: 11,
                   padding: '1px 8px',
-                  margin: 0
+                  margin: 0,
+                  background: '#f1f5f9',
+                  color: '#0f172a',
+                  border: '1px solid #e2e8f0'
                 }}
               >
                 {totalQty} {totalQty === 1 ? 'item' : 'items'}
@@ -612,11 +591,12 @@ export const OrdersPage: React.FC = () => {
             <Button
               type="text"
               size="small"
-              icon={<Eye size={15} color="#3b82f6" />}
+              icon={<Eye size={15} color="#0f172a" />}
               onClick={() => handleViewOrder(record)}
               style={{
                 borderRadius: 6,
-                backgroundColor: '#eff6ff'
+                backgroundColor: '#f1f5f9',
+                border: '1px solid #e2e8f0'
               }}
             />
           </Tooltip>
@@ -675,13 +655,13 @@ export const OrdersPage: React.FC = () => {
                 width: 38,
                 height: 38,
                 borderRadius: 12,
-                background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)',
-                color: '#7c3aed',
+                background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                color: '#15803d',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 2px 6px rgba(124, 58, 237, 0.12)',
-                border: '1px solid #ddd6fe'
+                boxShadow: '0 2px 6px rgba(21, 128, 61, 0.12)',
+                border: '1px solid #bbf7d0'
               }}
             >
               <ReceiptText size={20} />
@@ -691,9 +671,9 @@ export const OrdersPage: React.FC = () => {
               style={{
                 fontSize: 11,
                 fontWeight: 700,
-                color: '#6d28d9',
-                background: '#f5f3ff',
-                border: '1px solid #ddd6fe',
+                color: '#15803d',
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
                 padding: '2px 8px',
                 borderRadius: 99,
                 marginLeft: 4
@@ -798,13 +778,13 @@ export const OrdersPage: React.FC = () => {
           }}
         >
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Total Orders
             </div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: '#2563eb', marginTop: 2 }}>
+            <div style={{ fontSize: 24, fontWeight: 900, color: '#0f172a', marginTop: 2 }}>
               {metrics.orderCount}
             </div>
-            <div style={{ fontSize: 11, color: '#3b82f6', fontWeight: 600, marginTop: 1 }}>
+            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, marginTop: 1 }}>
               {metrics.totalItemsSold} items sold today
             </div>
           </div>
@@ -813,12 +793,12 @@ export const OrdersPage: React.FC = () => {
               width: 44,
               height: 44,
               borderRadius: 12,
-              background: '#eff6ff',
-              border: '1px solid #bfdbfe',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#2563eb'
+              color: '#0f172a'
             }}
           >
             <ReceiptText size={22} />
@@ -921,13 +901,13 @@ export const OrdersPage: React.FC = () => {
           }}
         >
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#6d28d9', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Card / Digital Sales
             </div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: '#7c3aed', marginTop: 2 }}>
+            <div style={{ fontSize: 24, fontWeight: 900, color: '#0f172a', marginTop: 2 }}>
               {formatCurrency(metrics.totalCard)}
             </div>
-            <div style={{ fontSize: 11, color: '#8b5cf6', fontWeight: 600, marginTop: 1 }}>
+            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, marginTop: 1 }}>
               Discounts given: {formatCurrency(metrics.totalDiscounts)}
             </div>
           </div>
@@ -936,12 +916,12 @@ export const OrdersPage: React.FC = () => {
               width: 44,
               height: 44,
               borderRadius: 12,
-              background: '#f5f3ff',
-              border: '1px solid #ddd6fe',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#7c3aed'
+              color: '#0f172a'
             }}
           >
             <CreditCard size={22} />
@@ -994,9 +974,9 @@ export const OrdersPage: React.FC = () => {
             size="large"
             style={{ width: 210 }}
             options={[
-              { value: 'all', label: '🌐 All Branches (සියල්ල)' },
-              { value: 'b0000000-0000-0000-0000-000000000001', label: '🏢 Katugastota (B1)' },
-              { value: 'b0000000-0000-0000-0000-000000000002', label: '🎂 Poojapitiya (B2)' }
+              { value: 'all', label: 'All Branches' },
+              { value: 'b0000000-0000-0000-0000-000000000001', label: 'Katugastota (B1)' },
+              { value: 'b0000000-0000-0000-0000-000000000002', label: 'Poojapitiya (B2)' }
             ]}
           />
         </div>
@@ -1010,12 +990,12 @@ export const OrdersPage: React.FC = () => {
               items: [
                 {
                   key: 'summary',
-                  label: 'Orders Summary (බිල්පත් ලේඛනය)',
+                  label: 'Orders Summary',
                   onClick: handleExportOrdersSummaryCSV
                 },
                 {
                   key: 'items',
-                  label: 'Order Items Detail (අලෙවි වූ භාණ්ඩ ලේඛනය)',
+                  label: 'Order Items Detail',
                   onClick: handleExportOrderItemsDetailCSV
                 }
               ]

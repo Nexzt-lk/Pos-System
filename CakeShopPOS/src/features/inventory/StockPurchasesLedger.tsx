@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   Truck,
   DollarSign,
@@ -222,12 +222,12 @@ export const StockPurchasesLedger: React.FC<StockPurchasesLedgerProps> = ({
               width: 44,
               height: 44,
               borderRadius: 12,
-              background: '#eff6ff',
-              border: '1px solid #bfdbfe',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#2563eb'
+              color: '#0f172a'
             }}
           >
             <Truck size={22} />
@@ -566,9 +566,9 @@ export const StockPurchasesLedger: React.FC<StockPurchasesLedgerProps> = ({
                           fontWeight: 700,
                           padding: '3px 8px',
                           borderRadius: 6,
-                          background: isCash ? '#f0fdf4' : isBank ? '#eff6ff' : '#fffbeb',
-                          color: isCash ? '#15803d' : isBank ? '#1d4ed8' : '#b45309',
-                          border: `1px solid ${isCash ? '#bbf7d0' : isBank ? '#bfdbfe' : '#fde68a'}`
+                          background: isCash ? '#f0fdf4' : isBank ? '#f8fafc' : '#fffbeb',
+                          color: isCash ? '#15803d' : isBank ? '#0f172a' : '#b45309',
+                          border: `1px solid ${isCash ? '#bbf7d0' : isBank ? '#e2e8f0' : '#fde68a'}`
                         }}
                       >
                         {isCash ? 'Cash Drawer' : isBank ? 'Bank / Cheque' : 'Credit / Due'}

@@ -750,7 +750,7 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                   </div>
                   <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
                     <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Retail Selling Value</div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: '#2563eb', marginTop: 4 }}>{formatCurrency(owner.inventoryValuation?.totalRetailValue || 0)}</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', marginTop: 4 }}>{formatCurrency(owner.inventoryValuation?.totalRetailValue || 0)}</div>
                   </div>
                   <div style={{ background: '#fef3c7', padding: 12, borderRadius: 8, border: '1px solid #fde68a' }}>
                     <div style={{ fontSize: 10, fontWeight: 700, color: '#b45309', textTransform: 'uppercase' }}>Low Stock Items</div>

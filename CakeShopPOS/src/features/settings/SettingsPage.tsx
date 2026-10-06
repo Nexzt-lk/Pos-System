@@ -136,7 +136,7 @@ export const SettingsPage: React.FC = () => {
       if (window.electronAPI) {
         const res = await window.electronAPI.testPrint(selectedPrinter || undefined)
         if (res && res.success) {
-          message.success(`Test receipt sent to: ${res.printerUsed || selectedPrinter || 'Printer'}! ✅`)
+          message.success(`Test receipt sent to: ${res.printerUsed || selectedPrinter || 'Printer'}!`)
         } else {
           message.warning(`Print notice: ${res?.message || 'Check printer connection'}`)
         }
@@ -356,9 +356,9 @@ export const SettingsPage: React.FC = () => {
         {/* Thermal Printer */}
         <SettingCard
           icon={<Printer size={19} />}
-          iconBg="linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)"
-          iconColor="#4f46e5"
-          iconBorder="#c7d2fe"
+          iconBg="linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)"
+          iconColor="#15803d"
+          iconBorder="#bbf7d0"
           title="Thermal Bill Printer (ESC/POS)"
           subtitle="Direct high-speed receipt printing"
         >
@@ -454,7 +454,7 @@ export const SettingsPage: React.FC = () => {
               width: '100%',
               height: 42,
               borderRadius: 10,
-              background: selectedPrinter ? 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)' : '#cbd5e1',
+              background: selectedPrinter ? 'linear-gradient(135deg, #15803d 0%, #166534 100%)' : '#cbd5e1',
               color: '#ffffff',
               border: 'none',
               fontSize: 13,
@@ -464,7 +464,7 @@ export const SettingsPage: React.FC = () => {
               justifyContent: 'center',
               gap: 8,
               cursor: (isTestingPrint || !selectedPrinter) ? 'not-allowed' : 'pointer',
-              boxShadow: selectedPrinter ? '0 4px 12px rgba(79, 70, 229, 0.25)' : 'none',
+              boxShadow: selectedPrinter ? '0 4px 12px rgba(21, 128, 61, 0.25)' : 'none',
               transition: 'all 0.15s ease',
               whiteSpace: 'nowrap'
             }}
