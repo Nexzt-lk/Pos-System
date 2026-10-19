@@ -212,9 +212,10 @@ export const ProductsPage: React.FC = () => {
     if (!currentShop) return
     try {
       await productsApi.delete(product.id)
-      message.success(`Product "${product.name}" removed from catalog via Backend API`)
+      message.success(`Product "${product.name}" removed successfully`)
       await loadData()
     } catch (err: any) {
+      console.error('Failed to remove product:', err)
       message.error(err.message || 'Failed to remove product')
     }
   }
@@ -229,6 +230,9 @@ export const ProductsPage: React.FC = () => {
   const filteredProducts = useMemo(() => {
     return products
       .filter((p) => {
+        // Exclude inactive / deleted products
+        if (p.is_active === false || p.is_active === 0 || (p as any).isActive === false) return false
+
         // Search query
         const matchSearch =
           searchQuery === '' ||

@@ -13,6 +13,7 @@ import { cashSessionRepo } from './db/repositories/cashSessionRepo'
 import { printService } from './services/printService'
 import { imageService, setupImageProtocol } from './services/imageService'
 import { syncService } from './services/syncService'
+import { updaterService } from './services/updaterService'
 import bcrypt from 'bcryptjs'
 import fs from 'fs'
 
@@ -93,6 +94,9 @@ const createWindow = async () => {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
   }
 
+  // Initialize Auto-Updater with main window
+  updaterService.init(mainWindow)
+
   syncService.startBackgroundSync(() => `http://127.0.0.1:${activeApiPort}`)
 }
 
@@ -113,6 +117,7 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', () => {
+  updaterService.destroy()
   syncService.stopBackgroundSync()
   if (process.platform !== 'darwin') {
     app.quit()
@@ -124,6 +129,11 @@ function setupIpcHandlers() {
   ipcMain.handle('db:get-product-by-barcode', async (_, { shopId, barcode }) => await productRepo.getByBarcode(shopId, barcode))
   ipcMain.handle('db:upsert-product', async (_, product) => {
     const res = await productRepo.upsert(product)
+    syncService.triggerSync()
+    return res
+  })
+  ipcMain.handle('db:delete-product', async (_, id: string) => {
+    const res = await productRepo.delete(id)
     syncService.triggerSync()
     return res
   })
@@ -400,4 +410,9 @@ function setupIpcHandlers() {
   })
   ipcMain.handle('app:get-api-url', () => `http://127.0.0.1:${activeApiPort}`)
   ipcMain.handle('app:get-version', () => app.getVersion())
+
+  // Auto-Updater IPC Handlers
+  ipcMain.handle('updater:check-for-updates', async () => await updaterService.checkForUpdates())
+  ipcMain.handle('updater:quit-and-install', () => updaterService.quitAndInstall())
+  ipcMain.handle('updater:get-status', () => updaterService.getStatus())
 }

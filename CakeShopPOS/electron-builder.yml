@@ -29,6 +29,12 @@ asar: true
 asarUnpack:
   - "**/node_modules/sql.js/**/*"
 
+publish:
+  provider: github
+  owner: Nexzt-lk
+  repo: Pos-System
+  releaseType: release
+
 win:
   target:
     - target: nsis
@@ -41,6 +47,7 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   allowElevation: true
+  deleteAppDataOnUninstall: false
   installerIcon: build/icon.ico
   uninstallerIcon: build/icon.ico
   installerHeaderIcon: build/icon.ico

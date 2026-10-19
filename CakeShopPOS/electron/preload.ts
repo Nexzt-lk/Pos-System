@@ -7,6 +7,7 @@ export interface ElectronAPI {
   getProducts: (shopId?: string) => Promise<any[]>
   getProductByBarcode: (params: { shopId?: string; barcode: string }) => Promise<any>
   upsertProduct: (product: any) => Promise<void>
+  deleteProduct: (id: string) => Promise<{ success: boolean; softDeleted: boolean }>
   getCategories: (shopId?: string) => Promise<any[]>
   upsertCategory: (category: any) => Promise<void>
   
@@ -52,6 +53,12 @@ export interface ElectronAPI {
   // Local .NET API Info
   getApiUrl: () => Promise<string>
   getAppVersion: () => Promise<string>
+
+  // Auto-Updater
+  checkForUpdates: () => Promise<any>
+  installUpdate: () => Promise<void>
+  getUpdaterStatus: () => Promise<any>
+  onUpdaterStatus: (callback: (status: any) => void) => () => void
 }
 
 const electronAPI: ElectronAPI = {
@@ -59,6 +66,7 @@ const electronAPI: ElectronAPI = {
   getProducts: (shopId) => ipcRenderer.invoke('db:get-products', shopId),
   getProductByBarcode: (params) => ipcRenderer.invoke('db:get-product-by-barcode', params),
   upsertProduct: (product) => ipcRenderer.invoke('db:upsert-product', product),
+  deleteProduct: (id) => ipcRenderer.invoke('db:delete-product', id),
   getCategories: (shopId) => ipcRenderer.invoke('db:get-categories', shopId),
   upsertCategory: (category) => ipcRenderer.invoke('db:upsert-category', category),
 
@@ -96,7 +104,19 @@ const electronAPI: ElectronAPI = {
   getPendingSyncCount: () => ipcRenderer.invoke('sync:pending-count'),
   triggerSync: () => ipcRenderer.invoke('sync:trigger'),
   getApiUrl: () => ipcRenderer.invoke('app:get-api-url'),
-  getAppVersion: () => ipcRenderer.invoke('app:get-version')
+  getAppVersion: () => ipcRenderer.invoke('app:get-version'),
+
+  // Auto-Updater
+  checkForUpdates: () => ipcRenderer.invoke('updater:check-for-updates'),
+  installUpdate: () => ipcRenderer.invoke('updater:quit-and-install'),
+  getUpdaterStatus: () => ipcRenderer.invoke('updater:get-status'),
+  onUpdaterStatus: (callback: (status: any) => void) => {
+    const handler = (_: any, status: any) => callback(status)
+    ipcRenderer.on('updater:status', handler)
+    return () => {
+      ipcRenderer.removeListener('updater:status', handler)
+    }
+  }
 }
 
 // Use `contextBridge` to expose Electron APIs safely

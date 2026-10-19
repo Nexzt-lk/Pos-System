@@ -8,6 +8,7 @@ import { useStockAlertStore } from '../store/stockAlertStore'
 import { SyncIndicator } from './SyncIndicator'
 import { StockNotificationBell } from './StockNotificationBell'
 import { LowStockAlertModal } from './LowStockAlertModal'
+import { UpdateIndicator } from './UpdateIndicator'
 import { shopsApi } from '../api/shopsApi'
 import dayjs from 'dayjs'
 
@@ -284,6 +285,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
           </div>
 
           <div className="topbar-right">
+            <UpdateIndicator />
             <StockNotificationBell onNavigateToInventory={() => setActiveTab('inventory')} />
             <SyncIndicator />
             <div style={{

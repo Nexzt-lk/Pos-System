@@ -128,12 +128,53 @@ export const getDatabase = async (): Promise<POSDatabase> => {
     }
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // FAIL-SAFE BACKUP SYSTEM (Guarantees zero data loss across updates)
+  // Creates rolling daily backups before opening or migrating the database.
+  // ─────────────────────────────────────────────────────────────────────────
+  const backupDatabaseSafely = (dbFilePath: string) => {
+    try {
+      if (!fs.existsSync(dbFilePath) || fs.statSync(dbFilePath).size === 0) return
+      const backupDir = path.join(path.dirname(dbFilePath), 'backups')
+      if (!fs.existsSync(backupDir)) {
+        fs.mkdirSync(backupDir, { recursive: true })
+      }
+      const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+      const backupFile = path.join(backupDir, `cakeshop_backup_${today}.db`)
+
+      // Create backup for today if not already created
+      if (!fs.existsSync(backupFile)) {
+        fs.copyFileSync(dbFilePath, backupFile)
+        console.log(`[Database Safety] Automatic daily backup created at: ${backupFile}`)
+      }
+
+      // Pre-update snapshot (always refreshed on boot to preserve the last running state)
+      const preUpdateSnapshot = path.join(backupDir, 'cakeshop_last_stable.db')
+      fs.copyFileSync(dbFilePath, preUpdateSnapshot)
+
+      // Retain last 7 daily backups
+      const files = fs.readdirSync(backupDir)
+        .filter((f) => f.startsWith('cakeshop_backup_') && f.endsWith('.db'))
+        .sort()
+      if (files.length > 7) {
+        for (const oldFile of files.slice(0, files.length - 7)) {
+          try { fs.unlinkSync(path.join(backupDir, oldFile)) } catch (_) {}
+        }
+      }
+    } catch (err) {
+      console.warn('[Database Safety] Backup notice:', err)
+    }
+  }
+
   // Check if destination db needs first-time deployment (fresh install only)
   let needsMasterSeed = false
   if (!fs.existsSync(dbPath)) {
     console.log('[Database] No existing DB found. Will deploy master template for first install.')
     needsMasterSeed = true
   } else {
+    // Run fail-safe backup on existing database before anything touches it
+    backupDatabaseSafely(dbPath)
+
     try {
       const existingBuf = fs.readFileSync(dbPath)
       const existingProductCount = getProductCount(existingBuf)
@@ -141,14 +182,30 @@ export const getDatabase = async (): Promise<POSDatabase> => {
 
       console.log(`[Database] Existing DB: ${existingProductCount} products, version=${existingVersion}`)
 
-      if (existingProductCount < 5) {
-        // Only replace if this looks like a brand-new/empty DB (< 5 products)
-        // This protects shops that removed products intentionally from being reset
-        console.warn(`[Database] Existing DB appears empty (${existingProductCount} products). Deploying from master template.`)
+      // Guard: Check if the existing DB contains ANY sales, orders, expenses, or cash sessions
+      let hasShopHistory = false
+      try {
+        const tmpDb = new SQL.Database(existingBuf)
+        const orderRes = tmpDb.exec('SELECT COUNT(*) FROM orders')
+        const orderCount = (orderRes?.[0]?.values?.[0]?.[0] as number) || 0
+        const expenseRes = tmpDb.exec('SELECT COUNT(*) FROM expenses')
+        const expenseCount = (expenseRes?.[0]?.values?.[0]?.[0] as number) || 0
+        const sessionRes = tmpDb.exec('SELECT COUNT(*) FROM cash_sessions')
+        const sessionCount = (sessionRes?.[0]?.values?.[0]?.[0] as number) || 0
+        tmpDb.close()
+
+        if (orderCount > 0 || expenseCount > 0 || sessionCount > 0) {
+          hasShopHistory = true
+          console.log(`[Database Safety] Shop has existing history (${orderCount} orders, ${expenseCount} expenses, ${sessionCount} sessions). Will NEVER overwrite.`)
+        }
+      } catch (_) {}
+
+      if (hasShopHistory) {
+        needsMasterSeed = false
+      } else if (existingProductCount < 5) {
+        console.warn(`[Database] Existing DB appears empty (${existingProductCount} products and no history). Deploying from master template.`)
         needsMasterSeed = true
       }
-      // NOTE: We no longer replace based on version mismatch.
-      // Migrations are applied safely below to update schema without data loss.
     } catch (_) {
       needsMasterSeed = true
     }

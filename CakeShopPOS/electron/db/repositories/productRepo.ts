@@ -214,5 +214,59 @@ export const productRepo = {
     )
 
     db.save()
+  },
+
+  /**
+   * Delete or soft-delete a product.
+   * If product has sales history (order_items), soft-deletes (is_active = 0) to maintain accounting integrity.
+   * If product has no sales history, deletes cleanly from inventory and products tables.
+   */
+  delete: async (id: string): Promise<{ success: boolean; softDeleted: boolean }> => {
+    const db = await getDatabase()
+    const product = db.queryOne<any>('SELECT * FROM products WHERE id = ?;', [id])
+    if (!product) {
+      return { success: true, softDeleted: false }
+    }
+
+    // Check if any order items reference this product
+    const hasOrders = db.queryOne<any>('SELECT id FROM order_items WHERE product_id = ? LIMIT 1;', [id])
+
+    let softDeleted = false
+    if (hasOrders) {
+      // Soft-delete to preserve sales history and accounting reports
+      db.run(
+        `UPDATE products 
+         SET is_active = 0, 
+             barcode = NULL, 
+             sync_status = 'pending', 
+             updated_at = datetime('now') 
+         WHERE id = ?;`,
+        [id]
+      )
+      softDeleted = true
+      console.log(`[ProductRepo] Soft-deleted product "${product.name}" (${id}) to protect order history.`)
+    } else {
+      // Clean hard delete
+      try {
+        db.run('DELETE FROM inventory WHERE product_id = ?;', [id])
+      } catch (_) {}
+      try {
+        db.run('DELETE FROM stock_movements WHERE product_id = ?;', [id])
+      } catch (_) {}
+      db.run('DELETE FROM products WHERE id = ?;', [id])
+      softDeleted = false
+      console.log(`[ProductRepo] Permanently deleted product "${product.name}" (${id}) and related inventory.`)
+    }
+
+    // Enqueue delete operation into sync_queue for cloud sync
+    db.run(
+      `INSERT INTO sync_queue (table_name, operation, record_id, payload, status, created_at)
+       VALUES ('products', 'DELETE', ?, ?, 'pending', datetime('now'));`,
+      [id, JSON.stringify({ id, is_active: false, hardDelete: !softDeleted, shop_id: product.shop_id })]
+    )
+
+    db.save()
+    return { success: true, softDeleted }
   }
 }
+

@@ -88,6 +88,43 @@ async function postSupabase(endpoint: string, data: any): Promise<boolean> {
   }
 }
 
+async function patchSupabase(endpoint: string, data: any): Promise<boolean> {
+  const { url, key } = getSupabaseConfig()
+  try {
+    const res = await axios.patch(`${url}/rest/v1/${endpoint}`, data, {
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 10000
+    })
+    return res.status >= 200 && res.status < 300
+  } catch (err: any) {
+    const msg = err.response?.data?.message || err.message
+    console.warn(`[AutoSync] Patch notice on ${endpoint}:`, msg)
+    return false
+  }
+}
+
+async function deleteSupabase(endpoint: string): Promise<boolean> {
+  const { url, key } = getSupabaseConfig()
+  try {
+    const res = await axios.delete(`${url}/rest/v1/${endpoint}`, {
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`
+      },
+      timeout: 10000
+    })
+    return res.status >= 200 && res.status < 300
+  } catch (err: any) {
+    const msg = err.response?.data?.message || err.message
+    console.warn(`[AutoSync] Delete notice on ${endpoint}:`, msg)
+    return false
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // FULL CLOUD → LOCAL PULL
 // Downloads EVERY row of every business table from Supabase (paginated, so the
@@ -910,10 +947,50 @@ export const syncService = {
       }
 
       // =========================================================================
-      // 9. PROCESS SYNC QUEUE TABLE
+      // 9. PROCESS SYNC QUEUE TABLE (including Cloud DELETES)
       // =========================================================================
       const pendingQueue = (await syncRepo.getPendingItems(50)) || []
       if (pendingQueue.length > 0) {
+        for (const item of pendingQueue) {
+          try {
+            if (item.operation === 'DELETE') {
+              const recId = toValidUuid(item.record_id) || item.record_id
+              if (item.table_name === 'products') {
+                try {
+                  // 1. Delete matching inventory in cloud
+                  await deleteSupabase(`inventory?product_id=eq.${recId}`)
+                  // 2. Attempt hard delete of product
+                  const delOk = await deleteSupabase(`products?id=eq.${recId}`)
+                  if (!delOk) {
+                    // Soft-delete if constrained by historic orders
+                    await patchSupabase(`products?id=eq.${recId}`, { is_active: false, barcode: null })
+                  }
+                } catch (_) {
+                  await patchSupabase(`products?id=eq.${recId}`, { is_active: false, barcode: null })
+                }
+              } else if (item.table_name === 'expenses') {
+                await deleteSupabase(`expenses?id=eq.${recId}`)
+              } else if (item.table_name === 'suppliers') {
+                await deleteSupabase(`suppliers?id=eq.${recId}`)
+              }
+
+              // Always mirror delete operation into cloud sync_queue
+              try {
+                await postSupabase('sync_queue', [{
+                  table_name: item.table_name,
+                  operation: 'DELETE',
+                  record_id: recId,
+                  payload: { id: recId, is_active: false },
+                  status: 'synced',
+                  created_at: new Date().toISOString()
+                }])
+              } catch (_) {}
+            }
+          } catch (itemErr: any) {
+            console.warn(`[AutoSync] Queue item ${item.table_name} processing notice:`, itemErr.message)
+          }
+        }
+
         const qIds = pendingQueue.map((i) => i.id)
         await syncRepo.markAsSynced(qIds)
         totalSynced += qIds.length

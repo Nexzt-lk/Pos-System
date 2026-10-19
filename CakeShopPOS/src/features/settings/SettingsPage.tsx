@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Settings, Printer, Store, Monitor, Wifi, RefreshCw, Database, ShieldCheck, CheckCircle2 } from 'lucide-react'
+import { Settings, Printer, Store, Monitor, Wifi, RefreshCw, Database, ShieldCheck, CheckCircle2, Download, Sparkles } from 'lucide-react'
 import { message } from 'antd'
 import { useAppStore } from '../../store/appStore'
 import { backupApi } from '../../api/backupApi'
@@ -84,6 +84,17 @@ export const SettingsPage: React.FC = () => {
   const [isBackingUp, setIsBackingUp] = useState(false)
   const [systemPrinters, setSystemPrinters] = useState<any[]>([])
   const [selectedPrinter, setSelectedPrinter] = useState<string>(localStorage.getItem('selected_printer') || '')
+  const [appVersion, setAppVersion] = useState<string>('v1.3.0')
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
+  const [updateStatusText, setUpdateStatusText] = useState<string>('')
+
+  useEffect(() => {
+    if (window.electronAPI?.getAppVersion) {
+      window.electronAPI.getAppVersion().then((v: string) => {
+        if (v) setAppVersion(`v${v}`)
+      }).catch(() => {})
+    }
+  }, [])
 
   useEffect(() => {
     const loadPrinters = async () => {
@@ -112,6 +123,38 @@ export const SettingsPage: React.FC = () => {
     }
     loadPrinters()
   }, [])
+
+  const handleCheckForUpdates = async () => {
+    setIsCheckingUpdate(true)
+    setUpdateStatusText('Checking GitHub for updates...')
+    try {
+      const api = (window as any).electronAPI
+      if (api?.checkForUpdates) {
+        const res = await api.checkForUpdates()
+        if (res.status === 'downloaded') {
+          setUpdateStatusText(`Update v${res.newVersion} ready to install!`)
+          message.success(`Update v${res.newVersion} is ready to install! Restart app when ready.`)
+        } else if (res.status === 'downloading') {
+          setUpdateStatusText(`Downloading update: ${res.percent || 0}%`)
+        } else if (res.status === 'available') {
+          setUpdateStatusText(`New update found: v${res.newVersion}. Downloading...`)
+        } else if (res.status === 'not-available') {
+          setUpdateStatusText('Nexzt POS is up to date!')
+          message.info('You are already using the latest version of Nexzt POS.')
+        } else if (res.error) {
+          setUpdateStatusText(res.error)
+          message.info(res.error)
+        }
+      } else {
+        message.info('Auto-update is active in production desktop builds.')
+      }
+    } catch (err: any) {
+      setUpdateStatusText(err.message || 'Check failed')
+      message.error(err.message || 'Update check failed')
+    } finally {
+      setIsCheckingUpdate(false)
+    }
+  }
 
   const handleBackupNow = async () => {
     setIsBackingUp(true)
@@ -563,17 +606,17 @@ export const SettingsPage: React.FC = () => {
           iconBg="linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)"
           iconColor="#475569"
           iconBorder="#e2e8f0"
-          title="System Information"
-          subtitle="POS software version and build info"
+          title="System Information & Updates"
+          subtitle="POS software version, database safety & updates"
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
             {[
-              { label: 'App Name', val: 'Wasana Cake POS' },
-              { label: 'Version', val: 'v1.0.0 (Production Build)' },
-              { label: 'Backend API', val: 'Cloud Sync & Local Engine' },
-              { label: 'Database', val: 'SQLite Local Storage' },
-              { label: 'Framework', val: 'Electron + React + Vite' },
-              { label: 'Environment', val: 'Windows 7/8/10/11 · Offline First' },
+              { label: 'Application Name', val: 'Nexzt POS' },
+              { label: 'Current Installed Version', val: `${appVersion} (Production Build)` },
+              { label: 'Auto-Update Channel', val: 'GitHub Releases (Nexzt-lk/Pos-System)' },
+              { label: 'Database Engine', val: 'SQLite Local Storage (AppData)' },
+              { label: 'Database Safety', val: 'Automatic Daily Rolling Backups' },
+              { label: 'Multi-Branch Engine', val: 'Katugastota (B1) & Poojapitiya (B2)' },
             ].map(item => (
               <div key={item.label} style={{
                 display: 'flex',
@@ -590,6 +633,50 @@ export const SettingsPage: React.FC = () => {
               </div>
             ))}
           </div>
+
+          {updateStatusText && (
+            <div style={{
+              padding: '10px 14px',
+              borderRadius: 8,
+              background: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+              color: '#166534',
+              fontSize: '12px',
+              fontWeight: 600,
+              marginBottom: 12,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8
+            }}>
+              <Sparkles size={14} color="#16a34a" />
+              <span>{updateStatusText}</span>
+            </div>
+          )}
+
+          <button
+            disabled={isCheckingUpdate}
+            onClick={handleCheckForUpdates}
+            style={{
+              width: '100%',
+              height: 42,
+              borderRadius: 10,
+              background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+              color: '#ffffff',
+              border: 'none',
+              fontSize: 13,
+              fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              cursor: isCheckingUpdate ? 'not-allowed' : 'pointer',
+              boxShadow: '0 4px 12px rgba(15, 23, 42, 0.2)',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Download size={15} className={isCheckingUpdate ? 'animate-bounce' : ''} />
+            {isCheckingUpdate ? 'Checking for Updates...' : 'Check for Updates Now'}
+          </button>
         </SettingCard>
       </div>
     </div>

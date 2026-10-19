@@ -252,19 +252,19 @@ export const productsApi = {
   },
   
   delete: async (id: string): Promise<void> => {
+    const api = typeof window !== 'undefined' ? (window as any).electronAPI : undefined
+    if (api) {
+      if (api.deleteProduct) {
+        await api.deleteProduct(id)
+      } else if (api.dbQuery) {
+        await api.dbQuery('db:delete-product', id)
+      }
+    }
+    // Also try REST API if it happens to be running
     try {
       await apiClient.delete<void>(`/products/${id}`)
-    } catch (err) {
-      const api = typeof window !== 'undefined' ? (window as any).electronAPI : undefined
-      if (api) {
-        if (api.upsertProduct) {
-          await api.upsertProduct({ id, is_active: 0 })
-        } else if (api.dbQuery) {
-          await api.dbQuery('db:upsert-product', { id, is_active: 0 })
-        }
-        return
-      }
-      throw err
+    } catch (_) {
+      // Non-critical if offline or REST API is inactive; local DB and sync engine handle it
     }
   }
 }
