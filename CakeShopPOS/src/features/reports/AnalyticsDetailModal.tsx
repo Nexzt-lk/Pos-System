@@ -297,9 +297,10 @@ export const AnalyticsDetailModal: React.FC<AnalyticsDetailModalProps> = ({
 
       const rows: CsvRow[] = [
         headers,
+        ['Opening Cash Float', 'Register Opening', '-', money(cd.openingFloat), '0.00', 'Float entered at counter launch by cashier'],
         ['Cash Sales Inflow', 'Register Inflow', qty(s.total_orders), money(cd.cashSales), money(s.total_discount), 'Physical cash collected from customers'],
         ['Petty Cash Outflow', 'Register Outflow', qty((owner.detailedExpenses || []).length), money(cd.cashExpenses), '0.00', 'Cash expenses paid out of cash drawer'],
-        ['Net Drawer Reconciliation', 'Closing Balance Impact', '-', money(cd.netCashEstimated), '0.00', 'Cash sales minus petty cash expenses']
+        ['Net Drawer Reconciliation', 'Closing Balance in Register', '-', money(cd.netCashEstimated), '0.00', 'Opening Float + Cash sales minus cash expenses']
       ]
 
       for (const c of (owner.cashierPerformance || [])) {
@@ -1133,7 +1134,15 @@ export const AnalyticsDetailModal: React.FC<AnalyticsDetailModalProps> = ({
           {/* ──────────────── 6. CASH DRAWER BREAKDOWN ──────────────── */}
           {type === 'cash' && (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 14 }}>
+                <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', padding: '16px 18px', borderRadius: 10 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#0369a1', textTransform: 'uppercase' }}>Opening Float (Start)</div>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: '#0284c7', marginTop: 4 }}>
+                    {formatCurrency(owner.cashDrawer?.openingFloat || 0)}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#0284c7', marginTop: 2 }}>Entered at counter launch by cashier</div>
+                </div>
+
                 <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '16px 18px', borderRadius: 10 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: '#166534', textTransform: 'uppercase' }}>Cash Inflow (Sales)</div>
                   <div style={{ fontSize: 24, fontWeight: 900, color: '#16a34a', marginTop: 4 }}>
@@ -1151,11 +1160,11 @@ export const AnalyticsDetailModal: React.FC<AnalyticsDetailModalProps> = ({
                 </div>
 
                 <div style={{ background: '#fffbeb', border: '1px solid #fde68a', padding: '16px 18px', borderRadius: 10 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: '#92400e', textTransform: 'uppercase' }}>Net Cash in Drawer</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: '#92400e', textTransform: 'uppercase' }}>Total Cash in Register</div>
                   <div style={{ fontSize: 24, fontWeight: 900, color: '#d97706', marginTop: 4 }}>
                     {formatCurrency(owner.cashDrawer?.netCashEstimated || 0)}
                   </div>
-                  <div style={{ fontSize: 11, color: '#b45309', marginTop: 2 }}>Expected physical notes + coins (excl. opening float)</div>
+                  <div style={{ fontSize: 11, color: '#b45309', marginTop: 2 }}>Opening Float + Sales - Payouts</div>
                 </div>
               </div>
 

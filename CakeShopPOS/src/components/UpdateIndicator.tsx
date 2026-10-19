@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { ArrowDownCircle, RefreshCw, CheckCircle2, Sparkles } from 'lucide-react'
-import { Modal, Progress } from 'antd'
+import { Modal } from 'antd'
 
 interface UpdaterStatus {
   status: 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error'

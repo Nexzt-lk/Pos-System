@@ -20,15 +20,78 @@ public class DatabaseInitializer
         var schemaSql = File.ReadAllText(_schemaFilePath);
 
         using var connection = _factory.CreateConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = schemaSql;
-        command.ExecuteNonQuery();
+
+        // Turn foreign keys OFF temporarily during schema creation & migrations
+        using (var fkOff = connection.CreateCommand())
+        {
+            fkOff.CommandText = "PRAGMA foreign_keys = OFF;";
+            fkOff.ExecuteNonQuery();
+        }
+
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = schemaSql;
+            command.ExecuteNonQuery();
+        }
 
         EnsureColumnsExist(connection);
+        EnsureCakeOrdersTable(connection);
         SeedDefaultShopIfEmpty(connection);
         SeedBranch2IfMissing(connection);
         SeedDefaultUsersIfEmpty(connection);
         SeedDefaultCategoriesIfEmpty(connection);
+
+        // Turn foreign keys back ON
+        using (var fkOn = connection.CreateCommand())
+        {
+            fkOn.CommandText = "PRAGMA foreign_keys = ON;";
+            fkOn.ExecuteNonQuery();
+        }
+    }
+
+    private static void EnsureCakeOrdersTable(SqliteConnection connection)
+    {
+        try
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = @"
+                CREATE TABLE IF NOT EXISTS cake_orders (
+                    id                   TEXT PRIMARY KEY,
+                    order_no             TEXT NOT NULL UNIQUE,
+                    shop_id              TEXT DEFAULT 'b0000000-0000-0000-0000-000000000001',
+                    customer_name        TEXT NOT NULL,
+                    customer_phone       TEXT NOT NULL,
+                    customer_email       TEXT,
+                    cake_name            TEXT NOT NULL,
+                    flavor               TEXT,
+                    weight_kg            REAL DEFAULT 1,
+                    shape                TEXT DEFAULT 'Round',
+                    tier_count           INTEGER DEFAULT 1,
+                    wording              TEXT,
+                    special_instructions TEXT,
+                    reference_image      TEXT,
+                    pickup_date          TEXT NOT NULL,
+                    pickup_time          TEXT,
+                    total_amount         REAL NOT NULL DEFAULT 0,
+                    advance_amount       REAL NOT NULL DEFAULT 0,
+                    balance_amount       REAL NOT NULL DEFAULT 0,
+                    advance_payment_method TEXT DEFAULT 'CASH',
+                    balance_payment_method TEXT,
+                    payment_status       TEXT DEFAULT 'advance_paid' CHECK(payment_status IN ('pending', 'advance_paid', 'fully_paid')),
+                    status               TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'baking', 'ready', 'completed', 'cancelled')),
+                    taken_by             TEXT,
+                    created_at           TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+                    updated_at           TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+                    completed_at         TEXT,
+                    sync_status          TEXT DEFAULT 'pending'
+                );
+                CREATE INDEX IF NOT EXISTS idx_cake_orders_pickup_date ON cake_orders(pickup_date);
+                CREATE INDEX IF NOT EXISTS idx_cake_orders_status ON cake_orders(status);
+                CREATE INDEX IF NOT EXISTS idx_cake_orders_shop ON cake_orders(shop_id);
+            ";
+            cmd.ExecuteNonQuery();
+        }
+        catch { }
     }
 
     private static void EnsureColumnsExist(SqliteConnection connection)
@@ -139,7 +202,7 @@ public class DatabaseInitializer
                   '071-1172201',
                   'poojapitiya@wasanacake.com',
                   'LKR',
-                  'Thank you for visiting Wasana Cake - Poojapitiya! 🎂'
+                  'Thank you for visiting Wasana Cake - Poojapitiya!'
                 );
                 UPDATE shops
                 SET name = 'Wasana Cake - Poojapitiya',
@@ -147,7 +210,7 @@ public class DatabaseInitializer
                     address = 'Wasana Cake, Poojapitiya Road, Poojapitiya',
                     phone = '071-1172201',
                     email = 'poojapitiya@wasanacake.com',
-                    receipt_footer = 'Thank you for visiting Wasana Cake - Poojapitiya! 🎂'
+                    receipt_footer = 'Thank you for visiting Wasana Cake - Poojapitiya!'
                 WHERE id = 'b0000000-0000-0000-0000-000000000002';
 
                 INSERT OR IGNORE INTO users (id, shop_id, name, email, pin_hash, password_hash, role, is_active)

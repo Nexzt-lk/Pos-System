@@ -61,9 +61,10 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
         ['3. PROFITABILITY', 'Gross Profit', money(owner.grossProfit ?? summary.estimated_profit), pct(owner.grossProfitMargin ?? summary.profit_margin_pct), 'Net Sales Revenue minus Cost of Goods Sold'],
         ['4. OPERATING EXPENSES', 'Total Operating Expenses', money(owner.totalExpenses), pct(pctOfRevenue(Number(owner.totalExpenses) || 0)), 'Salaries, utilities, packaging, rent and maintenance'],
         ['5. PROFITABILITY', 'Net Operating Profit (Bottom Line)', money(owner.netProfit), pct(owner.netProfitMargin), 'Gross Profit minus Operating Expenses'],
+        ['6. CASH RECONCILIATION', 'Opening Cash Float', money(cd.openingFloat), pct(pctOfRevenue(Number(cd.openingFloat) || 0)), 'Float entered at counter launch by cashier'],
         ['6. CASH RECONCILIATION', 'Physical Cash Collected', money(cd.cashSales), pct(pctOfRevenue(Number(cd.cashSales) || 0)), 'Physical cash tenders received into drawer from sales'],
         ['6. CASH RECONCILIATION', 'Physical Cash Paid Out', money(cd.cashExpenses), pct(pctOfRevenue(Number(cd.cashExpenses) || 0)), 'Petty cash expenses paid out of register'],
-        ['6. CASH RECONCILIATION', 'Net Cash in Register', money(cd.netCashEstimated), pct(pctOfRevenue(Number(cd.netCashEstimated) || 0)), 'Cash sales minus petty cash expenses']
+        ['6. CASH RECONCILIATION', 'Total Cash in Register', money(cd.netCashEstimated), pct(pctOfRevenue(Number(cd.netCashEstimated) || 0)), 'Opening Float + Cash sales minus cash expenses']
       ]
       downloadCsv(`Executive_PnL_Statement_${rangeLabel}.csv`, rows)
       message.success('Executive P&L statement exported successfully')

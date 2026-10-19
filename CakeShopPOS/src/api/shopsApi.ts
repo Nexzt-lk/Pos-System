@@ -41,7 +41,7 @@ export const shopsApi = {
         phone: '071-1172201',
         email: 'wasana@cakes.lk',
         currency: 'LKR',
-        receiptFooter: 'Thank you for visiting Wasana Cake - Katugastota! 🎂'
+        receiptFooter: 'Thank you for visiting Wasana Cake - Katugastota!'
       }
     }
   },

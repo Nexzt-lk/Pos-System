@@ -231,7 +231,7 @@ export const ProductsPage: React.FC = () => {
     return products
       .filter((p) => {
         // Exclude inactive / deleted products
-        if (p.is_active === false || p.is_active === 0 || (p as any).isActive === false) return false
+        if (p.is_active === false || (p.is_active as any) === 0 || (p as any).isActive === false) return false
 
         // Search query
         const matchSearch =

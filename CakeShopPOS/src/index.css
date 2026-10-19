@@ -515,7 +515,7 @@ body, html {
   flex: 1;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(182px, 1fr));
   gap: 12px;
   align-content: start;
   padding: 2px 2px 24px;
@@ -532,7 +532,7 @@ body, html {
   flex-direction: column;
   user-select: none;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
-  min-height: 270px;
+  min-height: 280px;
   height: 100%;
 }
 
@@ -676,7 +676,8 @@ body, html {
   align-items: center;
   justify-content: space-between;
   margin-top: auto;
-  padding-top: 6px;
+  padding-top: 5px;
+  min-height: 26px;
 }
 
 .product-price {
@@ -684,6 +685,9 @@ body, html {
   font-weight: 800;
   color: var(--primary);
   letter-spacing: -0.01em;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: baseline;
 }
 
 .card-add-btn {

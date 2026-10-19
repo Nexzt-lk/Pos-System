@@ -72,37 +72,30 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
         )}
       </div>
 
-      {/* 🏷️ Product Metadata & Pricing */}
+      {/* Product Metadata & Pricing */}
       <div className="product-info">
         <span className="product-cat-label">
           {product.category_name || 'General'}
         </span>
 
-        <div className="product-name" title={product.name}>
+        <div className="product-name">
           {product.name}
         </div>
 
-        {product.barcode && (
-          <div style={{ fontSize: 10.5, color: '#94a3b8', fontFamily: 'monospace', letterSpacing: '0.02em' }}>
-            {product.barcode}
-          </div>
-        )}
-
-        <div className="product-footer">
-          <div className="product-price">
-            {formatCurrency(product.price)}
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginLeft: 3 }}>
-              /{product.unit || 'pcs'}
+        {/* Barcode and Store Stock info in clean balanced row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, minHeight: 18, marginTop: 1 }}>
+          {product.barcode ? (
+            <span style={{ fontSize: 10.5, color: '#64748b', fontFamily: 'monospace', fontWeight: 600, letterSpacing: '0.02em' }}>
+              {product.barcode}
             </span>
-          </div>
-
+          ) : <span />}
           {product.track_inventory ? (
             <span
               style={{
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: 700,
-                padding: '2px 8px',
-                borderRadius: 6,
+                padding: '1px 6px',
+                borderRadius: 4,
                 background: isOutOfStock ? '#fee2e2' : isLow ? '#fef3c7' : '#f0fdf4',
                 color: isOutOfStock ? '#b91c1c' : isLow ? '#b45309' : '#15803d',
                 border: `1px solid ${isOutOfStock ? '#fca5a5' : isLow ? '#fde68a' : '#bbf7d0'}`,
@@ -112,10 +105,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
               {isOutOfStock ? 'තොග අවසන්' : `Store: ${product.current_stock} ${product.unit || 'pcs'}`}
             </span>
           ) : (
-            <span style={{ fontSize: 10.5, color: '#94a3b8', fontWeight: 600 }}>
+            <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>
               Unmetered
             </span>
           )}
+        </div>
+
+        <div className="product-footer">
+          <div className="product-price">
+            {formatCurrency(product.price)}
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginLeft: 3 }}>
+              /{product.unit || 'pcs'}
+            </span>
+          </div>
         </div>
       </div>
     </div>

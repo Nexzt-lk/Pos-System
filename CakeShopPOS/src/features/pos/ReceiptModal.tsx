@@ -275,7 +275,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, ord
 
             {/* Footer */}
             <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1.5px dashed #cbd5e1', textAlign: 'center', fontSize: 11, color: '#64748b' }}>
-              <p style={{ fontWeight: 700, color: '#0f172a' }}>Thank you for visiting Wasana Cake! 🎂</p>
+              <p style={{ fontWeight: 700, color: '#0f172a' }}>Thank you for visiting Wasana Cake!</p>
               <p style={{ fontSize: 10, marginTop: 2 }}>Please come again soon</p>
               <div style={{
                 marginTop: 10,

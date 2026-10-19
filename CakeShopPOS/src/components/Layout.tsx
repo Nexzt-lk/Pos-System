@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import {
   ShoppingCart, Cake, Package, BarChart3,
-  Settings, LogOut, Clock, Store, Monitor, ReceiptText, Receipt
+  Settings, LogOut, Clock, Store, Monitor, ReceiptText, Receipt, CalendarClock
 } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
 import { useStockAlertStore } from '../store/stockAlertStore'
 import { SyncIndicator } from './SyncIndicator'
 import { StockNotificationBell } from './StockNotificationBell'
+import { CakeOrderNotificationBell } from './CakeOrderNotificationBell'
 import { LowStockAlertModal } from './LowStockAlertModal'
 import { UpdateIndicator } from './UpdateIndicator'
 import { shopsApi } from '../api/shopsApi'
@@ -88,6 +89,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
 
   const allNavItems = [
     { id: 'pos', label: 'Counter POS', icon: ShoppingCart, roles: ['owner', 'admin', 'manager', 'cashier'] },
+    { id: 'cake-orders', label: 'Cake Orders', icon: CalendarClock, roles: ['owner', 'admin', 'manager', 'cashier'] },
     { id: 'products', label: 'Products', icon: Cake, roles: ['owner', 'admin', 'manager', 'cashier'] },
     { id: 'inventory', label: 'Inventory', icon: Package, roles: ['owner', 'admin', 'manager', 'cashier'] },
     { id: 'orders', label: 'Daily Orders', icon: ReceiptText, roles: ['owner', 'admin', 'manager', 'cashier'] },
@@ -286,6 +288,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
 
           <div className="topbar-right">
             <UpdateIndicator />
+            <CakeOrderNotificationBell onNavigateToOrders={() => setActiveTab('cake-orders')} />
             <StockNotificationBell onNavigateToInventory={() => setActiveTab('inventory')} />
             <SyncIndicator />
             <div style={{

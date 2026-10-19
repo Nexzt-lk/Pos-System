@@ -74,6 +74,7 @@ export interface BranchMetric {
   totalExpenses: number
   netProfit: number
   netProfitMargin: number
+  openingFloat?: number
   cashSales: number
   cashExpenses: number
   netCashInDrawer: number
@@ -168,9 +169,20 @@ interface AnalyticsState {
       events: number
     }
     cashDrawer: {
+      openingFloat?: number
       cashSales: number
       cashExpenses: number
       netCashEstimated: number
+      sessions?: Array<{
+        id: string
+        session_date: string
+        terminal_id: string
+        cashier_name: string
+        opening_float: number
+        notes: string
+        shop_id: string
+        created_at: string
+      }>
     }
     detailedExpenses?: Array<{
       id: string
@@ -1834,9 +1846,11 @@ export const ReportsPage: React.FC = () => {
               <div style={{ fontSize: 24, fontWeight: 900, color: '#d97706', letterSpacing: '-0.03em', marginBottom: 8, fontVariantNumeric: 'tabular-nums' }}>
                 {formatCurrency(analytics?.ownerMetrics?.cashDrawer?.netCashEstimated || 0)}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, flexWrap: 'wrap' }}>
+                <span style={{ color: '#0369a1', fontWeight: 700 }}>Float: {formatCurrency(analytics?.ownerMetrics?.cashDrawer?.openingFloat || 0)}</span>
+                <span style={{ color: '#cbd5e1' }}>•</span>
                 <span style={{ color: '#15803d', fontWeight: 700 }}>+{formatCurrency(analytics?.ownerMetrics?.cashDrawer?.cashSales || 0)}</span>
-                <span style={{ color: '#cbd5e1' }}>/</span>
+                <span style={{ color: '#cbd5e1' }}>•</span>
                 <span style={{ color: '#dc2626', fontWeight: 700 }}>-{formatCurrency(analytics?.ownerMetrics?.cashDrawer?.cashExpenses || 0)}</span>
               </div>
             </div>
@@ -3121,7 +3135,7 @@ export const ReportsPage: React.FC = () => {
                             {formatCurrency(b.netCashInDrawer)}
                           </div>
                           <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-                            Cash Sales: {formatCurrency(b.cashSales)}
+                            Float: {formatCurrency(b.openingFloat || 0)} · Cash: {formatCurrency(b.cashSales)}
                           </div>
                         </div>
                       </div>
@@ -3311,8 +3325,28 @@ export const ReportsPage: React.FC = () => {
             <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Real-time physical cash tracking</span>
           </div>
 
-          {/* ── Cash Reconciliation 3 standalone cards ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+          {/* ── Cash Reconciliation 4 standalone cards ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 14 }}>
+            {/* 1. Opening Float */}
+            <div
+              onClick={() => setDetailModal('cash')}
+              role="button"
+              tabIndex={0}
+              style={{ background: '#ffffff', border: '1px solid #bae6fd', padding: '18px 20px', borderRadius: 12, boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)', cursor: 'pointer', transition: 'all 0.15s ease' }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0284c7'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#bae6fd'; e.currentTarget.style.transform = 'none' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 6, background: '#f0f9ff', border: '1px solid #bae6fd', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0284c7' }}>
+                  <Wallet size={16} />
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#0369a1' }}>Opening Float (Start) 🪙</span>
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#0284c7', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.cashDrawer.openingFloat || 0)}</div>
+              <div style={{ fontSize: 11, color: '#0284c7', marginTop: 4 }}>Entered at counter start by cashier</div>
+            </div>
+
+            {/* 2. Cash Inflow */}
             <div
               onClick={() => setDetailModal('cash')}
               role="button"
@@ -3331,6 +3365,7 @@ export const ReportsPage: React.FC = () => {
               <div style={{ fontSize: 11, color: '#16a34a', marginTop: 4 }}>Collected directly from cash customers</div>
             </div>
 
+            {/* 3. Cash Outflow */}
             <div
               onClick={() => setDetailModal('cash')}
               role="button"
@@ -3343,12 +3378,13 @@ export const ReportsPage: React.FC = () => {
                 <div style={{ width: 28, height: 28, borderRadius: 6, background: '#fef2f2', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626' }}>
                   <ArrowDownRight size={16} />
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#991b1b' }}>Cash Outflow (Drawer Expenses) ↗</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#991b1b' }}>Cash Outflow (Expenses) ↘</span>
               </div>
               <div style={{ fontSize: 24, fontWeight: 800, color: '#dc2626', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.cashDrawer.cashExpenses)}</div>
-              <div style={{ fontSize: 11, color: '#b91c1c', marginTop: 4 }}>Petty cash and vendor payments from drawer</div>
+              <div style={{ fontSize: 11, color: '#b91c1c', marginTop: 4 }}>Petty cash & vendor payouts from drawer</div>
             </div>
 
+            {/* 4. Expected Cash In Register */}
             <div
               onClick={() => setDetailModal('cash')}
               role="button"
@@ -3361,10 +3397,10 @@ export const ReportsPage: React.FC = () => {
                 <div style={{ width: 28, height: 28, borderRadius: 6, background: '#fffbeb', border: '1px solid #fde68a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706' }}>
                   <Coins size={16} />
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Expected Cash In Register ↗</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Expected In Register 💰</span>
               </div>
               <div style={{ fontSize: 24, fontWeight: 800, color: '#d97706', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.cashDrawer.netCashEstimated)}</div>
-              <div style={{ fontSize: 11, color: '#b45309', marginTop: 4 }}>Net sales cash minus payouts (excl. initial float)</div>
+              <div style={{ fontSize: 11, color: '#b45309', marginTop: 4 }}>Opening Float + Sales - Payouts</div>
             </div>
           </div>
 

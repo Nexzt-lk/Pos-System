@@ -9,6 +9,7 @@ import { ReportsPage } from './features/reports/ReportsPage'
 import { ExpensesPage } from './features/expenses/ExpensesPage'
 import { OrdersPage } from './features/orders/OrdersPage'
 import { SettingsPage } from './features/settings/SettingsPage'
+import { CakeOrdersPage } from './features/cakeOrders/CakeOrdersPage'
 import { OpeningFloatModal } from './components/OpeningFloatModal'
 import { useAppStore } from './store/appStore'
 
@@ -91,10 +92,10 @@ export const App: React.FC = () => {
 
   // Role Permissions Matrix
   const rolePermissions: Record<string, string[]> = {
-    owner: ['pos', 'orders', 'products', 'inventory', 'reports', 'expenses', 'settings'],
-    admin: ['pos', 'orders', 'products', 'inventory', 'reports', 'expenses', 'settings'],
-    manager: ['pos', 'orders', 'products', 'inventory', 'reports', 'expenses'],
-    cashier: ['pos', 'orders', 'products', 'inventory', 'expenses']
+    owner: ['pos', 'cake-orders', 'orders', 'products', 'inventory', 'reports', 'expenses', 'settings'],
+    admin: ['pos', 'cake-orders', 'orders', 'products', 'inventory', 'reports', 'expenses', 'settings'],
+    manager: ['pos', 'cake-orders', 'orders', 'products', 'inventory', 'reports', 'expenses'],
+    cashier: ['pos', 'cake-orders', 'orders', 'products', 'inventory', 'expenses']
   }
 
   const allowedTabs = rolePermissions[userRole] || ['pos']
@@ -131,6 +132,7 @@ export const App: React.FC = () => {
 
     switch (activeTab) {
       case 'pos': return <POSPage />
+      case 'cake-orders': return <CakeOrdersPage />
       case 'orders': return <OrdersPage />
       case 'products': return <ProductsPage />
       case 'inventory': return <InventoryPage />

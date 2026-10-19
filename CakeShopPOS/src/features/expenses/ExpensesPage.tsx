@@ -35,7 +35,8 @@ import {
   Space,
   message,
   Popconfirm,
-  Tooltip
+  Tooltip,
+  Tag
 } from 'antd'
 import { RefreshButton } from '../../components/RefreshButton'
 import { useAppStore } from '../../store/appStore'
@@ -179,7 +180,21 @@ export const ExpensesPage: React.FC = () => {
   ])
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL')
   const [searchQuery, setSearchQuery] = useState<string>('')
-  const [selectedBranchId, setSelectedBranchId] = useState<string>('all')
+  const [selectedBranchId, setSelectedBranchId] = useState<string>(
+    currentShop?.id || 'b0000000-0000-0000-0000-000000000001'
+  )
+
+  const isOwnerOrAdmin = currentUser?.role === 'owner' || currentUser?.role === 'admin'
+  const effectiveShopId = isOwnerOrAdmin
+    ? (selectedBranchId !== 'all' ? selectedBranchId : undefined)
+    : (currentShop?.id || 'b0000000-0000-0000-0000-000000000001')
+
+  // Keep selectedBranchId in sync when currentShop changes
+  useEffect(() => {
+    if (currentShop?.id) {
+      setSelectedBranchId(currentShop.id)
+    }
+  }, [currentShop?.id])
 
   // ─── Data Loading ───────────────────────────────────────────────────────────
 
@@ -187,17 +202,16 @@ export const ExpensesPage: React.FC = () => {
     setIsLoading(true)
     try {
       let data: ExpenseDto[] = []
-      const shopId = selectedBranchId !== 'all' ? selectedBranchId : undefined
 
       if (dateMode === 'day') {
         const dStr = selectedDate.format('YYYY-MM-DD')
-        data = await expensesApi.getByDateRange(dStr, dStr, undefined, undefined, shopId)
+        data = await expensesApi.getByDateRange(dStr, dStr, undefined, undefined, effectiveShopId)
       } else if (dateMode === 'range' && selectedRange && selectedRange[0] && selectedRange[1]) {
         const fromStr = selectedRange[0].format('YYYY-MM-DD')
         const toStr = selectedRange[1].format('YYYY-MM-DD')
-        data = await expensesApi.getByDateRange(fromStr, toStr, undefined, undefined, shopId)
+        data = await expensesApi.getByDateRange(fromStr, toStr, undefined, undefined, effectiveShopId)
       } else {
-        data = await expensesApi.getAll({ shopId })
+        data = await expensesApi.getAll({ shopId: effectiveShopId })
       }
 
       setExpenses(data || [])
@@ -229,10 +243,10 @@ export const ExpensesPage: React.FC = () => {
   const filtered = useMemo(() => {
     let result = expenses
 
-    if (selectedBranchId !== 'all') {
+    if (effectiveShopId) {
       result = result.filter((e) => {
         const sid = e.shopId || e.shop_id || 'b0000000-0000-0000-0000-000000000001'
-        return sid === selectedBranchId
+        return sid === effectiveShopId
       })
     }
 
@@ -254,7 +268,7 @@ export const ExpensesPage: React.FC = () => {
     }
 
     return result
-  }, [expenses, selectedCategory, searchQuery, selectedBranchId])
+  }, [expenses, selectedCategory, searchQuery, effectiveShopId])
 
   // ─── Metrics Calculation ────────────────────────────────────────────────────
 
@@ -264,10 +278,10 @@ export const ExpensesPage: React.FC = () => {
 
   const todayDrawerAmount = useMemo(() => {
     const todayStr = dayjs().format('YYYY-MM-DD')
-    return expenses
+    return filtered
       .filter((e) => e.expenseDate === todayStr)
       .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)
-  }, [expenses])
+  }, [filtered])
 
   const avgExpense = useMemo(() => {
     return filtered.length > 0 ? Math.round(totalPeriodAmount / filtered.length) : 0
@@ -1062,17 +1076,34 @@ export const ExpensesPage: React.FC = () => {
 
         {/* Right: Search Input & Branch Filter */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Select
-            value={selectedBranchId}
-            onChange={setSelectedBranchId}
-            size="middle"
-            style={{ width: 190 }}
-            options={[
-              { value: 'all', label: 'All Branches' },
-              { value: 'b0000000-0000-0000-0000-000000000001', label: 'Katugastota (B1)' },
-              { value: 'b0000000-0000-0000-0000-000000000002', label: 'Poojapitiya (B2)' }
-            ]}
-          />
+          {isOwnerOrAdmin ? (
+            <Select
+              value={selectedBranchId}
+              onChange={setSelectedBranchId}
+              size="middle"
+              style={{ width: 190 }}
+              options={[
+                { value: 'all', label: 'All Branches' },
+                { value: 'b0000000-0000-0000-0000-000000000001', label: 'Katugastota (B1)' },
+                { value: 'b0000000-0000-0000-0000-000000000002', label: 'Poojapitiya (B2)' }
+              ]}
+            />
+          ) : (
+            <Tag
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: '#166534',
+                background: '#f0fdf4',
+                borderColor: '#bbf7d0',
+                padding: '4px 10px',
+                borderRadius: 6,
+                margin: 0
+              }}
+            >
+              {currentShop?.name || 'Current Branch'}
+            </Tag>
+          )}
           <div style={{ width: 240 }}>
             <Input
               prefix={<Search size={15} style={{ color: 'var(--text-muted)', marginRight: 6 }} />}

@@ -10,6 +10,7 @@ import { syncRepo } from './db/repositories/syncRepo'
 import { expenseRepo } from './db/repositories/expenseRepo'
 import { suppliersRepo } from './db/repositories/suppliersRepo'
 import { cashSessionRepo } from './db/repositories/cashSessionRepo'
+import { cakeOrderRepo } from './db/repositories/cakeOrderRepo'
 import { printService } from './services/printService'
 import { imageService, setupImageProtocol } from './services/imageService'
 import { syncService } from './services/syncService'
@@ -155,7 +156,7 @@ function setupIpcHandlers() {
         phone: shop.phone,
         email: shop.email,
         currency: shop.currency || 'LKR',
-        receiptFooter: shop.receipt_footer || 'Thank you for visiting Wasana Cake - Katugastota! 🎂'
+        receiptFooter: shop.receipt_footer || 'Thank you for visiting Wasana Cake - Katugastota!'
       }
     }
     return null
@@ -236,6 +237,36 @@ function setupIpcHandlers() {
   ipcMain.handle('db:get-recent-cash-sessions', async (_, limit?: number) =>
     await cashSessionRepo.getRecent(limit || 30)
   )
+
+  // Cake Orders Management IPC Handlers
+  ipcMain.handle('db:get-cake-orders', async (_, params) => await cakeOrderRepo.getAll(params))
+  ipcMain.handle('db:get-cake-order-by-id', async (_, id: string) => await cakeOrderRepo.getById(id))
+  ipcMain.handle('db:get-cake-orders-due-count', async (_, shopId?: string) => await cakeOrderRepo.getDueTodayCount(shopId))
+  ipcMain.handle('db:get-upcoming-cake-orders', async (_, { shopId, limit }: { shopId?: string; limit?: number } = {}) =>
+    await cakeOrderRepo.getUpcoming(shopId, limit)
+  )
+  ipcMain.handle('db:get-cake-order-summary', async (_, shopId?: string) => await cakeOrderRepo.getSummary(shopId))
+  ipcMain.handle('db:get-next-cake-order-no', async (_, shopId?: string) => await cakeOrderRepo.getNextOrderNumber(shopId))
+  ipcMain.handle('db:create-cake-order', async (_, data) => {
+    const res = await cakeOrderRepo.create(data)
+    syncService.triggerSync()
+    return res
+  })
+  ipcMain.handle('db:update-cake-order-status', async (_, { id, status }: { id: string; status: any }) => {
+    const res = await cakeOrderRepo.updateStatus(id, status)
+    syncService.triggerSync()
+    return res
+  })
+  ipcMain.handle('db:collect-cake-order-balance', async (_, { id, paymentMethod }: { id: string; paymentMethod: string }) => {
+    const res = await cakeOrderRepo.collectBalance(id, paymentMethod)
+    syncService.triggerSync()
+    return res
+  })
+  ipcMain.handle('db:delete-cake-order', async (_, id: string) => {
+    const res = await cakeOrderRepo.delete(id)
+    syncService.triggerSync()
+    return res
+  })
 
   ipcMain.handle('auth:login-email', async (_, { email, password }: { email: string; password: string; shopId?: string }) => {
     try {
@@ -399,6 +430,7 @@ function setupIpcHandlers() {
   ipcMain.handle('printer:print-receipt', (_, { data, printerName }: any) => printService.printReceipt(data, printerName))
   ipcMain.handle('printer:test-print', (_, printerName?: string) => printService.testPrint(printerName))
   ipcMain.handle('printer:print-expense-voucher', (_, { data, printerName }: any) => printService.printExpenseVoucher(data, printerName))
+  ipcMain.handle('printer:print-cake-order-slip', (_, { data, printerName }: any) => printService.printCakeOrderReceipt(data, printerName))
 
   ipcMain.handle('image:select-dialog', () => imageService.selectImageDialog())
   ipcMain.handle('image:save', (_, sourcePath) => imageService.saveProductImage(sourcePath))

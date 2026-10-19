@@ -36,6 +36,19 @@ export interface ElectronAPI {
   createCashSession: (data: { openingFloat: number; shopId?: string; cashierId?: string; cashierName?: string; terminalId?: string; notes?: string }) => Promise<any>
   getRecentCashSessions: (limit?: number) => Promise<any[]>
 
+  // Cake Orders Management
+  getCakeOrders: (params?: any) => Promise<any[]>
+  getCakeOrderById: (id: string) => Promise<any>
+  getCakeOrdersDueCount: (shopId?: string) => Promise<number>
+  getUpcomingCakeOrders: (params?: { shopId?: string; limit?: number }) => Promise<any[]>
+  getCakeOrderSummary: (shopId?: string) => Promise<any>
+  getNextCakeOrderNo: (shopId?: string) => Promise<string>
+  createCakeOrder: (data: any) => Promise<any>
+  updateCakeOrderStatus: (id: string, status: string) => Promise<any>
+  collectCakeOrderBalance: (id: string, paymentMethod: string) => Promise<any>
+  deleteCakeOrder: (id: string) => Promise<any>
+  printCakeOrderSlip: (data: any, printerName?: string) => Promise<{ success: boolean; message?: string; printerUsed?: string }>
+
   // Hardware & Printing
   getPrinters: () => Promise<any[]>
   printReceipt: (receiptData: any, printerName?: string) => Promise<{ success: boolean; message?: string; printerUsed?: string }>
@@ -94,6 +107,19 @@ const electronAPI: ElectronAPI = {
   getCashSessionByDate: (date, terminalId) => ipcRenderer.invoke('db:get-cash-session-by-date', { date, terminalId }),
   createCashSession: (data) => ipcRenderer.invoke('db:create-cash-session', data),
   getRecentCashSessions: (limit) => ipcRenderer.invoke('db:get-recent-cash-sessions', limit),
+
+  // Cake Orders
+  getCakeOrders: (params) => ipcRenderer.invoke('db:get-cake-orders', params),
+  getCakeOrderById: (id) => ipcRenderer.invoke('db:get-cake-order-by-id', id),
+  getCakeOrdersDueCount: (shopId) => ipcRenderer.invoke('db:get-cake-orders-due-count', shopId),
+  getUpcomingCakeOrders: (params) => ipcRenderer.invoke('db:get-upcoming-cake-orders', params),
+  getCakeOrderSummary: (shopId) => ipcRenderer.invoke('db:get-cake-order-summary', shopId),
+  getNextCakeOrderNo: (shopId) => ipcRenderer.invoke('db:get-next-cake-order-no', shopId),
+  createCakeOrder: (data) => ipcRenderer.invoke('db:create-cake-order', data),
+  updateCakeOrderStatus: (id, status) => ipcRenderer.invoke('db:update-cake-order-status', { id, status }),
+  collectCakeOrderBalance: (id, paymentMethod) => ipcRenderer.invoke('db:collect-cake-order-balance', { id, paymentMethod }),
+  deleteCakeOrder: (id) => ipcRenderer.invoke('db:delete-cake-order', id),
+  printCakeOrderSlip: (data, printerName) => ipcRenderer.invoke('printer:print-cake-order-slip', { data, printerName }),
 
   getPrinters: () => ipcRenderer.invoke('printer:get-printers'),
   printReceipt: (receiptData, printerName) => ipcRenderer.invoke('printer:print-receipt', { data: receiptData, printerName }),

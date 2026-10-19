@@ -10,7 +10,7 @@
 --   * item_code and code_prefix added (auto-generated per-category item codes)
 -- ============================================================================
 
-PRAGMA foreign_keys = ON;
+-- PRAGMA foreign_keys is managed at the connection level
 
 -- ============================================================================
 -- SHOPS (Branch Info & Receipt Settings)
@@ -215,6 +215,40 @@ CREATE TABLE IF NOT EXISTS sync_queue (
     synced_at   TEXT
 );
 
+-- ============================================================================
+-- CAKE ORDERS (custom advance cake bookings)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS cake_orders (
+    id                   TEXT PRIMARY KEY,
+    order_no             TEXT NOT NULL UNIQUE,
+    shop_id              TEXT DEFAULT 'b0000000-0000-0000-0000-000000000001',
+    customer_name        TEXT NOT NULL,
+    customer_phone       TEXT NOT NULL,
+    customer_email       TEXT,
+    cake_name            TEXT NOT NULL,
+    flavor               TEXT,
+    weight_kg            REAL DEFAULT 1,
+    shape                TEXT DEFAULT 'Round',
+    tier_count           INTEGER DEFAULT 1,
+    wording              TEXT,
+    special_instructions TEXT,
+    reference_image      TEXT,
+    pickup_date          TEXT NOT NULL,
+    pickup_time          TEXT,
+    total_amount         REAL NOT NULL DEFAULT 0,
+    advance_amount       REAL NOT NULL DEFAULT 0,
+    balance_amount       REAL NOT NULL DEFAULT 0,
+    advance_payment_method TEXT DEFAULT 'CASH',
+    balance_payment_method TEXT,
+    payment_status       TEXT DEFAULT 'advance_paid' CHECK(payment_status IN ('pending', 'advance_paid', 'fully_paid')),
+    status               TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'baking', 'ready', 'completed', 'cancelled')),
+    taken_by             TEXT,
+    created_at           TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    updated_at           TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    completed_at         TEXT,
+    sync_status          TEXT DEFAULT 'pending'
+);
+
 
 -- ============================================================================
 -- INDEXES
@@ -233,6 +267,9 @@ CREATE INDEX IF NOT EXISTS idx_order_items_order     ON order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_payments_order        ON payments(order_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_date         ON expenses(expense_date);
 CREATE INDEX IF NOT EXISTS idx_sync_queue_status     ON sync_queue(status);
+CREATE INDEX IF NOT EXISTS idx_cake_orders_pickup_date ON cake_orders(pickup_date);
+CREATE INDEX IF NOT EXISTS idx_cake_orders_status      ON cake_orders(status);
+CREATE INDEX IF NOT EXISTS idx_cake_orders_shop        ON cake_orders(shop_id);
 
 -- ============================================================================
 -- SEED DATA (Shop, Users, Categories, Initial Products & Inventory)
@@ -248,11 +285,11 @@ VALUES (
     '071-1172201',
     'wasana@cakes.lk',
     'LKR',
-    'Thank you for visiting Wasana Cake - Katugastota! 🎂'
+    'Thank you for visiting Wasana Cake - Katugastota!'
 );
 
 -- 2. Users (PIN: 843522)
-INSERT OR REPLACE INTO users (id, shop_id, name, email, pin_hash, password_hash, role, is_active)
+INSERT OR IGNORE INTO users (id, shop_id, name, email, pin_hash, password_hash, role, is_active)
 VALUES
     ('u0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Janaka Ariyarathna (Owner)', 'owner@wasanabakes.lk', '843522', 'JanakaW@2024!', 'owner', 1),
     ('u0000000-0000-0000-0000-000000000002', 'b0000000-0000-0000-0000-000000000001', 'Sunil Jayasinghe (Manager)', 'manager@wasanabakes.lk', '843522', 'manager123', 'manager', 1),
@@ -260,7 +297,7 @@ VALUES
     ('u0000000-0000-0000-0000-000000000004', 'b0000000-0000-0000-0000-000000000001', 'Cashier 02', 'cashier2@wasanabakes.lk', '843522', 'WB_Cash2#2024', 'cashier', 1);
 
 -- 3. Categories
-INSERT OR REPLACE INTO categories (id, name, code_prefix, color, icon, sort_order, is_active)
+INSERT OR IGNORE INTO categories (id, name, code_prefix, color, icon, sort_order, is_active)
 VALUES
     ('10eb67e2-985f-4ed6-9339-4504e9ada336', 'Cakes & Gateaux', 'CAK', '#ec4899', 'cake', 1, 1),
     ('50990b73-4919-460f-85f1-848b8f0838f7', 'Sweet Items & Desserts', 'SWT', '#a855f7', 'cookie', 2, 1),
@@ -272,7 +309,7 @@ VALUES
     ('536a3768-5597-4c7c-ad09-c877796aff54', 'Beverages & Coffee', 'BEV', '#10b981', 'coffee', 8, 1);
 
 -- 4. Products (Ritzbury)
-INSERT OR REPLACE INTO products (id, category_id, item_code, name, description, price, cost_price, barcode, unit, track_inventory, is_active, sync_status)
+INSERT OR IGNORE INTO products (id, category_id, item_code, name, description, price, cost_price, barcode, unit, track_inventory, is_active, sync_status)
 VALUES
     ('e21d1c04-aafd-4f21-8913-1a01662dff22', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-001', 'Choco-La Kiddies Milk 20g', 'Ritzbury Choco-La Kiddies Milk 20g', 50.00, 0, 'SWT-001', 'pcs', 1, 1, 'synced'),
     ('d56678ff-22b0-48c9-921f-949fea55b7b0', '50990b73-4919-460f-85f1-848b8f0838f7', 'SWT-002', 'Choco-La Milk Sweet 20g', 'Ritzbury Choco-La Milk Sweet 20g', 50.00, 0, 'SWT-002', 'pcs', 1, 1, 'synced'),
@@ -294,7 +331,7 @@ VALUES
     ('343a4b16-bfb2-44f0-ac4c-b2ab1ea5d4b4', '48685b8b-b44d-4caa-b9c1-490155e87ea3', 'BIS-002', 'Chocolate Fingers 40g', 'Ritzbury Chocolate Fingers 40g', 100.00, 0, 'BIS-002', 'pcs', 1, 1, 'synced');
 
 -- 5. Inventory
-INSERT OR REPLACE INTO inventory (id, product_id, quantity, min_quantity, updated_at)
+INSERT OR IGNORE INTO inventory (id, product_id, quantity, min_quantity, updated_at)
 VALUES
     ('6afd7a0e-fa59-4dbb-809c-ab07ae70b1be', 'e21d1c04-aafd-4f21-8913-1a01662dff22', 50, 5, datetime('now')),
     ('be3928d9-39ad-424a-b1c3-8fce54e1a65e', 'd56678ff-22b0-48c9-921f-949fea55b7b0', 50, 5, datetime('now')),

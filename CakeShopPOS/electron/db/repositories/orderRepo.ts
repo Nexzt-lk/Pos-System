@@ -966,9 +966,57 @@ export const orderRepo = {
       ? Number(((netProfit / totalRevenue) * 100).toFixed(1))
       : 0
 
-    // Cash in drawer estimation
+    // 9b. Cash Sessions (Opening Float typed at counter start)
+    const cashSessionsSummary = db.queryOne<{
+      total_opening_float: number
+      session_count: number
+    }>(
+      `
+      SELECT 
+        COALESCE(sum(opening_float), 0) as total_opening_float,
+        count(*) as session_count
+      FROM cash_sessions
+      WHERE session_date >= ? AND session_date <= ?
+        AND (? = 0 OR shop_id = ? OR (shop_id IS NULL AND ? = 'b0000000-0000-0000-0000-000000000001'))
+    `,
+      [startDateStr, endDateStr, isSpecificShop ? 1 : 0, targetShopId, targetShopId]
+    )
+
+    const detailedSessions = db.query<{
+      id: string
+      session_date: string
+      terminal_id: string
+      cashier_id: string
+      cashier_name: string
+      opening_float: number
+      notes: string
+      shop_id: string
+      created_at: string
+    }>(
+      `
+      SELECT 
+        id,
+        session_date,
+        COALESCE(terminal_id, 'T1') as terminal_id,
+        COALESCE(cashier_id, '') as cashier_id,
+        COALESCE(cashier_name, 'Cashier') as cashier_name,
+        COALESCE(opening_float, 0) as opening_float,
+        COALESCE(notes, '') as notes,
+        COALESCE(shop_id, 'b0000000-0000-0000-0000-000000000001') as shop_id,
+        created_at
+      FROM cash_sessions
+      WHERE session_date >= ? AND session_date <= ?
+        AND (? = 0 OR shop_id = ? OR (shop_id IS NULL AND ? = 'b0000000-0000-0000-0000-000000000001'))
+      ORDER BY session_date DESC, created_at DESC
+    `,
+      [startDateStr, endDateStr, isSpecificShop ? 1 : 0, targetShopId, targetShopId]
+    )
+
+    const totalOpeningFloat = cashSessionsSummary?.total_opening_float || 0
+
+    // Cash in drawer calculation: Opening Float + Cash Sales - Cash Outflows
     const cashPayments = paymentRows.find(p => p.method === 'CASH')?.total_amount || 0
-    const netCashInDrawer = cashPayments - totalExpenses
+    const netCashInDrawer = totalOpeningFloat + cashPayments - totalExpenses
 
     // 10. Multi-Branch Comparative Breakdown for Executive Owner Intelligence
     const allRegisteredShops = db.query<{
@@ -1033,6 +1081,14 @@ export const orderRepo = {
         [startDateStr, endDateStr, sId, sId]
       )?.total_cash || 0
 
+      const bSessions = db.queryOne<{ total_opening_float: number }>(
+        `SELECT COALESCE(sum(opening_float), 0) as total_opening_float
+         FROM cash_sessions
+         WHERE session_date >= ? AND session_date <= ?
+           AND (shop_id = ? OR (shop_id IS NULL AND ? = 'b0000000-0000-0000-0000-000000000001'))`,
+        [startDateStr, endDateStr, sId, sId]
+      )?.total_opening_float || 0
+
       const bInv = db.queryOne<{
         total_products: number
         total_cost_value: number
@@ -1072,9 +1128,10 @@ export const orderRepo = {
         totalExpenses: bExpenses,
         netProfit: bNetProfit,
         netProfitMargin: bNetMargin,
+        openingFloat: bSessions,
         cashSales: bCashSales,
         cashExpenses: bExpenses,
-        netCashInDrawer: bCashSales - bExpenses,
+        netCashInDrawer: bSessions + bCashSales - bExpenses,
         totalProducts: bInv?.total_products || 0,
         inventoryCostValue: bInv?.total_cost_value || 0,
         inventoryRetailValue: bInv?.total_retail_value || 0,
@@ -1105,9 +1162,11 @@ export const orderRepo = {
         events: damageLossRow?.damage_events || 0
       },
       cashDrawer: {
+        openingFloat: totalOpeningFloat,
         cashSales: cashPayments,
         cashExpenses: totalExpenses,
-        netCashEstimated: netCashInDrawer
+        netCashEstimated: netCashInDrawer,
+        sessions: detailedSessions
       },
       detailedExpenses,
       lowStockList,
