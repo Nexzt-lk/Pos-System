@@ -3340,7 +3340,7 @@ export const ReportsPage: React.FC = () => {
                 <div style={{ width: 28, height: 28, borderRadius: 6, background: '#f0f9ff', border: '1px solid #bae6fd', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0284c7' }}>
                   <Wallet size={16} />
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#0369a1' }}>Opening Float (Start) 🪙</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#0369a1' }}>Opening Float (Start)</span>
               </div>
               <div style={{ fontSize: 24, fontWeight: 800, color: '#0284c7', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.cashDrawer.openingFloat || 0)}</div>
               <div style={{ fontSize: 11, color: '#0284c7', marginTop: 4 }}>Entered at counter start by cashier</div>
@@ -3397,7 +3397,7 @@ export const ReportsPage: React.FC = () => {
                 <div style={{ width: 28, height: 28, borderRadius: 6, background: '#fffbeb', border: '1px solid #fde68a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706' }}>
                   <Coins size={16} />
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Expected In Register 💰</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Expected In Register</span>
               </div>
               <div style={{ fontSize: 24, fontWeight: 800, color: '#d97706', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(owner.cashDrawer.netCashEstimated)}</div>
               <div style={{ fontSize: 11, color: '#b45309', marginTop: 4 }}>Opening Float + Sales - Payouts</div>

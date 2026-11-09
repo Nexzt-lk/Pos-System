@@ -171,7 +171,7 @@ export const POSPage: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', height: '100%', width: '100%', overflow: 'hidden' }}>
-      {/* 🍰 Left Product Catalog Grid */}
+      {/* Left Product Catalog Grid */}
       <ProductGrid
         products={products}
         categories={categories}
@@ -179,14 +179,14 @@ export const POSPage: React.FC = () => {
         isLoading={isLoading}
       />
 
-      {/* 🧾 Right Active Bill Cart Panel */}
+      {/* Right Active Bill Cart Panel */}
       <Cart
         onOpenPaymentModal={() => setIsPaymentOpen(true)}
         onOpenDiscountModal={() => setIsDiscountOpen(true)}
         onEditItem={handleEditCartItem}
       />
 
-      {/* ⚖️ Interactive Weight & Quantity Dialog */}
+      {/* Interactive Weight & Quantity Dialog */}
       <ProductQuantityModal
         isOpen={isQtyModalOpen}
         product={selectedProduct}
@@ -198,13 +198,13 @@ export const POSPage: React.FC = () => {
         onConfirm={handleConfirmQuantity}
       />
 
-      {/* 🏷️ Quick Discount Modal */}
+      {/* Quick Discount Modal */}
       <DiscountModal
         isOpen={isDiscountOpen}
         onClose={() => setIsDiscountOpen(false)}
       />
 
-      {/* 💳 Payment & Checkout Modal */}
+      {/* Payment & Checkout Modal */}
       <PaymentModal
         isOpen={isPaymentOpen}
         onClose={() => setIsPaymentOpen(false)}
@@ -215,14 +215,14 @@ export const POSPage: React.FC = () => {
         }}
       />
 
-      {/* 🧾 Thermal Receipt Preview Modal */}
+      {/* Thermal Receipt Preview Modal */}
       <ReceiptModal
         isOpen={isReceiptOpen}
         onClose={() => setIsReceiptOpen(false)}
         orderData={completedOrder}
       />
 
-      {/* ⌨️ Keyboard Shortcuts Help Modal */}
+      {/* Keyboard Shortcuts Help Modal */}
       <KeyboardShortcutsModal
         isOpen={isShortcutsOpen}
         onClose={() => setIsShortcutsOpen(false)}

@@ -8,9 +8,9 @@ export interface OrderItem {
   shop_id: string
   order_id?: string
   product_id: string
-  product_name: string // 📸 Snapshot
-  unit_price: number // 📸 Snapshot
-  cost_price?: number // 📸 Snapshot
+  product_name: string // Snapshot
+  unit_price: number // Snapshot
+  cost_price?: number // Snapshot
   quantity: number
   discount: number
   subtotal: number

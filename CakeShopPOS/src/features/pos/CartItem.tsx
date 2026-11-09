@@ -64,7 +64,7 @@ export const CartItem: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRe
       className="cart-item"
       style={isExceedingStock ? { border: '1.5px solid #fca5a5', background: '#fef2f2' } : undefined}
     >
-      {/* 🖼️ High Quality Mini Image Thumbnail */}
+      {/* High Quality Mini Image Thumbnail */}
       <div
         className="cart-item-thumb"
         onClick={() => onEditItem?.(item)}
@@ -92,7 +92,7 @@ export const CartItem: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRe
         )}
       </div>
 
-      {/* 📝 Main Body Details */}
+      {/* Main Body Details */}
       <div className="cart-item-body">
         {/* Top: Name & Remove Button */}
         <div className="cart-item-header">
@@ -113,7 +113,7 @@ export const CartItem: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRe
                 }}
               >
                 {isExceedingStock
-                  ? `⚠️ Store එකේ ඇත්තේ ${availableStock} ${item.unit || 'pcs'} පමණි!`
+                  ? `Store එකේ ඇත්තේ ${availableStock} ${item.unit || 'pcs'} පමණි!`
                   : `Store: ${availableStock} ${item.unit || 'pcs'}`}
               </span>
             )}
@@ -143,7 +143,7 @@ export const CartItem: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRe
           </div>
 
           <div className="cart-item-controls">
-            {/* 🔢 Quantity Stepper */}
+            {/* Quantity Stepper */}
             <div className="qty-stepper">
               <button
                 type="button"
@@ -197,7 +197,7 @@ export const CartItem: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRe
               </button>
             </div>
 
-            {/* 💰 Subtotal */}
+            {/* Subtotal */}
             <span className="cart-item-subtotal">{formatCurrency(item.subtotal)}</span>
           </div>
         </div>

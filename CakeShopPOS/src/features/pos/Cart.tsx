@@ -107,26 +107,33 @@ export const Cart: React.FC<CartProps> = ({ onOpenPaymentModal, onOpenDiscountMo
           )}
         </div>
 
-        {/* 🌟 Dedicated High-Contrast Total Due Display Card */}
+        {/* Dedicated High-Contrast Total Due Display Card */}
         <div style={{
-          background: '#f8fafc',
-          border: '1.5px solid #e2e8f0',
-          borderRadius: 14,
-          padding: '14px 18px',
+          background: 'linear-gradient(135deg, #090d16 0%, #0f172a 100%)',
+          border: '1.5px solid rgba(22, 163, 74, 0.4)',
+          borderRadius: 16,
+          padding: '16px 20px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          margin: '4px 0 12px'
+          margin: '4px 0 12px',
+          boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.3)'
         }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div style={{ fontSize: 10.5, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
               Total Payable
             </div>
-            <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginTop: 2 }}>
-              Inclusive of all taxes
+            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, marginTop: 2 }}>
+              Net amount due
             </div>
           </div>
-          <div style={{ fontSize: 24, fontWeight: 900, color: '#16a34a', letterSpacing: '-0.02em' }}>
+          <div style={{
+            fontSize: 28,
+            fontWeight: 900,
+            color: '#4ade80',
+            letterSpacing: '-0.02em',
+            fontFeatureSettings: "'tnum'"
+          }}>
             {formatCurrency(total)}
           </div>
         </div>

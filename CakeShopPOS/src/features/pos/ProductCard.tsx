@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Cake } from 'lucide-react'
+import { Cake, Plus } from 'lucide-react'
 import { Product } from '../../types/product'
 import { formatCurrency } from '../../lib/formatters'
 import { getProductImageSrc } from '../../lib/imageHelper'
@@ -118,6 +118,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
               /{product.unit || 'pcs'}
             </span>
           </div>
+          <button
+            type="button"
+            className="card-add-btn"
+            title="Add to Ticket"
+            onClick={(e) => {
+              e.stopPropagation()
+              if (!isOutOfStock) onAddToCart(product)
+            }}
+          >
+            <Plus size={15} strokeWidth={2.5} />
+          </button>
         </div>
       </div>
     </div>

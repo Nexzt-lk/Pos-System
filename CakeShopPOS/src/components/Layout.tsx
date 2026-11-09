@@ -39,7 +39,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
   }, [])
 
   // Auto-fetch latest shop info from DB on mount
-  // ⚠️ IMPORTANT: Do NOT override Poojapitiya branch if the logged-in user belongs to Branch 2.
+  // NOTE: Do NOT override Poojapitiya branch if the logged-in user belongs to Branch 2.
   //    This prevents the layout from resetting back to Katugastota after branch 2 login.
   useEffect(() => {
     // If user is already in Poojapitiya context, skip the DB auto-load
@@ -99,6 +99,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
   ]
 
   const userRole = currentUser?.role || 'cashier'
+  const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin'
   const navItems = allNavItems.filter((item) => item.roles.includes(userRole))
 
   const toggleBranch = () => {
@@ -163,14 +164,18 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
             <div style={{
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
               width: '100%',
-              overflow: 'hidden'
+              background: '#ffffff',
+              borderRadius: 12,
+              padding: '6px 12px',
+              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.25)'
             }}>
               <img
                 src={nexztLogo}
                 alt="Nexzt POS"
                 style={{
-                  height: 36,
+                  height: 32,
                   maxWidth: '100%',
                   objectFit: 'contain',
                   display: 'block'
@@ -256,7 +261,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
         {/* Topbar */}
         <header className="topbar">
           <div className="topbar-left">
-            <button className="branch-pill" onClick={toggleBranch} title="Click to switch branch">
+            <button
+              className="branch-pill"
+              onClick={isOwnerOrAdmin ? toggleBranch : undefined}
+              title={isOwnerOrAdmin ? 'Click to switch branch' : currentShop?.name}
+              style={{ cursor: isOwnerOrAdmin ? 'pointer' : 'default' }}
+            >
               <Store size={14} style={{ color: '#16a34a' }} />
               <span>{currentShop?.name || 'Kandy Branch'}</span>
               <span style={{
@@ -295,17 +305,18 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              background: '#ffffff',
-              border: '1.5px solid #e2e8f0',
+              background: '#0f172a',
+              border: '1.5px solid #1e293b',
               borderRadius: '99px',
               padding: '6px 14px',
               fontSize: '12px',
-              fontWeight: 700,
-              color: '#334155',
+              fontWeight: 800,
+              color: '#22c55e',
               fontFeatureSettings: "'tnum'",
-              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)'
+              letterSpacing: '0.04em',
+              boxShadow: '0 2px 8px rgba(15, 23, 42, 0.15)'
             }}>
-              <Clock size={13} style={{ color: '#64748b' }} />
+              <Clock size={13} style={{ color: '#22c55e' }} />
               <span>{currentTime}</span>
             </div>
           </div>

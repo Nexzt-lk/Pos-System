@@ -46,7 +46,20 @@ export const OrdersPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false)
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [paymentFilter, setPaymentFilter] = useState<string>('all')
-  const [selectedBranchId, setSelectedBranchId] = useState<string>('all')
+  const [selectedBranchId, setSelectedBranchId] = useState<string>(
+    currentShop?.id || 'b0000000-0000-0000-0000-000000000001'
+  )
+
+  const isOwnerOrAdmin = currentUser?.role === 'owner' || currentUser?.role === 'admin'
+  const effectiveBranchId = isOwnerOrAdmin
+    ? selectedBranchId
+    : (currentShop?.id || 'b0000000-0000-0000-0000-000000000001')
+
+  useEffect(() => {
+    if (currentShop?.id) {
+      setSelectedBranchId(currentShop.id)
+    }
+  }, [currentShop?.id])
 
   // Modal / Receipt preview state
   const [selectedOrder, setSelectedOrder] = useState<OrderDto | null>(null)
@@ -54,7 +67,7 @@ export const OrdersPage: React.FC = () => {
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState<boolean>(false)
 
   // Fetch orders for the chosen date
-  const loadOrdersForDate = async (targetDate: Dayjs, branchId: string = selectedBranchId) => {
+  const loadOrdersForDate = async (targetDate: Dayjs, branchId: string = effectiveBranchId) => {
     setLoading(true)
     try {
       const fromStr = targetDate.startOf('day').toISOString()
@@ -138,9 +151,9 @@ export const OrdersPage: React.FC = () => {
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
       // Branch filter
-      if (selectedBranchId !== 'all') {
+      if (effectiveBranchId && effectiveBranchId !== 'all') {
         const orderShopId = (order as any).shopId || (order as any).shop_id || 'b0000000-0000-0000-0000-000000000001'
-        if (orderShopId !== selectedBranchId) return false
+        if (orderShopId !== effectiveBranchId) return false
       }
 
       // Payment filter
@@ -164,9 +177,9 @@ export const OrdersPage: React.FC = () => {
 
       return true
     })
-  }, [orders, paymentFilter, searchQuery])
+  }, [orders, paymentFilter, searchQuery, effectiveBranchId])
 
-  // Calculate day metrics
+  // Calculate day metrics based on current filtered view
   const metrics = useMemo(() => {
     let totalRevenue = 0
     let totalCash = 0
@@ -174,7 +187,7 @@ export const OrdersPage: React.FC = () => {
     let totalDiscounts = 0
     let totalItemsSold = 0
 
-    orders.forEach((o) => {
+    filteredOrders.forEach((o) => {
       totalRevenue += Number(o.totalAmount || 0)
       totalDiscounts += Number(o.discountAmount || 0)
 
@@ -192,15 +205,15 @@ export const OrdersPage: React.FC = () => {
     })
 
     return {
-      orderCount: orders.length,
+      orderCount: filteredOrders.length,
       totalRevenue,
       totalCash,
       totalCard,
       totalDiscounts,
       totalItemsSold,
-      avgOrderValue: orders.length > 0 ? totalRevenue / orders.length : 0
+      avgOrderValue: filteredOrders.length > 0 ? totalRevenue / filteredOrders.length : 0
     }
-  }, [orders])
+  }, [filteredOrders])
 
   // Helper to determine single or mixed payment method
   const getOrderPaymentMethod = (o: OrderDto): string => {
@@ -860,13 +873,13 @@ export const OrdersPage: React.FC = () => {
           }}
         >
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Cash In Drawer
             </div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: '#d97706', marginTop: 2 }}>
+            <div style={{ fontSize: 24, fontWeight: 900, color: '#16a34a', marginTop: 2 }}>
               {formatCurrency(metrics.totalCash)}
             </div>
-            <div style={{ fontSize: 11, color: '#f59e0b', fontWeight: 600, marginTop: 1 }}>
+            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, marginTop: 1 }}>
               Physical currency collected
             </div>
           </div>
@@ -875,12 +888,12 @@ export const OrdersPage: React.FC = () => {
               width: 44,
               height: 44,
               borderRadius: 12,
-              background: '#fffbeb',
-              border: '1px solid #fde68a',
+              background: '#f0fdf4',
+              border: '1px solid #bbf7d0',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#d97706'
+              color: '#16a34a'
             }}
           >
             <Banknote size={22} />
@@ -968,17 +981,34 @@ export const OrdersPage: React.FC = () => {
             ]}
           />
 
-          <Select
-            value={selectedBranchId}
-            onChange={setSelectedBranchId}
-            size="large"
-            style={{ width: 210 }}
-            options={[
-              { value: 'all', label: 'All Branches' },
-              { value: 'b0000000-0000-0000-0000-000000000001', label: 'Katugastota (B1)' },
-              { value: 'b0000000-0000-0000-0000-000000000002', label: 'Poojapitiya (B2)' }
-            ]}
-          />
+          {isOwnerOrAdmin ? (
+            <Select
+              value={selectedBranchId}
+              onChange={setSelectedBranchId}
+              size="large"
+              style={{ width: 210 }}
+              options={[
+                { value: 'all', label: 'All Branches' },
+                { value: 'b0000000-0000-0000-0000-000000000001', label: 'Katugastota (B1)' },
+                { value: 'b0000000-0000-0000-0000-000000000002', label: 'Poojapitiya (B2)' }
+              ]}
+            />
+          ) : (
+            <Tag
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: '#166534',
+                background: '#f0fdf4',
+                borderColor: '#bbf7d0',
+                padding: '6px 12px',
+                borderRadius: 8,
+                margin: 0
+              }}
+            >
+              {currentShop?.name || 'Current Branch'}
+            </Tag>
+          )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
