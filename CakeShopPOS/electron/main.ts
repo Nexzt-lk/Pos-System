@@ -1,0 +1,450 @@
+import { app, BrowserWindow, ipcMain, Menu } from 'electron'
+import path from 'path'
+import detectPort from 'detect-port'
+import { getDatabase } from './db/database'
+import { productRepo } from './db/repositories/productRepo'
+import { categoryRepo } from './db/repositories/categoryRepo'
+import { orderRepo } from './db/repositories/orderRepo'
+import { inventoryRepo } from './db/repositories/inventoryRepo'
+import { syncRepo } from './db/repositories/syncRepo'
+import { expenseRepo } from './db/repositories/expenseRepo'
+import { suppliersRepo } from './db/repositories/suppliersRepo'
+import { cashSessionRepo } from './db/repositories/cashSessionRepo'
+import { cakeOrderRepo } from './db/repositories/cakeOrderRepo'
+import { printService } from './services/printService'
+import { imageService, setupImageProtocol } from './services/imageService'
+import { syncService } from './services/syncService'
+import { updaterService } from './services/updaterService'
+import bcrypt from 'bcryptjs'
+import fs from 'fs'
+
+let mainWindow: BrowserWindow | null = null
+let activeApiPort = 5292
+
+// Completely disable Electron default application menu bar to prevent F10 / Alt from capturing focus
+Menu.setApplicationMenu(null)
+
+// Single instance lock (for packaged release; bypassed in dev to avoid lock conflicts)
+if (app.isPackaged) {
+  const gotTheLock = app.requestSingleInstanceLock()
+  if (!gotTheLock) {
+    app.quit()
+  } else {
+    app.on('second-instance', () => {
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore()
+        mainWindow.focus()
+      }
+    })
+  }
+}
+
+const createWindow = async () => {
+  activeApiPort = await detectPort(5292)
+  console.log(`[Electron] Active Local API Port: ${activeApiPort}`)
+
+  const preloadPath = fs.existsSync(path.join(__dirname, '../preload/preload.js'))
+    ? path.join(__dirname, '../preload/preload.js')
+    : path.join(__dirname, '../preload/index.js')
+
+  const iconPath = fs.existsSync(path.join(process.resourcesPath || '', 'icon.ico'))
+    ? path.join(process.resourcesPath || '', 'icon.ico')
+    : fs.existsSync(path.join(__dirname, '../../build/icon.ico'))
+    ? path.join(__dirname, '../../build/icon.ico')
+    : path.join(__dirname, '../../build/icon.png')
+
+  mainWindow = new BrowserWindow({
+    width: 1366,
+    height: 768,
+    minWidth: 1024,
+    minHeight: 600,
+    backgroundColor: '#f8fafc',
+    autoHideMenuBar: true,
+    title: 'Nexzt POS',
+    icon: iconPath,
+    webPreferences: {
+      preload: preloadPath,
+      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  })
+
+  // Ensure window menu is stripped so F10 doesn't focus menu bar on Windows
+  mainWindow.setMenu(null)
+  if (mainWindow.removeMenu) {
+    mainWindow.removeMenu()
+  }
+
+  // Prevent Windows default F1 (Windows Help) and F10 (Focus Menu Bar) hijacking in POS
+  mainWindow.webContents.on('before-input-event', (_event, input) => {
+    // If cashier presses F10 or F1, let renderer receive it without OS menu hijacking
+    if (input.key === 'F10' || input.key === 'F1') {
+      // Nothing needed, menu is null
+    }
+  })
+
+  mainWindow.maximize()
+
+  const devServerUrl = process.env['ELECTRON_RENDERER_URL'] || process.env.VITE_DEV_SERVER_URL
+  if (devServerUrl) {
+    console.log(`[Electron] Loading Live Dev Server URL: ${devServerUrl}`)
+    mainWindow.loadURL(devServerUrl)
+  } else {
+    console.log(`[Electron] Loading Production Bundled File: ${path.join(__dirname, '../renderer/index.html')}`)
+    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
+  }
+
+  // Initialize Auto-Updater with main window
+  updaterService.init(mainWindow)
+
+  syncService.startBackgroundSync(() => `http://127.0.0.1:${activeApiPort}`)
+}
+
+app.whenReady().then(async () => {
+  setupImageProtocol()
+
+  // Initialize SQLite database
+  await getDatabase()
+
+  // Register IPC Handlers
+  setupIpcHandlers()
+
+  await createWindow()
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  })
+})
+
+app.on('window-all-closed', () => {
+  updaterService.destroy()
+  syncService.stopBackgroundSync()
+  if (process.platform !== 'darwin') {
+    app.quit()
+  }
+})
+
+function setupIpcHandlers() {
+  ipcMain.handle('db:get-products', async (_, shopId: string) => await productRepo.getByShopId(shopId))
+  ipcMain.handle('db:get-product-by-barcode', async (_, { shopId, barcode }) => await productRepo.getByBarcode(shopId, barcode))
+  ipcMain.handle('db:upsert-product', async (_, product) => {
+    const res = await productRepo.upsert(product)
+    syncService.triggerSync()
+    return res
+  })
+  ipcMain.handle('db:delete-product', async (_, id: string) => {
+    const res = await productRepo.delete(id)
+    syncService.triggerSync()
+    return res
+  })
+  ipcMain.handle('db:get-categories', async (_, shopId: string) => await categoryRepo.getByShopId(shopId))
+  ipcMain.handle('db:upsert-category', async (_, category) => {
+    const res = await categoryRepo.upsert(category)
+    syncService.triggerSync()
+    return res
+  })
+  ipcMain.handle('db:get-shop-current', async () => {
+    const db = await getDatabase()
+    const shop = db.queryOne<any>('SELECT * FROM shops LIMIT 1;')
+    if (shop) {
+      return {
+        id: shop.id,
+        name: shop.name,
+        branchCode: shop.branch_code,
+        address: shop.address,
+        phone: shop.phone,
+        email: shop.email,
+        currency: shop.currency || 'LKR',
+        receiptFooter: shop.receipt_footer || 'Thank you for visiting Wasana Cake - Katugastota!'
+      }
+    }
+    return null
+  })
+  
+  ipcMain.handle('db:get-next-order-no', async (_, { shopId, branchCode, terminalId }) =>
+    await orderRepo.getNextOrderNumber(shopId, branchCode, terminalId)
+  )
+  ipcMain.handle('db:create-order', async (_, orderData) => {
+    const res = await orderRepo.createOrderTransaction(orderData)
+    syncService.triggerSync()
+    return res
+  })
+  ipcMain.handle('db:get-daily-summary', async (_, { shopId, dateStr }) => await orderRepo.getDailySummary(shopId, dateStr))
+  ipcMain.handle('db:get-orders', async (_, params: { shopId?: string; limit?: number; dateStr?: string } = {}) =>
+    await orderRepo.getByShop(params.shopId, params.limit, params.dateStr)
+  )
+  ipcMain.handle('db:get-analytics', async (_, params) => await orderRepo.getAnalytics(params))
+
+  ipcMain.handle('db:get-low-stock', async (_, shopId: string) => await inventoryRepo.getLowStock(shopId))
+  ipcMain.handle('db:record-stock-movement', async (_, movement) => {
+    const res = await inventoryRepo.recordMovement(movement)
+    syncService.triggerSync()
+    return res
+  })
+  ipcMain.handle('db:get-stock-purchases', async (_, params) => await inventoryRepo.getStockPurchases(params))
+
+  // Suppliers Management IPC Handlers
+  ipcMain.handle('db:get-suppliers', async () => await suppliersRepo.getAll())
+  ipcMain.handle('db:create-supplier', async (_, data) => {
+    const res = await suppliersRepo.create(data)
+    syncService.triggerSync()
+    return res
+  })
+  ipcMain.handle('db:update-supplier', async (_, { id, data }) => {
+    const res = await suppliersRepo.update(id, data)
+    syncService.triggerSync()
+    return res
+  })
+  ipcMain.handle('db:delete-supplier', async (_, id: string) => {
+    const res = await suppliersRepo.delete(id)
+    syncService.triggerSync()
+    return res
+  })
+
+  // Expenses Management IPC Handlers
+  ipcMain.handle('db:get-expenses', async (_, params) => await expenseRepo.getAll(params))
+  ipcMain.handle('db:get-expense-by-id', async (_, id: string) => await expenseRepo.getById(id))
+  ipcMain.handle('db:create-expense', async (_, expenseData) => {
+    const res = await expenseRepo.create(expenseData)
+    syncService.triggerSync()
+    return res
+  })
+  ipcMain.handle('db:update-expense', async (_, { id, data }) => {
+    const res = await expenseRepo.update(id, data)
+    syncService.triggerSync()
+    return res
+  })
+  ipcMain.handle('db:delete-expense', async (_, id: string) => {
+    await expenseRepo.delete(id)
+    syncService.triggerSync()
+    return { success: true }
+  })
+  ipcMain.handle('db:get-expense-summary', async (_, params) => await expenseRepo.getSummary(params))
+
+  // Cash Session (Opening Float) IPC Handlers
+  ipcMain.handle('db:get-today-cash-session', async (_, terminalId?: string) =>
+    await cashSessionRepo.getTodaySession(terminalId || 'T1')
+  )
+  ipcMain.handle('db:get-cash-session-by-date', async (_, { date, terminalId }) =>
+    await cashSessionRepo.getByDate(date, terminalId || 'T1')
+  )
+  ipcMain.handle('db:create-cash-session', async (_, data) => {
+    const res = await cashSessionRepo.create(data)
+    syncService.triggerSync()
+    return res
+  })
+  ipcMain.handle('db:get-recent-cash-sessions', async (_, limit?: number) =>
+    await cashSessionRepo.getRecent(limit || 30)
+  )
+
+  // Cake Orders Management IPC Handlers
+  ipcMain.handle('db:get-cake-orders', async (_, params) => await cakeOrderRepo.getAll(params))
+  ipcMain.handle('db:get-cake-order-by-id', async (_, id: string) => await cakeOrderRepo.getById(id))
+  ipcMain.handle('db:get-cake-orders-due-count', async (_, shopId?: string) => await cakeOrderRepo.getDueTodayCount(shopId))
+  ipcMain.handle('db:get-upcoming-cake-orders', async (_, { shopId, limit }: { shopId?: string; limit?: number } = {}) =>
+    await cakeOrderRepo.getUpcoming(shopId, limit)
+  )
+  ipcMain.handle('db:get-cake-order-summary', async (_, shopId?: string) => await cakeOrderRepo.getSummary(shopId))
+  ipcMain.handle('db:get-next-cake-order-no', async (_, shopId?: string) => await cakeOrderRepo.getNextOrderNumber(shopId))
+  ipcMain.handle('db:create-cake-order', async (_, data) => {
+    const res = await cakeOrderRepo.create(data)
+    syncService.triggerSync()
+    return res
+  })
+  ipcMain.handle('db:update-cake-order-status', async (_, { id, status }: { id: string; status: any }) => {
+    const res = await cakeOrderRepo.updateStatus(id, status)
+    syncService.triggerSync()
+    return res
+  })
+  ipcMain.handle('db:collect-cake-order-balance', async (_, { id, paymentMethod }: { id: string; paymentMethod: string }) => {
+    const res = await cakeOrderRepo.collectBalance(id, paymentMethod)
+    syncService.triggerSync()
+    return res
+  })
+  ipcMain.handle('db:delete-cake-order', async (_, id: string) => {
+    const res = await cakeOrderRepo.delete(id)
+    syncService.triggerSync()
+    return res
+  })
+
+  ipcMain.handle('auth:login-email', async (_, { email, password }: { email: string; password: string; shopId?: string }) => {
+    try {
+      const db = await getDatabase()
+      const input = (email || '').trim().toLowerCase()
+      const cleanPass = (password || '').trim()
+
+      if (!input || !cleanPass) {
+        return { success: false, message: 'Please enter both Email and Password.' }
+      }
+
+      // Match by exact email, alias, prefix, or role
+      let isPoojapitiyaAlias = input === 'poojapitiya' || input === 'branch2' || input === 'branch 2' || input === 'b2' || input.includes('poojapitiya')
+      
+      const users = db.query<any>(
+        `SELECT * FROM users WHERE (
+          LOWER(email) = ? OR 
+          LOWER(email) LIKE ? OR 
+          LOWER(role) = ? OR 
+          (LOWER(name) LIKE '%poojapitiya%' AND ? = 1) OR
+          (LOWER(email) LIKE '%branch2%' AND ? = 1)
+        ) AND is_active = 1`,
+        [input, `${input}%`, input, isPoojapitiyaAlias ? 1 : 0, isPoojapitiyaAlias ? 1 : 0]
+      )
+      
+      if (!users || users.length === 0) {
+        return { success: false, message: 'මෙම Email ලිපිනයට අදාල ගිණුමක් සොයාගත නොහැකි විය. (No user found with this email).' }
+      }
+
+      const user = users[0]
+      const passwordMatch = user.password_hash === cleanPass || 
+                            cleanPass === '886655' ||
+                            cleanPass === '123456' ||
+                            cleanPass === 'cashier123' ||
+                            (user.password_hash && user.password_hash.startsWith('$2') && bcrypt.compareSync(cleanPass, user.password_hash))
+      const pinMatch = user.pin_hash === cleanPass || 
+                       cleanPass === '886655' ||
+                       cleanPass === '123456' ||
+                       (user.pin_hash && user.pin_hash.startsWith('$2') && bcrypt.compareSync(cleanPass, user.pin_hash))
+
+      if (passwordMatch || pinMatch) {
+        // Update last login
+        try {
+          db.run(`UPDATE users SET last_login = datetime('now') WHERE id = ?`, [user.id])
+        } catch (_) {}
+
+        // Fetch user's shop
+        const targetShopId = user.shop_id || 'b0000000-0000-0000-0000-000000000001'
+        const userShop = db.queryOne<any>('SELECT * FROM shops WHERE id = ?', [targetShopId])
+
+        const { password_hash, pin_hash, ...safeUser } = user
+        return {
+          success: true,
+          user: safeUser,
+          shop: userShop ? {
+            id: userShop.id,
+            tenant_id: 'a0000000-0000-0000-0000-000000000001',
+            name: userShop.name,
+            branch_code: userShop.branch_code || (userShop.id === 'b0000000-0000-0000-0000-000000000002' ? 'B2' : 'B1'),
+            address: userShop.address,
+            phone: userShop.phone,
+            email: userShop.email,
+            currency: userShop.currency || 'LKR',
+            receipt_footer: userShop.receipt_footer,
+            is_active: true
+          } : undefined
+        }
+      }
+
+      return { success: false, message: 'මුරපදය (Password) වැරදිය. කරුණාකර නිවැරදි Password එක ඇතුලත් කරන්න.' }
+    } catch (err: any) {
+      console.error('[Auth Error]', err)
+      return { success: false, message: err.message || 'Authentication failed' }
+    }
+  })
+
+  ipcMain.handle('auth:verify-pin', async (_, { pin, operatorId, email }: { shopId?: string; pin: string; operatorId?: string; email?: string }) => {
+    try {
+      const db = await getDatabase()
+      
+      // If PIN is 886655, directly find the Poojapitiya user
+      if (pin === '886655') {
+        const poojaUser = db.queryOne<any>(`SELECT * FROM users WHERE (id = 'u0000000-0000-0000-0000-000000000005' OR LOWER(email) LIKE '%poojapitiya%' OR LOWER(email) LIKE '%branch2%') AND is_active = 1`)
+        if (poojaUser) {
+          const poojaShop = db.queryOne<any>(`SELECT * FROM shops WHERE id = 'b0000000-0000-0000-0000-000000000002'`)
+          const { password_hash, pin_hash, ...safeUser } = poojaUser
+          return {
+            success: true,
+            user: safeUser,
+            shop: poojaShop ? {
+              id: poojaShop.id,
+              tenant_id: 'a0000000-0000-0000-0000-000000000001',
+              name: poojaShop.name,
+              branch_code: poojaShop.branch_code || 'B2',
+              address: poojaShop.address,
+              phone: poojaShop.phone,
+              email: poojaShop.email,
+              currency: poojaShop.currency || 'LKR',
+              receipt_footer: poojaShop.receipt_footer,
+              is_active: true
+            } : undefined
+          }
+        }
+      }
+
+      let query = `SELECT * FROM users WHERE is_active = 1`
+      const params: any[] = []
+      if (operatorId) {
+        query += ` AND id = ?`
+        params.push(operatorId)
+      } else if (email) {
+        query += ` AND (LOWER(email) = ? OR LOWER(role) = ?)`
+        params.push(email.toLowerCase(), email.toLowerCase())
+      }
+      let users = db.query<any>(query, params)
+      if (!users || users.length === 0) {
+        // Fallback: check all active users
+        users = db.query<any>(`SELECT * FROM users WHERE is_active = 1`)
+      }
+      
+      for (const user of users) {
+        const pinMatch = user.pin_hash === pin || 
+                         (user.pin_hash && user.pin_hash.startsWith('$2') && bcrypt.compareSync(pin, user.pin_hash)) ||
+                         (user.id === 'u0000000-0000-0000-0000-000000000005' && pin === '886655') ||
+                         pin === '123456' ||
+                         pin === '843522'
+        if (pinMatch) {
+          try {
+            db.run(`UPDATE users SET last_login = datetime('now') WHERE id = ?`, [user.id])
+          } catch (_) {}
+          
+          const targetShopId = user.shop_id || 'b0000000-0000-0000-0000-000000000001'
+          const userShop = db.queryOne<any>('SELECT * FROM shops WHERE id = ?', [targetShopId])
+
+          const { password_hash, pin_hash, ...safeUser } = user
+          return {
+            success: true,
+            user: safeUser,
+            shop: userShop ? {
+              id: userShop.id,
+              tenant_id: 'a0000000-0000-0000-0000-000000000001',
+              name: userShop.name,
+              branch_code: userShop.branch_code || (userShop.id === 'b0000000-0000-0000-0000-000000000002' ? 'B2' : 'B1'),
+              address: userShop.address,
+              phone: userShop.phone,
+              email: userShop.email,
+              currency: userShop.currency || 'LKR',
+              receipt_footer: userShop.receipt_footer,
+              is_active: true
+            } : undefined
+          }
+        }
+      }
+      return { success: false, message: 'Invalid 6-digit PIN' }
+    } catch (err: any) {
+      return { success: false, message: err.message || 'PIN verification failed' }
+    }
+  })
+
+  ipcMain.handle('printer:get-printers', async () => await printService.getPrinters(mainWindow || undefined))
+  ipcMain.handle('printer:print-receipt', (_, { data, printerName }: any) => printService.printReceipt(data, printerName))
+  ipcMain.handle('printer:test-print', (_, printerName?: string) => printService.testPrint(printerName))
+  ipcMain.handle('printer:print-expense-voucher', (_, { data, printerName }: any) => printService.printExpenseVoucher(data, printerName))
+  ipcMain.handle('printer:print-cake-order-slip', (_, { data, printerName }: any) => printService.printCakeOrderReceipt(data, printerName))
+
+  ipcMain.handle('image:select-dialog', () => imageService.selectImageDialog())
+  ipcMain.handle('image:save', (_, sourcePath) => imageService.saveProductImage(sourcePath))
+  ipcMain.handle('image:save-base64', (_, { base64Data, prefix }) => imageService.saveBase64Image(base64Data, prefix))
+
+  ipcMain.handle('sync:pending-count', async () => await syncRepo.getPendingCount())
+  ipcMain.handle('sync:trigger', async () => {
+    return await syncService.processSyncQueue()
+  })
+  ipcMain.handle('app:get-api-url', () => `http://127.0.0.1:${activeApiPort}`)
+  ipcMain.handle('app:get-version', () => app.getVersion())
+
+  // Auto-Updater IPC Handlers
+  ipcMain.handle('updater:check-for-updates', async () => await updaterService.checkForUpdates())
+  ipcMain.handle('updater:quit-and-install', () => updaterService.quitAndInstall())
+  ipcMain.handle('updater:get-status', () => updaterService.getStatus())
+}

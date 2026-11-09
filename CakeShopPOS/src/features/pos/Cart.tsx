@@ -1,0 +1,207 @@
+import React from 'react'
+import { Trash2, CreditCard, ShoppingCart, Percent, Tag, ArrowRight, AlertTriangle } from 'lucide-react'
+import { useCartStore } from '../../store/cartStore'
+import { CartItem } from './CartItem'
+import { formatCurrency } from '../../lib/formatters'
+
+import { CartItem as CartItemType } from '../../store/cartStore'
+
+interface CartProps {
+  onOpenPaymentModal: () => void
+  onOpenDiscountModal: () => void
+  onEditItem?: (item: CartItemType) => void
+}
+
+export const Cart: React.FC<CartProps> = ({ onOpenPaymentModal, onOpenDiscountModal, onEditItem }) => {
+  const items = useCartStore((s) => s.items)
+  const updateQuantity = useCartStore((s) => s.updateQuantity)
+  const removeItem = useCartStore((s) => s.removeItem)
+  const clearCart = useCartStore((s) => s.clearCart)
+  const getSubtotal = useCartStore((s) => s.getSubtotal)
+  const getDiscountAmount = useCartStore((s) => s.getDiscountAmount)
+  const getTotalAmount = useCartStore((s) => s.getTotalAmount)
+  const getItemCount = useCartStore((s) => s.getItemCount)
+  const discountValue = useCartStore((s) => s.discountValue)
+  const discountType = useCartStore((s) => s.discountType)
+
+  const subtotal = getSubtotal()
+  const discount = getDiscountAmount()
+  const total = getTotalAmount()
+  const itemCount = getItemCount()
+
+  const stockViolations = items.filter(
+    (item) => item.track_inventory && item.current_stock !== undefined && item.quantity > item.current_stock
+  )
+  const hasStockViolations = stockViolations.length > 0
+
+  return (
+    <div className="cart-panel">
+      {/* Header */}
+      <div className="cart-header">
+        <div className="cart-title">
+          <ShoppingCart size={18} style={{ color: 'var(--primary)' }} />
+          <span>Active Ticket</span>
+          {itemCount > 0 && <span className="cart-count-badge">{itemCount} items</span>}
+        </div>
+
+        {items.length > 0 && (
+          <button className="clear-btn" onClick={clearCart} title="Clear all items (Esc)">
+            <Trash2 size={13} />
+            <span>Clear</span>
+          </button>
+        )}
+      </div>
+
+      {/* Items */}
+      {items.length === 0 ? (
+        <div className="cart-empty">
+          <div className="cart-empty-icon" style={{
+            width: 60,
+            height: 60,
+            borderRadius: '50%',
+            background: '#f8fafc',
+            border: '1.5px dashed #cbd5e1',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 6
+          }}>
+            <ShoppingCart size={24} color="#94a3b8" />
+          </div>
+          <div className="cart-empty-text">No items on this ticket</div>
+          <div className="cart-empty-sub">Tap any cake or scan barcode to add to counter</div>
+        </div>
+      ) : (
+        <div className="cart-items">
+          {items.map((item) => (
+            <CartItem
+              key={item.product_id}
+              item={item}
+              onUpdateQuantity={updateQuantity}
+              onRemoveItem={removeItem}
+              onEditItem={onEditItem}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="cart-footer">
+        {/* Breakdown Rows */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+          <div className="totals-row">
+            <span className="totals-label">Subtotal ({itemCount} {itemCount === 1 ? 'item' : 'items'})</span>
+            <span className="totals-amount">{formatCurrency(subtotal)}</span>
+          </div>
+
+          {discount > 0 && (
+            <div className="totals-row" style={{ color: '#ef4444' }}>
+              <span className="totals-label" style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#ef4444' }}>
+                <Tag size={12} />
+                <span>Discount ({discountType === 'percent' ? `${discountValue}%` : 'LKR'})</span>
+              </span>
+              <span className="totals-amount" style={{ color: '#ef4444', fontWeight: 800 }}>
+                -{formatCurrency(discount)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Dedicated High-Contrast Total Due Display Card */}
+        <div style={{
+          background: 'linear-gradient(135deg, #090d16 0%, #0f172a 100%)',
+          border: '1.5px solid rgba(22, 163, 74, 0.4)',
+          borderRadius: 16,
+          padding: '16px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          margin: '4px 0 12px',
+          boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.3)'
+        }}>
+          <div>
+            <div style={{ fontSize: 10.5, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              Total Payable
+            </div>
+            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, marginTop: 2 }}>
+              Net amount due
+            </div>
+          </div>
+          <div style={{
+            fontSize: 28,
+            fontWeight: 900,
+            color: '#4ade80',
+            letterSpacing: '-0.02em',
+            fontFeatureSettings: "'tnum'"
+          }}>
+            {formatCurrency(total)}
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            type="button"
+            className="discount-btn"
+            onClick={onOpenDiscountModal}
+            disabled={items.length === 0}
+            style={{
+              flex: 1,
+              padding: '11px',
+              borderRadius: 10,
+              border: '1px solid #e2e8f0',
+              background: discountValue > 0 ? '#f0fdf4' : '#ffffff',
+              color: discountValue > 0 ? '#16a34a' : '#475569',
+              fontWeight: 700,
+              fontSize: 12,
+              cursor: items.length === 0 ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6
+            }}
+          >
+            <Percent size={14} />
+            <span>{discountValue > 0 ? 'Edit Discount' : 'Discount'}</span>
+          </button>
+        </div>
+
+        {hasStockViolations && (
+          <div
+            style={{
+              padding: '10px 12px',
+              borderRadius: 10,
+              background: '#fef2f2',
+              border: '1.5px solid #fecaca',
+              color: '#b91c1c',
+              fontSize: 12,
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8
+            }}
+          >
+            <AlertTriangle size={18} color="#dc2626" style={{ flexShrink: 0 }} />
+            <span>
+              Store එකේ තොගයට වඩා වැඩි භාණ්ඩ cart එකේ ඇත. කරුණාකර ප්‍රමාණය අඩු කරන්න.
+            </span>
+          </div>
+        )}
+
+        <button
+          type="button"
+          className="pay-btn"
+          onClick={onOpenPaymentModal}
+          disabled={items.length === 0 || hasStockViolations}
+          style={hasStockViolations ? { background: '#94a3b8', cursor: 'not-allowed', boxShadow: 'none' } : undefined}
+        >
+          <CreditCard size={18} />
+          <span>{hasStockViolations ? 'Stock Exceeded (තොග ඉක්මවා ඇත)' : 'Pay & Print Bill (F4)'}</span>
+          <ArrowRight size={16} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+

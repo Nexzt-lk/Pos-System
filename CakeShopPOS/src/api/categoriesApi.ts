@@ -1,0 +1,112 @@
+import { apiClient } from './apiClient'
+
+export interface CategoryDto {
+  id: string
+  name: string
+  codePrefix?: string
+  code_prefix?: string
+  color: string
+  icon?: string
+  sortOrder?: number
+  sort_order?: number
+  isActive: boolean
+  is_active?: number | boolean
+  createdAt?: string
+  created_at?: string
+}
+
+export interface CreateCategoryRequest {
+  name: string
+  codePrefix: string
+  color?: string
+  icon?: string
+}
+
+export const categoriesApi = {
+  getAll: async (shopId: string = 'b0000000-0000-0000-0000-000000000001'): Promise<CategoryDto[]> => {
+    try {
+      return await apiClient.get<CategoryDto[]>('/categories')
+    } catch (err) {
+      console.warn('[CategoriesApi] REST API failed, trying Electron IPC SQLite:', err)
+      const api = typeof window !== 'undefined' ? (window as any).electronAPI : undefined
+      if (api) {
+        let local: any[] = []
+        if (api.getCategories) {
+          local = await api.getCategories(shopId)
+        } else if (api.dbQuery) {
+          local = await api.dbQuery('db:get-categories', shopId)
+        }
+
+        if (Array.isArray(local) && local.length > 0) {
+          return local.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            codePrefix: c.code_prefix || c.codePrefix,
+            color: c.color || '#6366f1',
+            icon: c.icon || 'cake',
+            sortOrder: c.sort_order ?? c.sortOrder ?? 0,
+            isActive: c.is_active !== undefined ? Boolean(c.is_active) : true,
+            createdAt: c.created_at || c.createdAt
+          }))
+        }
+      }
+      return []
+    }
+  },
+
+  create: async (data: CreateCategoryRequest): Promise<CategoryDto> => {
+    try {
+      return await apiClient.post<CategoryDto>('/categories', data)
+    } catch (err) {
+      const api = typeof window !== 'undefined' ? (window as any).electronAPI : undefined
+      if (api) {
+        const id = (typeof crypto !== 'undefined' && crypto.randomUUID) 
+          ? crypto.randomUUID() 
+          : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0')
+        const payload = {
+          id,
+          name: data.name,
+          code_prefix: data.codePrefix,
+          color: data.color || '#6366f1',
+          icon: data.icon || 'cake',
+          sort_order: 0,
+          is_active: 1
+        }
+        if (api.upsertCategory) {
+          await api.upsertCategory(payload)
+        } else if (api.dbQuery) {
+          await api.dbQuery('db:upsert-category', payload)
+        }
+        return {
+          id,
+          name: data.name,
+          codePrefix: data.codePrefix,
+          color: data.color || '#6366f1',
+          icon: data.icon || 'cake',
+          isActive: true
+        }
+      }
+      throw err
+    }
+  },
+
+  delete: async (id: string): Promise<void> => {
+    try {
+      await apiClient.delete<void>(`/categories/${id}`)
+    } catch (err) {
+      const api = typeof window !== 'undefined' ? (window as any).electronAPI : undefined
+      if (api) {
+        if (api.upsertCategory) {
+          await api.upsertCategory({ id, is_active: 0 })
+        } else if (api.dbQuery) {
+          await api.dbQuery('db:upsert-category', { id, is_active: 0 })
+        }
+        return
+      }
+      throw err
+    }
+  }
+}
+
+export default categoriesApi
+

@@ -1,0 +1,58 @@
+appId: com.nexzt.pos
+productName: Nexzt POS
+copyright: Copyright © 2026 Nexzt POS
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - "out/**/*"
+  - "node_modules/**/*"
+  - "!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}"
+  - "!node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
+  - "package.json"
+
+extraResources:
+  - from: "node_modules/sql.js/dist/sql-wasm.wasm"
+    to: "sql-wasm.wasm"
+  - from: "../database/cakeshop_local.db"
+    to: "database/cakeshop_local.db"
+  - from: "../database/cakeshop_local.db"
+    to: "cakeshop_local.db"
+  - from: "public/images"
+    to: "images"
+  - from: "build/icon.ico"
+    to: "icon.ico"
+
+asar: true
+asarUnpack:
+  - "**/node_modules/sql.js/**/*"
+
+publish:
+  provider: github
+  owner: Nexzt-lk
+  repo: Pos-System
+  releaseType: release
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+  artifactName: "Nexzt-POS-Setup-${version}.${ext}"
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: true
+  deleteAppDataOnUninstall: false
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: "Nexzt POS"
+  runAfterFinish: true
+

@@ -1,0 +1,162 @@
+import React, { useState } from 'react'
+import { Delete, UserCheck } from 'lucide-react'
+import { useAppStore } from '../../store/appStore'
+import nexztIcon from '../../assets/nexzt-icon.png'
+
+export const PINLoginPage: React.FC = () => {
+  const [pin, setPin] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+
+  const currentShop = useAppStore((state) => state.currentShop)
+  const currentTerminalId = useAppStore((state) => state.currentTerminalId)
+  const setUser = useAppStore((state) => state.setUser)
+
+  const handleKeyPress = (num: string) => {
+    if (pin.length < 6 && !isLoading) {
+      setError(null)
+      const newPin = pin + num
+      setPin(newPin)
+      if (newPin.length === 6) {
+        verifyPin(newPin)
+      }
+    }
+  }
+
+  const handleDelete = () => { setError(null); setPin((prev) => prev.slice(0, -1)) }
+  const handleClear = () => { setError(null); setPin('') }
+
+  const verifyPin = async (fullPin: string) => {
+    setIsLoading(true)
+    try {
+      if (window.electronAPI) {
+        const result = await window.electronAPI.dbQuery('auth:verify-pin', {
+          shopId: currentShop?.id,
+          pin: fullPin
+        })
+        if (result.success && result.user) {
+          setUser(result.user)
+        } else {
+          setError('Invalid PIN. Please try again.')
+          setPin('')
+        }
+      } else {
+        if (fullPin === '123456') {
+          setUser({
+            id: 'u0000000-0000-0000-0000-000000000002',
+            tenant_id: currentShop?.tenant_id || '',
+            shop_id: currentShop?.id || '',
+            name: 'Kasun Bandara',
+            role: 'cashier',
+            is_active: true
+          })
+        } else {
+          setError('Invalid PIN — Demo PIN is 123456')
+          setPin('')
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || 'Authentication error')
+      setPin('')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Physical keyboard support for typing PIN directly (0-9, Backspace, Escape)
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isLoading) return
+
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault()
+        handleKeyPress(e.key)
+      } else if (e.key === 'Backspace') {
+        e.preventDefault()
+        handleDelete()
+      } else if (e.key === 'Escape' || e.key === 'Delete') {
+        e.preventDefault()
+        handleClear()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [pin, isLoading])
+
+  return (
+    <div className="pin-screen">
+      <div className="pin-card">
+        {/* Logo */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '6px',
+            background: '#ffffff',
+            borderRadius: 16,
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+            width: 60,
+            height: 60
+          }}>
+            <img
+              src={nexztIcon}
+              alt="Nexzt POS"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                display: 'block'
+              }}
+            />
+          </div>
+        </div>
+
+        <h1 className="pin-title">Wasana Cake</h1>
+        <p className="pin-subtitle">
+          <span className="pin-branch-badge">
+            POS Terminal {currentTerminalId || '01'}
+          </span>
+        </p>
+
+        {/* PIN Dots */}
+        <div className="pin-dots">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className={`pin-dot ${i < pin.length ? 'filled' : ''}`} />
+          ))}
+        </div>
+
+        <div className={`pin-error ${error ? '' : ''}`}>{error || ''}</div>
+        <div className="pin-hint">
+          {isLoading ? 'Verifying PIN...' : pin.length === 0 ? 'Enter your 6-digit cashier PIN' : ''}
+        </div>
+
+        {/* Numpad */}
+        <div className="pin-numpad">
+          {['1','2','3','4','5','6','7','8','9'].map((d) => (
+            <button key={d} className="numpad-key" onClick={() => handleKeyPress(d)} disabled={isLoading}>
+              {d}
+            </button>
+          ))}
+          <button className="numpad-key clear-key" onClick={handleClear} disabled={isLoading || pin.length === 0}>
+            Clear
+          </button>
+          <button className="numpad-key" onClick={() => handleKeyPress('0')} disabled={isLoading}>
+            0
+          </button>
+          <button className="numpad-key delete-key" onClick={handleDelete} disabled={isLoading || pin.length === 0}>
+            <Delete size={20} />
+          </button>
+        </div>
+
+        {/* Demo hint */}
+        <div className="pin-demo-hint">
+          <UserCheck size={14} style={{ color: 'var(--primary)' }} />
+          <span>Demo PIN: <strong>123456</strong></span>
+        </div>
+      </div>
+    </div>
+  )
+}
